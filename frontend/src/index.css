@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { --brand: #0ea5e9; }
+
+.btn { @apply inline-flex items-center rounded-2xl px-4 py-2 font-medium shadow-sm bg-sky-500 text-white hover:bg-sky-600 disabled:opacity-50; }
+.card { @apply bg-white shadow-sm rounded-2xl border p-4; }
+.chip { @apply inline-flex items-center px-2 py-1 text-xs rounded-full border; }
