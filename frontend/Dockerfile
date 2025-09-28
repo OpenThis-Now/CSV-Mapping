@@ -21,8 +21,13 @@ RUN npm run build
 # Install serve to serve the built files
 RUN npm install -g serve
 
+# Create start script for Railway
+RUN echo '#!/bin/sh' > /app/start.sh && \
+    echo 'serve -s dist -l 3000' >> /app/start.sh && \
+    chmod +x /app/start.sh
+
 # Expose port
 EXPOSE 3000
 
-# Start command
-CMD ["serve", "-s", "dist", "-l", "3000"]
+# Use start script
+CMD ["/app/start.sh"]
