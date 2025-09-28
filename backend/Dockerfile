@@ -8,7 +8,7 @@ COPY pyproject.toml /app/pyproject.toml
 COPY app /app/app
 # Kopiera backend_server.py och storage mappen
 COPY backend_server.py /app/backend_server.py
-COPY storage /app/storage
+COPY storage/ /app/storage/
 
 RUN pip install --upgrade pip && pip install -e .
 
