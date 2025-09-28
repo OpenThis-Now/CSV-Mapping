@@ -24,5 +24,10 @@ RUN npm install -g serve
 # Expose port
 EXPOSE 3000
 
-# Serve the built files
-CMD ["serve", "-s", "dist", "-l", "3000"]
+# Create a simple start script
+RUN echo '#!/bin/sh' > /app/start.sh && \
+    echo 'serve -s dist -l 3000' >> /app/start.sh && \
+    chmod +x /app/start.sh
+
+# Use the start script
+CMD ["/app/start.sh"]
