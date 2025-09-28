@@ -6,9 +6,8 @@ WORKDIR /app
 # Build context = backend/, så använd paths utan "backend/"
 COPY pyproject.toml /app/pyproject.toml
 COPY app /app/app
-# Kopiera backend_server.py och storage mappen
+# Kopiera backend_server.py
 COPY backend_server.py /app/backend_server.py
-COPY storage/ /app/storage/
 
 RUN pip install --upgrade pip && pip install -e .
 
