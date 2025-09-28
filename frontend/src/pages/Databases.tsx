@@ -50,9 +50,13 @@ export default function Databases({ activeProjectId }: { activeProjectId?: numbe
       if (isCurrentlySelected) {
         // Remove the database from the project
         await api.delete(`/projects/${projectId}/databases/${databaseId}`);
+        // Also clear the active database if it was this one
+        await api.patch(`/projects/${projectId}`, { active_database_id: null });
       } else {
         // Add the database to the project
         await api.post(`/projects/${projectId}/databases/${databaseId}`);
+        // Also set this as the active database
+        await api.patch(`/projects/${projectId}`, { active_database_id: databaseId });
       }
       
       // Update local state immediately
@@ -62,6 +66,9 @@ export default function Databases({ activeProjectId }: { activeProjectId?: numbe
           ? prev[projectId]?.filter(id => id !== databaseId) || []
           : [...(prev[projectId] || []), databaseId]
       }));
+      
+      // Refresh projects list to update active_database_id display
+      await refresh();
     } catch (error) {
       console.error("Failed to toggle database:", error);
     }
