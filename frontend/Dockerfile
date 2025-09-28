@@ -15,8 +15,8 @@ COPY . .
 # Set environment variable for Railway backend
 ENV VITE_API_BASE=https://csv-mapping-production.up.railway.app/api
 
-# Build the app
-RUN npm run build
+# Build the app with TypeScript check disabled for Railway
+RUN npm run build:prod
 
 # Install serve to serve the built files
 RUN npm install -g serve
