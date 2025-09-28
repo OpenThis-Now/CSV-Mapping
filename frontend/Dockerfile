@@ -1,9 +1,28 @@
-# syntax=docker/dockerfile:1
-FROM node:20-alpine
+# frontend/Dockerfile
+FROM node:18-alpine
 
 WORKDIR /app
-COPY frontend/package.json frontend/package-lock.json* /app/ || true
-RUN npm install
-COPY frontend /app
-EXPOSE 5173
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Set environment variable for Railway backend
+ENV VITE_API_BASE=https://csv-mapping-production.up.railway.app/api
+
+# Build the app
+RUN npm run build
+
+# Install serve to serve the built files
+RUN npm install -g serve
+
+# Expose port
+EXPOSE 3000
+
+# Serve the built files
+CMD ["serve", "-s", "dist", "-l", "3000"]
