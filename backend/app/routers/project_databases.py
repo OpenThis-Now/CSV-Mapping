@@ -33,6 +33,12 @@ def add_database_to_project(project_id: int, database_id: int, session: Session 
     # Create new relation
     project_db = ProjectDatabase(project_id=project_id, database_id=database_id)
     session.add(project_db)
+    
+    # Also set this as the active database if no active database is set
+    if project.active_database_id is None:
+        project.active_database_id = database_id
+        session.add(project)
+    
     session.commit()
     
     return {"message": "Databas tillagd till projekt."}
@@ -53,6 +59,12 @@ def remove_database_from_project(project_id: int, database_id: int, session: Ses
         raise HTTPException(status_code=404, detail="Relation saknas.")
     
     session.delete(project_db)
+    
+    # Also clear the active database if it was this one
+    if project.active_database_id == database_id:
+        project.active_database_id = None
+        session.add(project)
+    
     session.commit()
     
     return {"message": "Databas borttagen från projekt."}
@@ -66,12 +78,16 @@ def get_project_databases(project_id: int, session: Session = Depends(get_sessio
     if not project:
         raise HTTPException(status_code=404, detail="Projekt saknas.")
     
-    # Get all databases for this project
+    # Get all databases for this project from ProjectDatabase table
     project_dbs = session.exec(
         select(ProjectDatabase).where(ProjectDatabase.project_id == project_id)
     ).all()
     
     database_ids = [pd.database_id for pd in project_dbs]
+    
+    # Also include the active database if it exists and is not already in the list
+    if project.active_database_id and project.active_database_id not in database_ids:
+        database_ids.append(project.active_database_id)
     
     if not database_ids:
         return []

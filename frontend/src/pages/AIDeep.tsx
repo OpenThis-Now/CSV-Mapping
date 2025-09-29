@@ -6,7 +6,7 @@ import CountryFlag from "@/components/CountryFlag";
 export default function AIDeep({ projectId }: { projectId: number }) {
   const [results, setResults] = useState<MatchResultItem[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
-  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const { isAnalyzing, thinkingStep, suggestions, startAnalysis, stopAnalysis, approveSuggestion, rejectSuggestion } = useAI();
 
   const refresh = async () => {

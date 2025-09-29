@@ -73,7 +73,11 @@ export default function ImportPage({ projectId }: { projectId: number }) {
       // If already selected, deselect it (set to null), otherwise select it
       const newImportId = isCurrentlySelected ? null : importId;
       
-      await api.patch(`/projects/${projectId}`, { active_import_id: newImportId });
+      console.log("Import.tsx: Toggling import:", { projectId, importId, newImportId, currentProject: project });
+      
+      const response = await api.patch(`/projects/${projectId}`, { active_import_id: newImportId });
+      console.log("Import.tsx: PATCH response:", response.data);
+      
       await refreshProject();
     } catch (error) {
       console.error("Failed to toggle import:", error);

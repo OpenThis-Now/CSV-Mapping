@@ -4,17 +4,47 @@ import api, { Project } from "@/lib/api";
 export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: number, name: string) => void; selectedProjectId?: number | null }) {
   const [name, setName] = useState("");
   const [list, setList] = useState<Project[]>([]);
+  const [lastRefresh, setLastRefresh] = useState<number>(Date.now());
 
   const refresh = async () => {
     try {
+      console.log("Projects.tsx: Refreshing project list...");
       const r = await api.get<Project[]>("/projects/list");
+      console.log("Projects.tsx: Received project data:", r.data);
+      console.log("Projects.tsx: Number of projects received:", r.data.length);
+      console.log("Projects.tsx: Project names:", r.data.map(p => p.name));
       setList(r.data);
+      setLastRefresh(Date.now());
     } catch (e) {
-      console.error(e);
+      console.error("Projects.tsx: Error refreshing:", e);
     }
   };
 
   useEffect(() => { refresh(); }, []);
+  
+  // Refresh when the page becomes visible or when user clicks on it
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log("Projects.tsx: Window focus detected, refreshing...");
+      refresh();
+    };
+    
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log("Projects.tsx: Page visible, refreshing...");
+        refresh();
+      }
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+  
 
   const create = async () => {
     if (!name.trim()) return;
@@ -40,7 +70,15 @@ export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: n
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Projects</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold">Projects</h1>
+        <button 
+          onClick={refresh}
+          className="px-3 py-1 text-sm bg-blue-100 text-blue-700 border border-blue-300 rounded hover:bg-blue-200"
+        >
+          Refresh
+        </button>
+      </div>
       <div className="card flex gap-2">
         <input className="border rounded-xl px-3 py-2 flex-1" placeholder="Project name" value={name} onChange={e => setName(e.target.value)} />
         <button className="btn" onClick={create}>Create</button>

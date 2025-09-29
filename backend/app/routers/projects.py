@@ -25,39 +25,53 @@ def create_project(payload: ProjectCreateRequest, session: Session = Depends(get
 
 
 @router.patch("/projects/{project_id}", response_model=ProjectResponse)
-def patch_project(project_id: int, payload: ProjectPatchRequest, session: Session = Depends(get_session)) -> ProjectResponse:
+def patch_project(project_id: int, payload: dict, session: Session = Depends(get_session)) -> ProjectResponse:
     p = session.get(Project, project_id)
     if not p:
         raise HTTPException(status_code=404, detail="Projekt saknas.")
-    if hasattr(payload, 'active_database_id') and payload.active_database_id is not None:
-        db = session.get(DatabaseCatalog, payload.active_database_id)
-        if not db:
-            raise HTTPException(status_code=404, detail="Databas saknas.")
-        old = p.active_database_id
-        p.active_database_id = db.id
-        session.add(ProjectLog(project_id=p.id, message=f"Bytte aktiv databas: {old} -> {db.id}"))
-    elif hasattr(payload, 'active_database_id') and payload.active_database_id is None:
-        old = p.active_database_id
-        p.active_database_id = None
-        session.add(ProjectLog(project_id=p.id, message=f"Avbockade aktiv databas: {old} -> None"))
     
-    if hasattr(payload, 'active_import_id') and payload.active_import_id is not None:
-        from ..models import ImportFile
-        imp = session.get(ImportFile, payload.active_import_id)
-        if not imp:
-            raise HTTPException(status_code=404, detail="Importfil saknas.")
-        old = p.active_import_id
-        p.active_import_id = imp.id
-        session.add(ProjectLog(project_id=p.id, message=f"Bytte aktiv import: {old} -> {imp.id}"))
-    elif hasattr(payload, 'active_import_id') and payload.active_import_id is None:
-        old = p.active_import_id
-        p.active_import_id = None
-        session.add(ProjectLog(project_id=p.id, message=f"Avbockade aktiv import: {old} -> None"))
-    if payload.status is not None:
-        p.status = payload.status
+    # Only update fields that are explicitly provided in the payload
+    if 'active_database_id' in payload:
+        if payload['active_database_id'] is not None:
+            db = session.get(DatabaseCatalog, payload['active_database_id'])
+            if not db:
+                raise HTTPException(status_code=404, detail="Databas saknas.")
+            old = p.active_database_id
+            p.active_database_id = db.id
+            session.add(ProjectLog(project_id=p.id, message=f"Bytte aktiv databas: {old} -> {db.id}"))
+        else:
+            old = p.active_database_id
+            p.active_database_id = None
+            session.add(ProjectLog(project_id=p.id, message=f"Avbockade aktiv databas: {old} -> None"))
+    
+    if 'active_import_id' in payload:
+        if payload['active_import_id'] is not None:
+            from ..models import ImportFile
+            imp = session.get(ImportFile, payload['active_import_id'])
+            if not imp:
+                raise HTTPException(status_code=404, detail="Importfil saknas.")
+            old = p.active_import_id
+            p.active_import_id = imp.id
+            session.add(ProjectLog(project_id=p.id, message=f"Bytte aktiv import: {old} -> {imp.id}"))
+        else:
+            old = p.active_import_id
+            p.active_import_id = None
+            session.add(ProjectLog(project_id=p.id, message=f"Avbockade aktiv import: {old} -> None"))
+    
+    if 'status' in payload and payload['status'] is not None:
+        p.status = payload['status']
+    
     session.add(p)
     session.commit()
     session.refresh(p)
+    
+    print(f"DEBUG: After commit - active_database_id: {p.active_database_id}, active_import_id: {p.active_import_id}")
+    
+    # Let's also check what's in the database directly
+    from sqlmodel import select
+    db_project = session.exec(select(Project).where(Project.id == p.id)).first()
+    print(f"DEBUG: Direct DB query - active_database_id: {db_project.active_database_id}, active_import_id: {db_project.active_import_id}")
+    
     return ProjectResponse(id=p.id, name=p.name, status=p.status, active_database_id=p.active_database_id, active_import_id=p.active_import_id)
 
 

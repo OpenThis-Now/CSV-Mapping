@@ -7,6 +7,7 @@ export default function Databases({ activeProjectId }: { activeProjectId?: numbe
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectDatabases, setProjectDatabases] = useState<Record<number, number[]>>({});
   const [uploading, setUploading] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<number>(Date.now());
   
   const refresh = async () => {
     const [databasesRes, projectsRes] = await Promise.all([
@@ -27,9 +28,30 @@ export default function Databases({ activeProjectId }: { activeProjectId?: numbe
       }
     }
     setProjectDatabases(relations);
+    setLastRefresh(Date.now());
   };
   
   useEffect(() => { refresh(); }, []);
+  
+  // Refresh when activeProjectId changes (e.g., when a new project is created)
+  useEffect(() => { 
+    if (activeProjectId) {
+      refresh(); 
+    }
+  }, [activeProjectId]);
+  
+  // Also refresh when component becomes visible (in case user navigated from projects page)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        refresh();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+  
 
   const onFile = async (file: File) => {
     const fd = new FormData();
@@ -59,15 +81,7 @@ export default function Databases({ activeProjectId }: { activeProjectId?: numbe
         await api.patch(`/projects/${projectId}`, { active_database_id: databaseId });
       }
       
-      // Update local state immediately
-      setProjectDatabases(prev => ({
-        ...prev,
-        [projectId]: isCurrentlySelected 
-          ? prev[projectId]?.filter(id => id !== databaseId) || []
-          : [...(prev[projectId] || []), databaseId]
-      }));
-      
-      // Refresh projects list to update active_database_id display
+      // Refresh everything to get the latest state from backend
       await refresh();
     } catch (error) {
       console.error("Failed to toggle database:", error);
@@ -90,7 +104,15 @@ export default function Databases({ activeProjectId }: { activeProjectId?: numbe
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Databases</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold">Databases</h1>
+        <button 
+          onClick={refresh}
+          className="px-3 py-1 text-sm bg-blue-100 text-blue-700 border border-blue-300 rounded hover:bg-blue-200"
+        >
+          Refresh
+        </button>
+      </div>
       <UploadArea onFile={onFile} />
       {uploading && <div className="text-sm opacity-70">Uploading...</div>}
       

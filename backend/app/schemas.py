@@ -26,9 +26,9 @@ class ProjectCreateRequest(BaseModel):
 
 
 class ProjectPatchRequest(BaseModel):
-    active_database_id: Optional[int] = None
-    active_import_id: Optional[int] = None
-    status: Optional[str] = None
+    active_database_id: Optional[int] = Field(default=None)
+    active_import_id: Optional[int] = Field(default=None)
+    status: Optional[str] = Field(default=None)
 
 
 class ProjectResponse(BaseModel):

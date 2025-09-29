@@ -29,7 +29,7 @@ export function AIProvider({ children }: { children: ReactNode }) {
   const startAnalysis = async (projectId: number, selectedIndices: number[]) => {
     // Warn if too many rows selected
     if (selectedIndices.length > 10) {
-      showToast(`AI analysis limited to first 10 rows (${selectedIndices.length} selected). Consider analyzing in smaller batches.`, 'warning');
+      showToast(`AI analysis limited to first 10 rows (${selectedIndices.length} selected). Consider analyzing in smaller batches.`, 'info');
     }
     
     setIsAnalyzing(true);
