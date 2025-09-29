@@ -172,8 +172,8 @@ def ai_suggest(project_id: int, req: AiSuggestRequest, session: Session = Depend
             session.add(s)
             session.commit()
             
-            # Auto-approve if this is the recommended match (rank 1) with high confidence
-            if rank == 1 and s.confidence >= 0.9:
+            # Auto-approve if this is the recommended match (rank 1) with 100% confidence
+            if rank == 1 and s.confidence >= 1.0:
                 # Find the corresponding MatchResult from the latest match run and auto-approve it
                 latest_run = session.exec(
                     select(MatchRun).where(MatchRun.project_id == project_id).order_by(MatchRun.started_at.desc())
