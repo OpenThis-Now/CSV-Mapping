@@ -19,6 +19,7 @@ class Settings(BaseSettings):
 
     # Server / DB
     DATABASE_URL: str = Field(default="sqlite:///storage/app.db")
+    POSTGRES_URL: str | None = Field(default=None)
     
     # Environment detection
     ENVIRONMENT: str = Field(default="development")
@@ -74,6 +75,15 @@ def ensure_storage_dirs() -> None:
 
 def get_environment_db_path() -> str:
     """Get environment-specific database path."""
+    # Use PostgreSQL if available (Railway add-on)
+    if settings.POSTGRES_URL:
+        return settings.POSTGRES_URL
+    
+    # Use the DATABASE_URL from environment if set, otherwise use defaults
+    if settings.DATABASE_URL != "sqlite:///storage/app.db":
+        return settings.DATABASE_URL
+    
+    # Fallback to environment-specific paths
     if settings.ENVIRONMENT == "production":
         return "sqlite:///storage/production.db"
     elif settings.ENVIRONMENT == "staging":
