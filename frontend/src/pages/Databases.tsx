@@ -177,8 +177,8 @@ export default function Databases({ activeProjectId }: { activeProjectId?: numbe
                     </button>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2">
-                    <div className="font-medium">{db.name}</div>
+                  <div className="font-medium flex items-center gap-2">
+                    {db.name}
                     <button
                       onClick={() => startEdit(db)}
                       className="text-gray-400 hover:text-gray-600 text-sm"
