@@ -1,10 +1,23 @@
 import { useEffect, useState } from "react";
 import api, { Project, DatabaseListItem } from "@/lib/api";
 
+type ProjectStats = {
+  total_products: number;
+  status_breakdown: {
+    pending: number;
+    auto_approved: number;
+    approved: number;
+    not_approved: number;
+    sent_to_ai: number;
+    ai_auto_approved: number;
+  };
+};
+
 export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: number | null, name: string | null) => void; selectedProjectId?: number | null }) {
   const [name, setName] = useState("");
   const [list, setList] = useState<Project[]>([]);
   const [databases, setDatabases] = useState<DatabaseListItem[]>([]);
+  const [projectStats, setProjectStats] = useState<Record<number, ProjectStats>>({});
   const [lastRefresh, setLastRefresh] = useState<number>(Date.now());
 
   const refresh = async () => {
@@ -21,6 +34,27 @@ export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: n
       
       setList(projectsRes.data);
       setDatabases(databasesRes.data);
+      
+      // Fetch stats for each project
+      const statsPromises = projectsRes.data.map(async (project) => {
+        try {
+          const statsRes = await api.get<ProjectStats>(`/projects/${project.id}/stats`);
+          return { projectId: project.id, stats: statsRes.data };
+        } catch (error) {
+          console.error(`Failed to fetch stats for project ${project.id}:`, error);
+          return { projectId: project.id, stats: null };
+        }
+      });
+      
+      const statsResults = await Promise.all(statsPromises);
+      const statsMap: Record<number, ProjectStats> = {};
+      statsResults.forEach(({ projectId, stats }) => {
+        if (stats) {
+          statsMap[projectId] = stats;
+        }
+      });
+      setProjectStats(statsMap);
+      
       setLastRefresh(Date.now());
     } catch (e) {
       console.error("Projects.tsx: Error refreshing:", e);
@@ -34,6 +68,25 @@ export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: n
     if (!databaseId) return "-";
     const database = databases.find(db => db.id === databaseId);
     return database ? database.name : `DB ${databaseId}`;
+  };
+
+  // Helper function to format status counts
+  const formatStatusCounts = (stats: ProjectStats | undefined): string => {
+    if (!stats || stats.total_products === 0) return "Inga produkter";
+    
+    const breakdown = stats.status_breakdown;
+    const parts = [];
+    
+    if (breakdown.approved > 0) parts.push(`✅ ${breakdown.approved}`);
+    if (breakdown.auto_approved > 0) parts.push(`🤖 ${breakdown.auto_approved}`);
+    if (breakdown.ai_auto_approved > 0) parts.push(`🧠 ${breakdown.ai_auto_approved}`);
+    if (breakdown.pending > 0) parts.push(`⏳ ${breakdown.pending}`);
+    if (breakdown.sent_to_ai > 0) parts.push(`🔍 ${breakdown.sent_to_ai}`);
+    if (breakdown.not_approved > 0) parts.push(`❌ ${breakdown.not_approved}`);
+    
+    if (parts.length === 0) return `${stats.total_products} produkter`;
+    
+    return `${stats.total_products} produkter (${parts.join(', ')})`;
   };
   
   // Refresh when the page becomes visible or when user clicks on it
@@ -94,9 +147,10 @@ export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: n
       <div className="grid gap-2">
         {list.map(p => (
           <div key={p.id} className="card flex items-center justify-between">
-            <div>
+            <div className="flex-1">
               <div className="font-medium">{p.name}</div>
-              <div className="text-xs opacity-70">Status: {p.status} · Active DB: {getDatabaseName(p.active_database_id)}</div>
+              <div className="text-xs opacity-70 mb-1">Status: {p.status} · Active DB: {getDatabaseName(p.active_database_id)}</div>
+              <div className="text-xs text-gray-600">{formatStatusCounts(projectStats[p.id])}</div>
             </div>
             <div className="flex gap-2">
               {selectedProjectId === p.id ? (
