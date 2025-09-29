@@ -79,6 +79,7 @@ def list_databases(session: Session = Depends(get_session)) -> list[DatabaseList
 
 @router.patch("/databases/{database_id}")
 def update_database(database_id: int, payload: dict, session: Session = Depends(get_session)) -> dict[str, str]:
+    """Update database name or other fields"""
     db = session.get(DatabaseCatalog, database_id)
     if not db:
         raise HTTPException(status_code=404, detail="Databas saknas.")
