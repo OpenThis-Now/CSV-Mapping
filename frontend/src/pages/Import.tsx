@@ -105,12 +105,7 @@ export default function ImportPage({ projectId }: { projectId: number }) {
       <UploadArea onFile={onFile} />
       {uploading && <div className="text-sm opacity-70">Uploading...</div>}
       {status && <div className="chip">{status}</div>}
-      {last && (
-        <div className="card">
-          <div className="font-medium mb-2">Auto-mapping</div>
-          <pre className="text-xs bg-gray-50 p-3 rounded-xl">{JSON.stringify(last.columns_map_json, null, 2)}</pre>
-        </div>
-      )}
+      {/* Auto-mapping display removed for cleaner UI */}
       
       <div className="space-y-3">
         <h2 className="text-lg font-medium">Uploaded files</h2>
