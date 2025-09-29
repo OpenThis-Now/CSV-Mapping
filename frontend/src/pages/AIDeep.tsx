@@ -31,6 +31,22 @@ export default function AIDeep({ projectId }: { projectId: number }) {
     await startAnalysis(projectId, selectedAiResults);
   };
 
+  const handleApproveSuggestion = async (suggestion: AiSuggestionItem) => {
+    await approveSuggestion(suggestion, projectId);
+    // Remove from selected list since it's no longer available for AI
+    setSelected(prev => prev.filter(id => id !== suggestion.customer_row_index));
+    // Refresh the results to update the decision status
+    await refresh();
+  };
+
+  const handleRejectSuggestion = async (suggestion: AiSuggestionItem) => {
+    await rejectSuggestion(suggestion, projectId);
+    // Remove from selected list since it's no longer available for AI
+    setSelected(prev => prev.filter(id => id !== suggestion.customer_row_index));
+    // Refresh the results to update the decision status
+    await refresh();
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
@@ -275,13 +291,13 @@ export default function AIDeep({ projectId }: { projectId: number }) {
                               <div className="flex gap-3 mt-3">
                                 <button 
                                   className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
-                                  onClick={() => approveSuggestion(item.details.suggestion, projectId)}
+                                  onClick={() => handleApproveSuggestion(item.details.suggestion)}
                                 >
                                   Select this match
                                 </button>
                                 <button 
                                   className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
-                                  onClick={() => rejectSuggestion(item.details.suggestion, projectId)}
+                                  onClick={() => handleRejectSuggestion(item.details.suggestion)}
                                 >
                                   Reject
                                 </button>
