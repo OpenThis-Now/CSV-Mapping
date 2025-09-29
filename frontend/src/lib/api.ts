@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: (import.meta as any).env?.VITE_API_BASE || "https://csv-mapping-production.up.railway.app/api",
+  baseURL: (import.meta as any).env?.VITE_API_BASE || "https://csv-mapping-backend-stagning-experimental.up.railway.app/api",
 });
 
 export default api;
