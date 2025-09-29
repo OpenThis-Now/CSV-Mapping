@@ -92,12 +92,27 @@ function AppContent() {
               }`}>
                 {projectName ?? "None selected"}
               </div>
+              {projectName && (
+                <button 
+                  className="px-2 py-1 text-xs bg-gray-100 text-gray-600 border border-gray-300 rounded hover:bg-gray-200"
+                  onClick={() => {
+                    setProjectId(null);
+                    setProjectName(null);
+                  }}
+                  title="Clear project selection"
+                >
+                  ✕
+                </button>
+              )}
             </div>
           </div>
         </div>
       </header>
       <main className="max-w-6xl mx-auto p-4 space-y-4">
-        {view === "projects" && <Projects onOpen={(id, name) => { setProjectId(id); setProjectName(name); }} selectedProjectId={projectId} />}
+        {view === "projects" && <Projects onOpen={(id, name) => { 
+          setProjectId(id || null); 
+          setProjectName(name || null); 
+        }} selectedProjectId={projectId} />}
         {view === "databases" && <Databases activeProjectId={projectId} />}
         {view === "import" && projectId && <ImportPage projectId={projectId} />}
         {view === "match" && projectId && <MatchPage projectId={projectId} />}
