@@ -1,7 +1,24 @@
 import axios from "axios";
 
+// Smart environment detection
+const getBaseURL = () => {
+  // Check if we're on experimental environment
+  if (window.location.hostname.includes('stagning-experimental')) {
+    return "https://csv-mapping-backend-stagning-experimental.up.railway.app/api";
+  }
+  
+  // Check environment variable first
+  const envURL = (import.meta as any).env?.VITE_API_BASE;
+  if (envURL) {
+    return envURL;
+  }
+  
+  // Default to production
+  return "https://csv-mapping-production.up.railway.app/api";
+};
+
 const api = axios.create({
-  baseURL: (import.meta as any).env?.VITE_API_BASE || "https://csv-mapping-production.up.railway.app/api",
+  baseURL: getBaseURL(),
 });
 
 export default api;

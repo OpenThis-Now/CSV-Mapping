@@ -19,6 +19,9 @@ class Settings(BaseSettings):
 
     # Server / DB
     DATABASE_URL: str = Field(default="sqlite:///storage/app.db")
+    
+    # Environment detection
+    ENVIRONMENT: str = Field(default="development")
     ECHO_SQL: bool = Field(default=False)
 
     # Uploads & security
@@ -74,3 +77,13 @@ def ensure_storage_dirs() -> None:
     """Create storage directories if missing."""
     for d in (settings.STORAGE_ROOT, settings.DATABASES_DIR, settings.IMPORTS_DIR, settings.EXPORTS_DIR, settings.TMP_DIR):
         Path(d).mkdir(parents=True, exist_ok=True)
+
+
+def get_environment_db_path() -> str:
+    """Get environment-specific database path."""
+    if settings.ENVIRONMENT == "production":
+        return "sqlite:///storage/production.db"
+    elif settings.ENVIRONMENT == "staging":
+        return "sqlite:///storage/experimental.db"
+    else:
+        return settings.DATABASE_URL

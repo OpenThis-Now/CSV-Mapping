@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import api, { Project } from "@/lib/api";
 
-export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: number, name: string) => void; selectedProjectId?: number | null }) {
+export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: number | null, name: string | null) => void; selectedProjectId?: number | null }) {
   const [name, setName] = useState("");
   const [list, setList] = useState<Project[]>([]);
   const [lastRefresh, setLastRefresh] = useState<number>(Date.now());
@@ -92,8 +92,11 @@ export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: n
             </div>
             <div className="flex gap-2">
               {selectedProjectId === p.id ? (
-                <button className="chip bg-green-100 text-green-800 border-green-300 font-semibold" disabled>
-                  Selected
+                <button 
+                  className="chip bg-green-100 text-green-800 border-green-300 font-semibold hover:bg-green-200" 
+                  onClick={() => onOpen(null, "")}
+                >
+                  Selected ✓
                 </button>
               ) : (
                 <button className="chip" onClick={() => onOpen(p.id, p.name)}>Open</button>

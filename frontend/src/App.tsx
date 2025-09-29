@@ -97,7 +97,10 @@ function AppContent() {
         </div>
       </header>
       <main className="max-w-6xl mx-auto p-4 space-y-4">
-        {view === "projects" && <Projects onOpen={(id, name) => { setProjectId(id); setProjectName(name); }} selectedProjectId={projectId} />}
+        {view === "projects" && <Projects onOpen={(id, name) => { 
+          setProjectId(id || null); 
+          setProjectName(name || null); 
+        }} selectedProjectId={projectId} />}
         {view === "databases" && <Databases activeProjectId={projectId} />}
         {view === "import" && projectId && <ImportPage projectId={projectId} />}
         {view === "match" && projectId && <MatchPage projectId={projectId} />}

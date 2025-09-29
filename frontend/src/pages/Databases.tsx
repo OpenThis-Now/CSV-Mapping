@@ -8,6 +8,8 @@ export default function Databases({ activeProjectId }: { activeProjectId?: numbe
   const [projectDatabases, setProjectDatabases] = useState<Record<number, number[]>>({});
   const [uploading, setUploading] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<number>(Date.now());
+  const [editingDatabase, setEditingDatabase] = useState<number | null>(null);
+  const [editName, setEditName] = useState<string>("");
   
   const refresh = async () => {
     const [databasesRes, projectsRes] = await Promise.all([
@@ -102,6 +104,33 @@ export default function Databases({ activeProjectId }: { activeProjectId?: numbe
     }
   };
 
+  const startEdit = (database: DatabaseListItem) => {
+    setEditingDatabase(database.id);
+    setEditName(database.name);
+  };
+
+  const cancelEdit = () => {
+    setEditingDatabase(null);
+    setEditName("");
+  };
+
+  const saveEdit = async (databaseId: number) => {
+    if (!editName.trim()) {
+      alert("Database name cannot be empty");
+      return;
+    }
+    
+    try {
+      await api.patch(`/databases/${databaseId}`, { name: editName.trim() });
+      setEditingDatabase(null);
+      setEditName("");
+      await refresh();
+    } catch (error) {
+      console.error("Failed to update database name:", error);
+      alert("Could not update database name. Please try again.");
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -121,7 +150,44 @@ export default function Databases({ activeProjectId }: { activeProjectId?: numbe
           <div key={db.id} className="card">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <div className="font-medium">{db.name}</div>
+                {editingDatabase === db.id ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="px-2 py-1 border border-gray-300 rounded text-sm font-medium"
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') saveEdit(db.id);
+                        if (e.key === 'Escape') cancelEdit();
+                      }}
+                    />
+                    <button
+                      onClick={() => saveEdit(db.id)}
+                      className="px-2 py-1 text-xs bg-green-100 text-green-700 border border-green-300 rounded hover:bg-green-200"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={cancelEdit}
+                      className="px-2 py-1 text-xs bg-gray-100 text-gray-700 border border-gray-300 rounded hover:bg-gray-200"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <div className="font-medium flex items-center gap-2">
+                    {db.name}
+                    <button
+                      onClick={() => startEdit(db)}
+                      className="text-gray-400 hover:text-gray-600 text-sm"
+                      title="Edit database name"
+                    >
+                      ✏️
+                    </button>
+                  </div>
+                )}
                 <div className="text-xs text-gray-500 mt-1">
                   Uploaded: <span className="font-bold">{new Date(db.created_at).toLocaleDateString('en-US')}</span> {new Date(db.created_at).toLocaleTimeString('en-US')}
                 </div>
