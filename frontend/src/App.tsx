@@ -87,7 +87,7 @@ function AppContent() {
               <span className="text-sm text-gray-600">Project:</span>
               <div className={`px-3 py-2 rounded-lg border text-sm font-semibold ${
                 projectName 
-                  ? 'bg-green-100 text-green-800 border-green-300' 
+                  ? 'bg-gray-200 text-gray-700 border-gray-300' 
                   : 'bg-gray-100 text-gray-500 border-gray-300'
               }`}>
                 {projectName ?? "None selected"}
