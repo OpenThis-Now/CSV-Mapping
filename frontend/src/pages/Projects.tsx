@@ -71,22 +71,24 @@ export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: n
   };
 
   // Helper function to format status counts
-  const formatStatusCounts = (stats: ProjectStats | undefined): string => {
-    if (!stats || stats.total_products === 0) return "Inga produkter";
+  const formatStatusCounts = (stats: ProjectStats | undefined) => {
+    if (!stats || stats.total_products === 0) {
+      return {
+        total: 0,
+        matched: 0,
+        actionRequired: 0,
+        notAvailable: 0
+      };
+    }
     
     const breakdown = stats.status_breakdown;
-    const parts = [];
     
-    if (breakdown.approved > 0) parts.push(`✅ ${breakdown.approved}`);
-    if (breakdown.auto_approved > 0) parts.push(`🤖 ${breakdown.auto_approved}`);
-    if (breakdown.ai_auto_approved > 0) parts.push(`🧠 ${breakdown.ai_auto_approved}`);
-    if (breakdown.pending > 0) parts.push(`⏳ ${breakdown.pending}`);
-    if (breakdown.sent_to_ai > 0) parts.push(`🔍 ${breakdown.sent_to_ai}`);
-    if (breakdown.not_approved > 0) parts.push(`❌ ${breakdown.not_approved}`);
-    
-    if (parts.length === 0) return `${stats.total_products} produkter`;
-    
-    return `${stats.total_products} produkter (${parts.join(', ')})`;
+    return {
+      total: stats.total_products,
+      matched: breakdown.approved + breakdown.auto_approved + breakdown.ai_auto_approved,
+      actionRequired: breakdown.pending + breakdown.sent_to_ai,
+      notAvailable: breakdown.not_approved
+    };
   };
   
   // Refresh when the page becomes visible or when user clicks on it
@@ -145,28 +147,43 @@ export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: n
         <button className="btn" onClick={create}>Create</button>
       </div>
       <div className="grid gap-2">
-        {list.map(p => (
-          <div key={p.id} className="card flex items-center justify-between">
-            <div className="flex-1">
-              <div className="font-medium">{p.name}</div>
-              <div className="text-xs opacity-70 mb-1">Status: {p.status} · Active DB: {getDatabaseName(p.active_database_id)}</div>
-              <div className="text-xs text-gray-600">{formatStatusCounts(projectStats[p.id])}</div>
+        {list.map(p => {
+          const counts = formatStatusCounts(projectStats[p.id]);
+          return (
+            <div key={p.id} className="card flex items-center justify-between">
+              <div className="flex-1">
+                <div className="font-medium">{p.name}</div>
+                <div className="text-xs opacity-70 mb-2">Status: {p.status} · Active DB: {getDatabaseName(p.active_database_id)}</div>
+                
+                {counts.total > 0 ? (
+                  <div className="space-y-1">
+                    <div className="font-semibold text-base text-gray-900">{counts.total} products</div>
+                    <div className="flex gap-3 text-xs text-gray-600">
+                      <span>{counts.matched} Matched</span>
+                      <span>{counts.actionRequired} Action required</span>
+                      <span>{counts.notAvailable} Not available in database</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-xs text-gray-500">No products</div>
+                )}
+                </div>
+              <div className="flex gap-2">
+                {selectedProjectId === p.id ? (
+                  <button 
+                    className="chip bg-green-100 text-green-800 border-green-300 font-semibold hover:bg-green-200" 
+                    onClick={() => onOpen(null, "")}
+                  >
+                    Selected ✓
+                  </button>
+                ) : (
+                  <button className="chip" onClick={() => onOpen(p.id, p.name)}>Open</button>
+                )}
+                <button className="chip bg-red-100 text-red-700 hover:bg-red-200" onClick={() => deleteProject(p.id)}>Delete</button>
+              </div>
             </div>
-            <div className="flex gap-2">
-              {selectedProjectId === p.id ? (
-                <button 
-                  className="chip bg-green-100 text-green-800 border-green-300 font-semibold hover:bg-green-200" 
-                  onClick={() => onOpen(null, "")}
-                >
-                  Selected ✓
-                </button>
-              ) : (
-                <button className="chip" onClick={() => onOpen(p.id, p.name)}>Open</button>
-              )}
-              <button className="chip bg-red-100 text-red-700 hover:bg-red-200" onClick={() => deleteProject(p.id)}>Delete</button>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
