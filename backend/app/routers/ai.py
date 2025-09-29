@@ -20,52 +20,67 @@ router = APIRouter()
 def build_ai_prompt(customer_row, db_sample, mapping, k: int) -> str:
     import textwrap
     return textwrap.dedent(f"""
-        You are an expert in product matching. Your job is to rank the best {k} candidates from the database against the given customer row, tolerate typos, and clearly flag any market/language differences.
+        You are an expert in product matching. Rank the best {k} candidates from the database against the given customer row, tolerate typos, and clearly flag any market/language differences. Return ONLY a JSON array with {k} objects.
 
         — Core rules —
-        1) Prioritize hard identifiers over text:
-           GTIN/EAN/UPC (strongest) > exact article/SKU > manufacturer part number (MPN) > supplier name/aliases > product name tokens > attributes/specs.
-        2) Typos & normalization:
-           - Normalize strings: lowercase, trim, collapse whitespace, remove punctuation, ignore diacritics (ö≈o, å≈a), expand common abbreviations (AB/Ltd/GmbH), and strip company suffixes.
-           - Use fuzzy token matching: accept minor Levenshtein/Jaro-Winkler differences; treat digit transpositions cautiously (e.g., 12345 vs 12354 = penalty).
-           - Do not invent identifiers. If an identifier is missing, say so.
+        1) Evidence priority:
+           GTIN/EAN/UPC > exact article/SKU/MPN > supplier (incl. aliases) > product name tokens > attributes/specs.
+
+        2) Canonicalization & typo tolerance:
+           - Normalize: lowercase, trim, collapse whitespace, remove punctuation & hyphens, strip company suffixes (AB/Inc/Co/Company/Ltd/GmbH), remove "The".
+           - Diacritics: normalize (ö→o, å→a, etc.).
+           - Article/SKU normalization: remove spaces/slashes/dots, unify case, strip leading zeros.
+           - Accept *single-edit* typos/transpositions and common OCR confusions in identifiers (0↔O, 1↔I↔l, 5↔S, 8↔B) **only if** all other evidence is consistent. Do not invent identifiers.
+
         3) Language & market policy (IMPORTANT):
-           - Language MUST NOT be wrong. Prefer candidates in the same language as the customer row.
-           - Cross-language matches are allowed only if strong identifiers (GTIN/EAN/UPC or exact article/SKU) align; otherwise lower confidence sharply.
-           - Market can differ, but reduce confidence and clearly flag the other market.
-        4) Supplier brand variance:
-           - Supplier/brand may differ due to distributors, subsidiaries, or private labels. Do not disqualify solely on supplier mismatch if strong identifiers align; explain the relationship if visible.
-        5) Variants:
-           - Penalize mismatches on size/model/revision/package count/color; call out variant risks explicitly.
-        6) Confidence (0..1):
-           - Start from evidence: 
-             * +0.9–1.0 for exact GTIN/EAN/UPC + matching name tokens; 
-             * +0.75–0.9 for exact article/SKU + high name/supplier similarity;
-             * +0.5–0.75 for strong partials; 
-             * <0.5 when mainly contextual.
-           - Apply deductions (cap at 0, floor at 0):
-             * −0.25 language mismatch (unless exact GTIN/EAN/UPC → cap deduction at −0.1).
-             * −0.10 to −0.20 market mismatch (severity by region distance).
-             * −0.10 supplier alias uncertainty.
-             * −0.15 likely variant differences.
+           - Language MUST match; otherwise cap confidence at ≤0.49.
+           - Market may differ; if so, explicitly flag it and apply a deduction (see scoring). Market must match for 1.0.
+
+        4) Supplier/brand variance:
+           - Treat distributor/private-label/subsidiary names as potential aliases if canonical tokens overlap strongly (e.g., "Sherwinn Williams" ≈ "The Sherwin-Williams Company"). Do not penalize alias when strong identifiers align.
+
+        5) Variant control:
+           - Variant tokens (e.g., "Part A/B", size, revision, pack count, color) must match; otherwise apply a significant penalty.
+
+        — Confidence scoring (0..1) —
+        A) Exact canonical match → set confidence = **1.0** when ALL are true:
+           - Language identical.
+           - Market identical.
+           - Article/SKU/MPN or GTIN are **equal after canonicalization** (per Rule 2).
+           - Product name token set equivalent after normalization (parentheses/hyphens ignored).
+           - Variant tokens equivalent (e.g., both "Part B").
+           - No contradictory evidence.
+           (Do not deduct for supplier alias/typo in this case.)
+
+        B) Otherwise start from evidence and deduct:
+           - Start points:
+             * 0.95 if exact article/SKU/MPN match (canonicalized) and names align strongly.
+             * 0.90 if GTIN/EAN/UPC match but minor name drift.
+             * 0.75–0.89 strong partials (identifier partials + high token similarity).
+             * 0.50–0.74 contextual/industry matches with weak identifiers.
+           - Deductions (sum; floor at 0):
+             * −0.20 market mismatch (severity by region distance).
+             * −0.25 language mismatch (cap total at ≤0.49 if language differs).
+             * −0.10 supplier alias uncertainty (skip if Exact canonical match).
+             * −0.15 variant risk (e.g., Part A vs Part B, different size/revision).
              * −0.10 inconsistent identifiers across sources.
-        7) Never hallucinate. If unsure, state uncertainty and why.
 
         — What to return —
-        Return ONLY a JSON array with exactly {k} objects (if fewer plausible candidates exist, still return {k} with lowest-confidence items last). 
-        Each object MUST have:
+        Return ONLY a JSON array with exactly {k} objects. Each object MUST include:
         - "database_fields_json": the unmodified database row (as a JSON object)
         - "confidence": number 0..1
-        - "rationale": concise, balanced explanation in English that MUST include:
-           * Match summary (Exact/Strong/Partial/Weak)
-           * Evidence: identifiers, name/supplier/article similarities (mention typos if corrected)
-           * Any market/language differences and their impact (explicitly flag: e.g., "OTHER MARKET: US vs SE"; "LANGUAGE MISMATCH: EN vs SV")
-           * Variant considerations (if any)
-           * Whether better alternatives likely exist in the current candidate set
+        - "rationale": 2–6 sentences in English that MUST include:
+           * Match summary: Exact/Strong/Partial/Weak
+           * Evidence (identifiers, name/supplier/article similarities; mention typo corrections)
+           * Market/language differences and impact (explicit flags: "OTHER MARKET: …"; "LANGUAGE MISMATCH: …")
+           * Variant considerations
+           * Whether better alternatives likely exist in this candidate set
 
-        — Tone & formatting —
-        - Keep rationale to 2–6 sentences. Use short evidence phrases like: "GTIN match", "SKU transposition", "Supplier alias (Brand X by Supplier Y)".
-        - Do not include any text before or after the JSON array.
+        — Calibration examples (for the model; do not output) —
+        Example 1 — should be 1.0:
+        Input: name "HEAT-FLEX 1200 PLUS (Part B) Hardener", supplier "Sherwinn Williams", art.no "B59V01200", market "Canada", language "English".
+        Candidate: name identical, supplier "The Sherwin-Williams Company", art.no "B59V1200", market "Canada", language "English".
+        Reasoning: article number equal after canonicalization (extra '0' removed); supplier alias; identical variant "Part B"; same market/language → **Exact canonical match; confidence 1.0**.
 
         Customer row to match:
         {json.dumps(customer_row, ensure_ascii=False)}
