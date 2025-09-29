@@ -1,19 +1,60 @@
 import { useEffect, useState } from "react";
-import api, { Project } from "@/lib/api";
+import api, { Project, DatabaseListItem } from "@/lib/api";
+
+type ProjectStats = {
+  total_products: number;
+  status_breakdown: {
+    pending: number;
+    auto_approved: number;
+    approved: number;
+    not_approved: number;
+    sent_to_ai: number;
+    ai_auto_approved: number;
+  };
+};
 
 export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: number | null, name: string | null) => void; selectedProjectId?: number | null }) {
   const [name, setName] = useState("");
   const [list, setList] = useState<Project[]>([]);
+  const [databases, setDatabases] = useState<DatabaseListItem[]>([]);
+  const [projectStats, setProjectStats] = useState<Record<number, ProjectStats>>({});
   const [lastRefresh, setLastRefresh] = useState<number>(Date.now());
 
   const refresh = async () => {
     try {
       console.log("Projects.tsx: Refreshing project list...");
-      const r = await api.get<Project[]>("/projects/list");
-      console.log("Projects.tsx: Received project data:", r.data);
-      console.log("Projects.tsx: Number of projects received:", r.data.length);
-      console.log("Projects.tsx: Project names:", r.data.map(p => p.name));
-      setList(r.data);
+      const [projectsRes, databasesRes] = await Promise.all([
+        api.get<Project[]>("/projects/list"),
+        api.get<DatabaseListItem[]>("/databases")
+      ]);
+      
+      console.log("Projects.tsx: Received project data:", projectsRes.data);
+      console.log("Projects.tsx: Number of projects received:", projectsRes.data.length);
+      console.log("Projects.tsx: Project names:", projectsRes.data.map(p => p.name));
+      
+      setList(projectsRes.data);
+      setDatabases(databasesRes.data);
+      
+      // Fetch stats for each project
+      const statsPromises = projectsRes.data.map(async (project) => {
+        try {
+          const statsRes = await api.get<ProjectStats>(`/projects/${project.id}/stats`);
+          return { projectId: project.id, stats: statsRes.data };
+        } catch (error) {
+          console.error(`Failed to fetch stats for project ${project.id}:`, error);
+          return { projectId: project.id, stats: null };
+        }
+      });
+      
+      const statsResults = await Promise.all(statsPromises);
+      const statsMap: Record<number, ProjectStats> = {};
+      statsResults.forEach(({ projectId, stats }) => {
+        if (stats) {
+          statsMap[projectId] = stats;
+        }
+      });
+      setProjectStats(statsMap);
+      
       setLastRefresh(Date.now());
     } catch (e) {
       console.error("Projects.tsx: Error refreshing:", e);
@@ -21,6 +62,34 @@ export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: n
   };
 
   useEffect(() => { refresh(); }, []);
+  
+  // Helper function to get database name by ID
+  const getDatabaseName = (databaseId: number | null): string => {
+    if (!databaseId) return "-";
+    const database = databases.find(db => db.id === databaseId);
+    return database ? database.name : `DB ${databaseId}`;
+  };
+
+  // Helper function to format status counts
+  const formatStatusCounts = (stats: ProjectStats | undefined) => {
+    if (!stats || stats.total_products === 0) {
+      return {
+        total: 0,
+        matched: 0,
+        actionRequired: 0,
+        notAvailable: 0
+      };
+    }
+    
+    const breakdown = stats.status_breakdown;
+    
+    return {
+      total: stats.total_products,
+      matched: breakdown.approved + breakdown.auto_approved + breakdown.ai_auto_approved,
+      actionRequired: breakdown.pending + breakdown.sent_to_ai,
+      notAvailable: breakdown.not_approved
+    };
+  };
   
   // Refresh when the page becomes visible or when user clicks on it
   useEffect(() => {
@@ -72,39 +141,107 @@ export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: n
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Projects</h1>
-        <button 
-          onClick={refresh}
-          className="px-3 py-1 text-sm bg-blue-100 text-blue-700 border border-blue-300 rounded hover:bg-blue-200"
-        >
-          Refresh
-        </button>
       </div>
       <div className="card flex gap-2">
         <input className="border rounded-xl px-3 py-2 flex-1" placeholder="Project name" value={name} onChange={e => setName(e.target.value)} />
         <button className="btn" onClick={create}>Create</button>
       </div>
       <div className="grid gap-2">
-        {list.map(p => (
-          <div key={p.id} className="card flex items-center justify-between">
-            <div>
-              <div className="font-medium">{p.name}</div>
-              <div className="text-xs opacity-70">Status: {p.status} · Active DB: {p.active_database_id ?? "-"}</div>
+        {list.map(p => {
+          const counts = formatStatusCounts(projectStats[p.id]);
+          const pctCompleted = counts.total > 0 ? ((counts.matched + counts.notAvailable) / counts.total) * 100 : 0;
+          
+          const Stat = ({ label, value }: { label: string; value: number }) => (
+            <div className="flex flex-col">
+              <span className="text-2xl font-semibold leading-none tracking-tight">{value}</span>
+              <span className="text-xs text-gray-600">{label}</span>
             </div>
-            <div className="flex gap-2">
-              {selectedProjectId === p.id ? (
-                <button 
-                  className="chip bg-green-100 text-green-800 border-green-300 font-semibold hover:bg-green-200" 
-                  onClick={() => onOpen(null, "")}
-                >
-                  Selected ✓
-                </button>
-              ) : (
-                <button className="chip" onClick={() => onOpen(p.id, p.name)}>Open</button>
-              )}
-              <button className="chip bg-red-100 text-red-700 hover:bg-red-200" onClick={() => deleteProject(p.id)}>Delete</button>
+          );
+
+          const Pill = ({ children }: { children: React.ReactNode }) => (
+            <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">
+              {children}
+            </span>
+          );
+
+          return (
+            <div key={p.id} className="card shadow-sm">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex-1">
+                  <div className="font-medium text-lg mb-1">{p.name}</div>
+                  <div className="text-xs text-gray-500 mb-3">Status: {p.status} · Active DB: {getDatabaseName(p.active_database_id)}</div>
+                  
+                  {counts.total > 0 ? (
+                    <div className="space-y-4">
+                      {/* Header with total */}
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-gray-900">Products</span>
+                        <Pill>{counts.total} total</Pill>
+                      </div>
+
+                      {/* KPI row */}
+                      <div className="grid grid-cols-3 gap-4">
+                        <Stat label="Matched" value={counts.matched} />
+                        <Stat label="Action required" value={counts.actionRequired} />
+                        <Stat label="No match found" value={counts.notAvailable} />
+                      </div>
+
+                      {/* Progress bar */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-xs text-gray-500">
+                          <span>Progress</span>
+                          <span>{Math.round(pctCompleted)}% completed</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                            style={{ width: `${pctCompleted}%` }}
+                          ></div>
+                        </div>
+                      </div>
+
+                      {/* Status badges */}
+                      <div className="flex flex-wrap gap-2">
+                        {counts.matched > 0 && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
+                            ✓ {counts.matched} matched
+                          </span>
+                        )}
+                        {counts.actionRequired > 0 && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-1 text-xs font-medium text-yellow-800">
+                            ⚠ {counts.actionRequired} action required
+                          </span>
+                        )}
+                        {counts.notAvailable > 0 && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">
+                            ✗ {counts.notAvailable} no match found
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-gray-500">No products</div>
+                  )}
+                </div>
+                
+                {/* Action buttons */}
+                <div className="flex flex-col gap-2 ml-4">
+                  {selectedProjectId === p.id ? (
+                    <button 
+                      className="chip bg-green-100 text-green-800 border-green-300 font-semibold hover:bg-green-200" 
+                      onClick={() => onOpen(null, "")}
+                    >
+                      Selected ✓
+                    </button>
+                  ) : (
+                    <button className="chip" onClick={() => onOpen(p.id, p.name)}>Open</button>
+                  )}
+                  <button className="chip bg-red-100 text-red-700 hover:bg-red-200" onClick={() => deleteProject(p.id)}>Delete</button>
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
