@@ -149,7 +149,7 @@ export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: n
       <div className="grid gap-2">
         {list.map(p => {
           const counts = formatStatusCounts(projectStats[p.id]);
-          const pctMatched = counts.total > 0 ? (counts.matched / counts.total) * 100 : 0;
+          const pctCompleted = counts.total > 0 ? ((counts.matched + counts.notAvailable) / counts.total) * 100 : 0;
           
           const Stat = ({ label, value }: { label: string; value: number }) => (
             <div className="flex flex-col">
@@ -190,12 +190,12 @@ export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: n
                       <div className="space-y-2">
                         <div className="flex items-center justify-between text-xs text-gray-500">
                           <span>Progress</span>
-                          <span>{Math.round(pctMatched)}% matched</span>
+                          <span>{Math.round(pctCompleted)}% completed</span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2">
                           <div 
                             className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-                            style={{ width: `${pctMatched}%` }}
+                            style={{ width: `${pctCompleted}%` }}
                           ></div>
                         </div>
                       </div>
