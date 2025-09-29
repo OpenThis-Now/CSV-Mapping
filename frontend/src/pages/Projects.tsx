@@ -1,19 +1,26 @@
 import { useEffect, useState } from "react";
-import api, { Project } from "@/lib/api";
+import api, { Project, DatabaseListItem } from "@/lib/api";
 
 export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: number | null, name: string | null) => void; selectedProjectId?: number | null }) {
   const [name, setName] = useState("");
   const [list, setList] = useState<Project[]>([]);
+  const [databases, setDatabases] = useState<DatabaseListItem[]>([]);
   const [lastRefresh, setLastRefresh] = useState<number>(Date.now());
 
   const refresh = async () => {
     try {
       console.log("Projects.tsx: Refreshing project list...");
-      const r = await api.get<Project[]>("/projects/list");
-      console.log("Projects.tsx: Received project data:", r.data);
-      console.log("Projects.tsx: Number of projects received:", r.data.length);
-      console.log("Projects.tsx: Project names:", r.data.map(p => p.name));
-      setList(r.data);
+      const [projectsRes, databasesRes] = await Promise.all([
+        api.get<Project[]>("/projects/list"),
+        api.get<DatabaseListItem[]>("/databases")
+      ]);
+      
+      console.log("Projects.tsx: Received project data:", projectsRes.data);
+      console.log("Projects.tsx: Number of projects received:", projectsRes.data.length);
+      console.log("Projects.tsx: Project names:", projectsRes.data.map(p => p.name));
+      
+      setList(projectsRes.data);
+      setDatabases(databasesRes.data);
       setLastRefresh(Date.now());
     } catch (e) {
       console.error("Projects.tsx: Error refreshing:", e);
@@ -21,6 +28,13 @@ export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: n
   };
 
   useEffect(() => { refresh(); }, []);
+  
+  // Helper function to get database name by ID
+  const getDatabaseName = (databaseId: number | null): string => {
+    if (!databaseId) return "-";
+    const database = databases.find(db => db.id === databaseId);
+    return database ? database.name : `DB ${databaseId}`;
+  };
   
   // Refresh when the page becomes visible or when user clicks on it
   useEffect(() => {
@@ -88,7 +102,7 @@ export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: n
           <div key={p.id} className="card flex items-center justify-between">
             <div>
               <div className="font-medium">{p.name}</div>
-              <div className="text-xs opacity-70">Status: {p.status} · Active DB: {p.active_database_id ?? "-"}</div>
+              <div className="text-xs opacity-70">Status: {p.status} · Active DB: {getDatabaseName(p.active_database_id)}</div>
             </div>
             <div className="flex gap-2">
               {selectedProjectId === p.id ? (
