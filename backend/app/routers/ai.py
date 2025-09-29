@@ -20,33 +20,58 @@ router = APIRouter()
 def build_ai_prompt(customer_row, db_sample, mapping, k: int) -> str:
     import textwrap
     return textwrap.dedent(f"""
-        You are an expert at product matching. Analyze the customer row against the best {k} candidates from the database.
-        
-        IMPORTANT: You can suggest products from ANY market/language, not just the customer's market. 
-        If you find a better match in a different market/language, explain why it's better and mention the market difference.
-        
-        Return a JSON array with {k} objects. Each object should contain:
-        - "database_fields_json": the entire database row (as JSON object)
-        - "confidence": number 0..1 (how confident you are in the match)
-        - "rationale": balanced explanation in English that describes:
-          * Why this is a good match OR why it is not
-          * Specific similarities/differences in product name, supplier, article number
-          * Market/language differences and why they matter (or don't matter)
-          * Reasoning about why this match is best/worst
-          * Whether there are other better alternatives or not
-        
-        Examples of good rationale:
-        - "Exact match: All critical identifiers match perfectly. This is a secure match because both product name, supplier and article number are identical. No better match exists in the database."
-        - "Strong match from different market: Product name and supplier match perfectly, but this is from USA market while customer is Canada. The product appears to be the same but for different regional market. This is likely the same product with regional variations."
-        - "No exact match found. Best candidate shares construction industry context but product name differs significantly. Supplier is different but within the same industry. This match is uncertain because the product name doesn't match. No other better alternatives identified in the database."
-        
+        You are an expert in product matching. Your job is to rank the best {k} candidates from the database against the given customer row, tolerate typos, and clearly flag any market/language differences.
+
+        — Core rules —
+        1) Prioritize hard identifiers over text:
+           GTIN/EAN/UPC (strongest) > exact article/SKU > manufacturer part number (MPN) > supplier name/aliases > product name tokens > attributes/specs.
+        2) Typos & normalization:
+           - Normalize strings: lowercase, trim, collapse whitespace, remove punctuation, ignore diacritics (ö≈o, å≈a), expand common abbreviations (AB/Ltd/GmbH), and strip company suffixes.
+           - Use fuzzy token matching: accept minor Levenshtein/Jaro-Winkler differences; treat digit transpositions cautiously (e.g., 12345 vs 12354 = penalty).
+           - Do not invent identifiers. If an identifier is missing, say so.
+        3) Language & market policy (IMPORTANT):
+           - Language MUST NOT be wrong. Prefer candidates in the same language as the customer row.
+           - Cross-language matches are allowed only if strong identifiers (GTIN/EAN/UPC or exact article/SKU) align; otherwise lower confidence sharply.
+           - Market can differ, but reduce confidence and clearly flag the other market.
+        4) Supplier brand variance:
+           - Supplier/brand may differ due to distributors, subsidiaries, or private labels. Do not disqualify solely on supplier mismatch if strong identifiers align; explain the relationship if visible.
+        5) Variants:
+           - Penalize mismatches on size/model/revision/package count/color; call out variant risks explicitly.
+        6) Confidence (0..1):
+           - Start from evidence: 
+             * +0.9–1.0 for exact GTIN/EAN/UPC + matching name tokens; 
+             * +0.75–0.9 for exact article/SKU + high name/supplier similarity;
+             * +0.5–0.75 for strong partials; 
+             * <0.5 when mainly contextual.
+           - Apply deductions (cap at 0, floor at 0):
+             * −0.25 language mismatch (unless exact GTIN/EAN/UPC → cap deduction at −0.1).
+             * −0.10 to −0.20 market mismatch (severity by region distance).
+             * −0.10 supplier alias uncertainty.
+             * −0.15 likely variant differences.
+             * −0.10 inconsistent identifiers across sources.
+        7) Never hallucinate. If unsure, state uncertainty and why.
+
+        — What to return —
+        Return ONLY a JSON array with exactly {k} objects (if fewer plausible candidates exist, still return {k} with lowest-confidence items last). 
+        Each object MUST have:
+        - "database_fields_json": the unmodified database row (as a JSON object)
+        - "confidence": number 0..1
+        - "rationale": concise, balanced explanation in English that MUST include:
+           * Match summary (Exact/Strong/Partial/Weak)
+           * Evidence: identifiers, name/supplier/article similarities (mention typos if corrected)
+           * Any market/language differences and their impact (explicitly flag: e.g., "OTHER MARKET: US vs SE"; "LANGUAGE MISMATCH: EN vs SV")
+           * Variant considerations (if any)
+           * Whether better alternatives likely exist in the current candidate set
+
+        — Tone & formatting —
+        - Keep rationale to 2–6 sentences. Use short evidence phrases like: "GTIN match", "SKU transposition", "Supplier alias (Brand X by Supplier Y)".
+        - Do not include any text before or after the JSON array.
+
         Customer row to match:
         {json.dumps(customer_row, ensure_ascii=False)}
-        
+
         Database candidates to analyze:
         {json.dumps(db_sample[: 3 * k], ensure_ascii=False)}
-        
-        Return only JSON array without any other text.
     """).strip()
 
 
