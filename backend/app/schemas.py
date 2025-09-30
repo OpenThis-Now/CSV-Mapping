@@ -99,3 +99,7 @@ class AiSuggestionItem(BaseModel):
     confidence: float
     rationale: str
     source: str
+
+
+class CombineImportsRequest(BaseModel):
+    import_ids: list[int] = Field(default_factory=list)

@@ -10,7 +10,7 @@ from sqlmodel import Session, select
 from ..config import settings
 from ..db import get_session
 from ..models import ImportFile, Project
-from ..schemas import ImportUploadResponse
+from ..schemas import ImportUploadResponse, CombineImportsRequest
 from ..services.files import check_upload, compute_hash_and_save, open_text_stream
 from ..services.mapping import auto_map_headers
 from ..services.pdf_processor import process_pdf_files, create_csv_from_pdf_data
@@ -110,12 +110,13 @@ def list_pdf_import_files(project_id: int, session: Session = Depends(get_sessio
 
 
 @router.post("/projects/{project_id}/combine-imports", response_model=ImportUploadResponse)
-def combine_import_files(project_id: int, import_ids: List[int], session: Session = Depends(get_session)) -> ImportUploadResponse:
+def combine_import_files(project_id: int, req: CombineImportsRequest, session: Session = Depends(get_session)) -> ImportUploadResponse:
     """Kombinera flera import-filer till en enda fil"""
     p = session.get(Project, project_id)
     if not p:
         raise HTTPException(status_code=404, detail="Projekt saknas.")
     
+    import_ids = req.import_ids
     if not import_ids:
         raise HTTPException(status_code=400, detail="Inga import-ID:n angivna.")
     
