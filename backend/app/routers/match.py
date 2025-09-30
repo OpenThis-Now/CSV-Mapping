@@ -62,9 +62,15 @@ def run_matching(project_id: int, req: MatchRequest, session: Session = Depends(
             if field not in imp.columns_map_json:
                 log.warning(f"Missing mapping for field '{field}' in import {imp.id}")
             else:
-                log.info(f"Field '{field}' mapped to column '{imp.columns_map_json[field]}'")
+                log.info(f"Customer field '{field}' mapped to column '{imp.columns_map_json[field]}'")
         
-        for row_index, crow, dbrow, meta in run_match(cust_csv, db_csv, imp.columns_map_json, thr):
+        for field in required_fields:
+            if field not in db.columns_map_json:
+                log.warning(f"Missing mapping for field '{field}' in database {db.id}")
+            else:
+                log.info(f"Database field '{field}' mapped to column '{db.columns_map_json[field]}'")
+        
+        for row_index, crow, dbrow, meta in run_match(cust_csv, db_csv, imp.columns_map_json, db.columns_map_json, thr):
             mr = MatchResult(
                 match_run_id=run.id,
                 customer_row_index=row_index,

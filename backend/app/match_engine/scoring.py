@@ -28,9 +28,9 @@ def numeric_penalty(customer_text: str, db_text: str, penalty: int) -> int:
     return 0
 
 
-def score_pair(customer_row: dict[str, Any], db_row: dict[str, Any], mapping: dict[str, str], thr: Thresholds) -> dict[str, Any]:
-    cv, cp, cs = (customer_row.get(mapping["vendor"], ""), customer_row.get(mapping["product"], ""), customer_row.get(mapping["sku"], ""))
-    dv, dp, ds = db_row.get(mapping["vendor"], ""), db_row.get(mapping["product"], ""), db_row.get(mapping["sku"], "")
+def score_pair(customer_row: dict[str, Any], db_row: dict[str, Any], customer_mapping: dict[str, str], db_mapping: dict[str, str], thr: Thresholds) -> dict[str, Any]:
+    cv, cp, cs = (customer_row.get(customer_mapping["vendor"], ""), customer_row.get(customer_mapping["product"], ""), customer_row.get(customer_mapping["sku"], ""))
+    dv, dp, ds = db_row.get(db_mapping["vendor"], ""), db_row.get(db_mapping["product"], ""), db_row.get(db_mapping["sku"], "")
 
     # Check if customer data is missing - if so, reject immediately
     if not cv.strip() and not cp.strip() and not cs.strip():
@@ -44,10 +44,10 @@ def score_pair(customer_row: dict[str, Any], db_row: dict[str, Any], mapping: di
         }
 
     # Check market and language compatibility
-    customer_market = customer_row.get(mapping.get("market", "Market"), "").strip()
-    customer_language = customer_row.get(mapping.get("language", "Language"), "").strip()
-    db_market = db_row.get(mapping.get("market", "Market"), "").strip()
-    db_language = db_row.get(mapping.get("language", "Language"), "").strip()
+    customer_market = customer_row.get(customer_mapping.get("market", "Market"), "").strip()
+    customer_language = customer_row.get(customer_mapping.get("language", "Language"), "").strip()
+    db_market = db_row.get(db_mapping.get("market", "Market"), "").strip()
+    db_language = db_row.get(db_mapping.get("language", "Language"), "").strip()
 
     # If market or language don't match, reject the match completely
     if customer_market and db_market and customer_market.lower() != db_market.lower():

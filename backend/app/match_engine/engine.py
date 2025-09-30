@@ -10,7 +10,7 @@ from .thresholds import Thresholds
 from ..services.mapping import auto_map_headers
 
 
-def run_match(customer_csv: Path, db_csv: Path, mapping: dict[str, str] | None, thresholds: Thresholds, limit: int | None = None) -> Iterator[tuple[int, dict[str, Any], dict[str, Any], dict[str, Any]]]:
+def run_match(customer_csv: Path, db_csv: Path, customer_mapping: dict[str, str] | None, db_mapping: dict[str, str] | None, thresholds: Thresholds, limit: int | None = None) -> Iterator[tuple[int, dict[str, Any], dict[str, Any], dict[str, Any]]]:
     from ..services.files import detect_csv_separator
     
     # Detect separators
@@ -40,12 +40,6 @@ def run_match(customer_csv: Path, db_csv: Path, mapping: dict[str, str] | None, 
         except Exception as e:
             raise Exception(f"Kunde inte läsa databasfilen: {str(e)}")
     
-    if mapping is None:
-        mapping = auto_map_headers(db_df.columns)
-    
-    # Use the provided mapping for customer data, but ensure database columns are available
-    db_records = db_df.to_dict(orient="records")
-
     # Read customer CSV with encoding handling
     customer_df = None
     for encoding in ["utf-8", "utf-8-sig", "latin-1", "cp1252", "iso-8859-1"]:
@@ -69,6 +63,16 @@ def run_match(customer_csv: Path, db_csv: Path, mapping: dict[str, str] | None, 
         except Exception as e:
             raise Exception(f"Kunde inte läsa kundfilen: {str(e)}")
 
+    # Use database mapping if provided, otherwise auto-map
+    if db_mapping is None:
+        db_mapping = auto_map_headers(db_df.columns)
+    
+    # Use customer mapping if provided, otherwise auto-map
+    if customer_mapping is None:
+        customer_mapping = auto_map_headers(customer_df.columns)
+    
+    db_records = db_df.to_dict(orient="records")
+
     for idx, crow in enumerate(customer_df.to_dict(orient="records")):
         if limit is not None and idx >= limit:
             break
@@ -80,7 +84,7 @@ def run_match(customer_csv: Path, db_csv: Path, mapping: dict[str, str] | None, 
         print(f"Processing customer row {idx}: {crow}")
         
         for db_idx, db_row in enumerate(db_records):
-            meta = score_pair(crow, db_row, mapping, thresholds)
+            meta = score_pair(crow, db_row, customer_mapping, db_mapping, thresholds)
             if meta["overall"] > best_score:
                 best_score = meta["overall"]
                 best_meta, best_db = meta, db_row
