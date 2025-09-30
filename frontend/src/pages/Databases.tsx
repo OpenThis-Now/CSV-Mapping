@@ -194,7 +194,7 @@ export default function Databases({ activeProjectId }: { activeProjectId?: numbe
                   </div>
                 )}
                 <div className="text-xs opacity-70">
-                  {db.row_count} products
+                  {db.row_count || 0} products
                 </div>
                 <div className="text-xs text-gray-500 mt-1">
                   Uploaded: <span className="font-bold">{new Date(db.created_at).toLocaleDateString('en-US')}</span> {new Date(db.created_at).toLocaleTimeString('en-US')}
