@@ -78,7 +78,7 @@ def list_databases(session: Session = Depends(get_session)) -> list[DatabaseList
     items = session.exec(select(DatabaseCatalog).order_by(DatabaseCatalog.created_at.desc())).all()
     return [
         DatabaseListItem(
-            id=i.id, name=i.name, filename=i.filename, created_at=i.created_at, updated_at=i.updated_at
+            id=i.id, name=i.name, filename=i.filename, row_count=i.row_count, created_at=i.created_at, updated_at=i.updated_at
         )
         for i in items
     ]
