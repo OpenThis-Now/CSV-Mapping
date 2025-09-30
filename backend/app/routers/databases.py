@@ -63,12 +63,14 @@ def upload_database_csv(file: UploadFile = File(...), session: Session = Depends
 @router.get("/databases", response_model=list[DatabaseListItem])
 def list_databases(session: Session = Depends(get_session)) -> list[DatabaseListItem]:
     items = session.exec(select(DatabaseCatalog).order_by(DatabaseCatalog.created_at.desc())).all()
-    return [
+    result = [
         DatabaseListItem(
             id=i.id, name=i.name, filename=i.filename, row_count=i.row_count, created_at=i.created_at, updated_at=i.updated_at
         )
         for i in items
     ]
+    log.info(f"List databases: {len(result)} databases, row_counts: {[r.row_count for r in result]}")
+    return result
 
 
 @router.patch("/databases/{database_id}")
@@ -122,8 +124,9 @@ def recount_database_rows(database_id: int, session: Session = Depends(get_sessi
     db.row_count = row_count
     session.add(db)
     session.commit()
+    session.refresh(db)
     
-    log.info("Database rows recounted", extra={"request_id": "-", "project_id": "-", "db_id": database_id, "row_count": row_count})
+    log.info("Database rows recounted", extra={"request_id": "-", "project_id": "-", "db_id": database_id, "row_count": row_count, "updated_row_count": db.row_count})
     return {"message": f"Databas uppdaterad med {row_count} rader."}
 
 
