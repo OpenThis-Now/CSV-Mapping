@@ -7,6 +7,7 @@ export default function Databases({ activeProjectId }: { activeProjectId?: numbe
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectDatabases, setProjectDatabases] = useState<Record<number, number[]>>({});
   const [uploading, setUploading] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<number>(Date.now());
   const [editingDatabase, setEditingDatabase] = useState<number | null>(null);
   const [editName, setEditName] = useState<string>("");
@@ -60,7 +61,8 @@ export default function Databases({ activeProjectId }: { activeProjectId?: numbe
     fd.append("file", file);
     setUploading(true);
     try {
-      await api.post("/databases", fd);
+      const res = await api.post("/databases", fd);
+      setStatus(`Uploaded ${res.data.row_count} products`);
       await refresh();
     } finally {
       setUploading(false);
@@ -144,6 +146,7 @@ export default function Databases({ activeProjectId }: { activeProjectId?: numbe
       </div>
       <UploadArea onFile={onFile} />
       {uploading && <div className="text-sm opacity-70">Uploading...</div>}
+      {status && <div className="chip">{status}</div>}
       
       <div className="grid gap-3">
         {items.map(db => (
@@ -190,6 +193,9 @@ export default function Databases({ activeProjectId }: { activeProjectId?: numbe
                     </button>
                   </div>
                 )}
+                <div className="text-xs opacity-70">
+                  {db.row_count} products
+                </div>
                 <div className="text-xs text-gray-500 mt-1">
                   Uploaded: <span className="font-bold">{new Date(db.created_at).toLocaleDateString('en-US')}</span> {new Date(db.created_at).toLocaleTimeString('en-US')}
                 </div>

@@ -57,7 +57,7 @@ export default function ImportPage({ projectId }: { projectId: number }) {
     try {
       const res = await api.post(`/projects/${projectId}/import`, fd);
       setLast(res.data);
-      setStatus(`Uploaded ${res.data.row_count} rows`);
+      setStatus(`Uploaded ${res.data.row_count} products`);
       await refreshImports();
       await refreshProject();
     } finally {
@@ -119,7 +119,7 @@ export default function ImportPage({ projectId }: { projectId: number }) {
                   <div>
                     <div className="font-medium">{imp.original_name}</div>
                     <div className="text-xs opacity-70">
-                      {imp.row_count} rows
+                      {imp.row_count} products
                     </div>
                     <div className="text-xs text-gray-500 mt-1">
                       Uploaded: <span className="font-bold">{new Date(imp.created_at).toLocaleDateString('en-US')}</span> {new Date(imp.created_at).toLocaleTimeString('en-US')}
