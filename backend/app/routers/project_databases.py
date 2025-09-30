@@ -47,6 +47,11 @@ def add_database_to_project(project_id: int, database_id: int, session: Session 
 @router.delete("/projects/{project_id}/databases/{database_id}")
 def remove_database_from_project(project_id: int, database_id: int, session: Session = Depends(get_session)):
     """Remove a database from a project"""
+    # Check if project exists
+    project = session.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Projekt saknas.")
+    
     # Find the relation
     project_db = session.exec(
         select(ProjectDatabase).where(
