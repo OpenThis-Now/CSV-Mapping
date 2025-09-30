@@ -28,12 +28,18 @@ def suggest_with_openai(prompt: str, max_items: int = 3) -> list[dict[str, Any]]
         temperature=0.2,
     )
     text = resp.choices[0].message.content or "[]"
+    print(f"OpenAI raw response: {text[:500]}...")  # Log first 500 chars
+    
     import json, re
     try:
         data = json.loads(text)
-    except Exception:
+        print(f"OpenAI parsed JSON successfully: {len(data) if isinstance(data, list) else 1} items")
+    except Exception as e:
+        print(f"OpenAI JSON parse error: {e}")
         m = re.search(r"\[.*\]", text, flags=re.S)
         data = json.loads(m.group(0)) if m else []
+        print(f"OpenAI regex fallback result: {data}")
     if not isinstance(data, list):
         data = [data]
+    print(f"OpenAI final result: {len(data)} items")
     return data[:max_items]

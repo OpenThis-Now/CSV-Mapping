@@ -213,35 +213,55 @@ def simple_text_extraction(text: str, filename: str) -> Dict[str, Any]:
     authored_market = None
     language = None
     
-    # Look for product name patterns (more comprehensive)
+    # Look for product name patterns (more comprehensive and specific)
     product_patterns = [
-        r'(?:Product name|Trade name|Commercial name|Product identifier|Handelsname)[:\s]+([^\n\r]+)',
-        r'(?:Produktnamn|Produktbezeichnung|Nom du produit|Nombre del producto)[:\s]+([^\n\r]+)',
-        r'^([A-Z][A-Z\s\-0-9]+(?:[A-Z][A-Z\s\-0-9]+)*)',  # All caps product names at start of line
+        r'(?:Product name|Trade name|Commercial name|Product identifier|Handelsname)[:\s]+([^\n\r]+?)(?:\n|$)',
+        r'(?:Produktnamn|Produktbezeichnung|Nom du produit|Nombre del producto)[:\s]+([^\n\r]+?)(?:\n|$)',
+        r'^([A-Z][A-Z\s\-0-9\(\)]+(?:[A-Z][A-Z\s\-0-9\(\)]+)*)\s*$',  # All caps product names at start of line
+        r'^([A-Z][A-Za-z\s\-0-9\(\)]{3,50})\s*$',  # Mixed case product names
     ]
     
-    for pattern in product_patterns:
+    # First, try to find explicit product name labels
+    for pattern in product_patterns[:2]:
         product_match = re.search(pattern, text, re.IGNORECASE | re.MULTILINE)
         if product_match:
-            product_name = product_match.group(1).strip()
-            break
+            candidate = product_match.group(1).strip()
+            # Filter out section headers and generic terms
+            if not any(skip in candidate.lower() for skip in ['section', 'identification', 'uses', 'composition', 'hazards', 'first aid']):
+                product_name = candidate
+                break
+    
+    # If no explicit product name found, try to find the main product title
+    if not product_name:
+        lines = text.split('\n')
+        for line in lines[:20]:  # Check first 20 lines
+            line = line.strip()
+            if len(line) > 10 and len(line) < 100:
+                # Look for lines that look like product names
+                if (re.match(r'^[A-Z][A-Za-z\s\-0-9\(\)]+$', line) and 
+                    not any(skip in line.lower() for skip in ['section', 'page', 'date', 'revision', 'version', 'company', 'address'])):
+                    product_name = line
+                    break
     
     # Look for article number patterns (more comprehensive)
     article_patterns = [
         r'(?:Article number|Article No|Artikelnummer|Artikel-Nr|Art\.-Nr|Part No|Item No|Product code|Product Code)[:\s]+([^\n\r\s]+)',
         r'(?:Kat\.\s*nr|Varenummer|Tuotenumero|Référence|Código de artículo)[:\s]+([^\n\r\s]+)',
-        r'\b([A-Z0-9]{2,}-[A-Z0-9]{2,})\b',  # Pattern like ABC-123
-        r'\b([A-Z]{2,}[0-9]{3,})\b',  # Pattern like ABC123
-        r'\b([0-9]{4,})\b',  # Long numeric codes (but not too long)
         r'\b(DS\d+)\b',  # Pattern like DS025
         r'\b(CCS\d+)\b',  # Pattern like CCS10019
+        r'\b([A-Z0-9]{2,}-[A-Z0-9]{2,})\b',  # Pattern like ABC-123
+        r'\b([A-Z]{2,}[0-9]{3,})\b',  # Pattern like ABC123
+        r'\b([0-9]{3,6})\b',  # Numeric codes (3-6 digits)
     ]
     
     for pattern in article_patterns:
         article_match = re.search(pattern, text, re.IGNORECASE)
         if article_match:
-            article_number = article_match.group(1).strip()
-            break
+            candidate = article_match.group(1).strip()
+            # Filter out common false positives
+            if not any(skip in candidate.lower() for skip in ['well-ventilated', 'fire-fighters', 'children', 'pressure']):
+                article_number = candidate
+                break
     
     # Look for manufacturer/supplier patterns (more comprehensive)
     company_patterns = [
@@ -255,8 +275,11 @@ def simple_text_extraction(text: str, filename: str) -> Dict[str, Any]:
     for pattern in company_patterns:
         company_match = re.search(pattern, text, re.IGNORECASE)
         if company_match:
-            company_name = company_match.group(1).strip()
-            break
+            candidate = company_match.group(1).strip()
+            # Filter out common false positives and section headers
+            if not any(skip in candidate.lower() for skip in ['section', 'identification', 'safety', 'data', 'sheet', 'page', 'revision']):
+                company_name = candidate
+                break
     
     # Look for market patterns (more comprehensive)
     market_patterns = [
