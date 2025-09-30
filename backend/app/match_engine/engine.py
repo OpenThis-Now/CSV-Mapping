@@ -42,6 +42,8 @@ def run_match(customer_csv: Path, db_csv: Path, mapping: dict[str, str] | None, 
     
     if mapping is None:
         mapping = auto_map_headers(db_df.columns)
+    
+    # Use the provided mapping for customer data, but ensure database columns are available
     db_records = db_df.to_dict(orient="records")
 
     # Read customer CSV with encoding handling
@@ -72,9 +74,18 @@ def run_match(customer_csv: Path, db_csv: Path, mapping: dict[str, str] | None, 
             break
         best_meta = None
         best_db = None
-        for db_row in db_records:
+        best_score = -1
+        
+        # Debug: Log customer row data
+        print(f"Processing customer row {idx}: {crow}")
+        
+        for db_idx, db_row in enumerate(db_records):
             meta = score_pair(crow, db_row, mapping, thresholds)
-            if best_meta is None or meta["overall"] > best_meta["overall"]:
+            if meta["overall"] > best_score:
+                best_score = meta["overall"]
                 best_meta, best_db = meta, db_row
+                print(f"  New best match (score {best_score}): {db_row.get('product', 'N/A')} from {db_row.get('vendor', 'N/A')}")
+        
         assert best_meta is not None and best_db is not None
+        print(f"Final match for row {idx}: {best_db.get('product', 'N/A')} (score: {best_score})")
         yield idx, crow, best_db, best_meta

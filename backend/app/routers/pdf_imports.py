@@ -213,6 +213,53 @@ def combine_import_files(project_id: int, req: CombineImportsRequest, session: S
         raise HTTPException(status_code=500, detail=f"Kombinering misslyckades: {str(e)}")
 
 
+@router.get("/debug/combined-import/{project_id}/{import_id}")
+def debug_combined_import(project_id: int, import_id: int, session: Session = Depends(get_session)):
+    """Debug endpoint för att kontrollera kombinerad import-fil"""
+    p = session.get(Project, project_id)
+    if not p:
+        raise HTTPException(status_code=404, detail="Projekt saknas.")
+    
+    imp = session.get(ImportFile, import_id)
+    if not imp:
+        raise HTTPException(status_code=404, detail="Import-fil saknas.")
+    
+    csv_path = Path(settings.IMPORTS_DIR) / imp.filename
+    if not csv_path.exists():
+        raise HTTPException(status_code=404, detail=f"CSV-fil {imp.filename} hittades inte.")
+    
+    try:
+        import pandas as pd
+        from ..services.files import detect_csv_separator
+        
+        separator = detect_csv_separator(csv_path)
+        
+        # Läs CSV med pandas
+        df = pd.read_csv(csv_path, sep=separator, encoding='utf-8', nrows=5)  # Bara första 5 raderna
+        
+        return {
+            "import_id": import_id,
+            "filename": imp.filename,
+            "original_name": imp.original_name,
+            "row_count": imp.row_count,
+            "columns_map_json": imp.columns_map_json,
+            "csv_exists": csv_path.exists(),
+            "csv_size": csv_path.stat().st_size if csv_path.exists() else 0,
+            "separator": separator,
+            "sample_data": df.to_dict(orient="records"),
+            "columns": list(df.columns),
+            "sample_rows": len(df)
+        }
+    except Exception as e:
+        return {
+            "error": str(e),
+            "import_id": import_id,
+            "filename": imp.filename,
+            "csv_exists": csv_path.exists(),
+            "csv_size": csv_path.stat().st_size if csv_path.exists() else 0
+        }
+
+
 @router.get("/debug/pdf-libraries")
 def debug_pdf_libraries():
     """Debug endpoint för att kolla vilka PDF-bibliotek som är tillgängliga"""

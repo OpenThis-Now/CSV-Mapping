@@ -51,6 +51,19 @@ def run_matching(project_id: int, req: MatchRequest, session: Session = Depends(
 
     created = 0
     try:
+        log.info(f"Starting match run for project {project_id}, import {imp.id}, database {db.id}")
+        log.info(f"Customer CSV: {cust_csv}, exists: {cust_csv.exists()}")
+        log.info(f"Database CSV: {db_csv}, exists: {db_csv.exists()}")
+        log.info(f"Mapping: {imp.columns_map_json}")
+        
+        # Debug: Check if mapping has the required fields
+        required_fields = ["vendor", "product", "sku"]
+        for field in required_fields:
+            if field not in imp.columns_map_json:
+                log.warning(f"Missing mapping for field '{field}' in import {imp.id}")
+            else:
+                log.info(f"Field '{field}' mapped to column '{imp.columns_map_json[field]}'")
+        
         for row_index, crow, dbrow, meta in run_match(cust_csv, db_csv, imp.columns_map_json, thr):
             mr = MatchResult(
                 match_run_id=run.id,
@@ -66,6 +79,9 @@ def run_matching(project_id: int, req: MatchRequest, session: Session = Depends(
             created += 1
             if created % 1000 == 0:
                 session.commit()
+                log.info(f"Processed {created} rows")
+        
+        log.info(f"Match run completed, created {created} results")
         run.status = "finished"
         run.finished_at = datetime.utcnow()
         session.add(run)
