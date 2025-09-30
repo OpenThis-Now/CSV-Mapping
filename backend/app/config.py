@@ -27,7 +27,7 @@ class Settings(BaseSettings):
 
     # Uploads & security
     MAX_UPLOAD_MB: int = Field(default=200)
-    ALLOWED_EXTENSIONS: set[str] = Field(default_factory=lambda: {".csv"})
+    ALLOWED_EXTENSIONS: set[str] = Field(default_factory=lambda: {".csv", ".pdf"})
     CORS_ALLOW_ORIGINS: list[str] = Field(default_factory=lambda: ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5174", "http://127.0.0.1:5174"])
 
     # AI
