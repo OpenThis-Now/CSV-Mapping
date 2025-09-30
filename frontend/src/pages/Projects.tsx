@@ -19,6 +19,8 @@ export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: n
   const [databases, setDatabases] = useState<DatabaseListItem[]>([]);
   const [projectStats, setProjectStats] = useState<Record<number, ProjectStats>>({});
   const [lastRefresh, setLastRefresh] = useState<number>(Date.now());
+  const [editingProject, setEditingProject] = useState<number | null>(null);
+  const [editName, setEditName] = useState<string>("");
 
   const refresh = async () => {
     try {
@@ -137,6 +139,33 @@ export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: n
     }
   };
 
+  const startEdit = (project: Project) => {
+    setEditingProject(project.id);
+    setEditName(project.name);
+  };
+
+  const cancelEdit = () => {
+    setEditingProject(null);
+    setEditName("");
+  };
+
+  const saveEdit = async (projectId: number) => {
+    if (!editName.trim()) {
+      alert("Project name cannot be empty");
+      return;
+    }
+    
+    try {
+      await api.patch(`/projects/${projectId}`, { name: editName.trim() });
+      setEditingProject(null);
+      setEditName("");
+      await refresh();
+    } catch (error) {
+      console.error("Failed to update project name:", error);
+      alert("Could not update project name. Please try again.");
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -168,7 +197,46 @@ export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: n
             <div key={p.id} className="card shadow-sm">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
-                  <div className="font-medium text-lg mb-1">{p.name}</div>
+                  {editingProject === p.id ? (
+                    <div className="flex items-center gap-2 mb-1">
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="px-2 py-1 border border-gray-300 rounded text-lg font-medium"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') saveEdit(p.id);
+                          if (e.key === 'Escape') cancelEdit();
+                        }}
+                      />
+                      <button
+                        onClick={() => saveEdit(p.id)}
+                        className="px-2 py-1 text-xs bg-green-100 text-green-700 border border-green-300 rounded hover:bg-green-200"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={cancelEdit}
+                        className="px-2 py-1 text-xs bg-gray-100 text-gray-700 border border-gray-300 rounded hover:bg-gray-200"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="font-medium text-lg mb-1 flex items-center gap-2">
+                      {p.name}
+                      <button
+                        onClick={() => startEdit(p)}
+                        className="text-gray-400 hover:text-gray-600 text-sm p-1"
+                        title="Edit project name"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
                   <div className="text-xs text-gray-500 mb-3">Status: {p.status} · Active DB: {getDatabaseName(p.active_database_id)}</div>
                   
                   {counts.total > 0 ? (
