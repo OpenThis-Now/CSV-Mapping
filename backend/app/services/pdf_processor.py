@@ -108,19 +108,24 @@ C) company_name
    - Prefer the legal entity name listed in Section 1.3 (EU) or Section 1 "Supplier/Manufacturer" block (US/CA).
 
 D) authored_market (regulatory market the SDS was authored for)
-   - Determine using explicit regulatory references first. Examples (non-exhaustive):
-     • EU/EEA countries: Look for specific country indicators (address, phone codes, language) combined with "Regulation (EC) No 1272/2008 (CLP)", "Regulation (EC) No 1907/2006 (REACH)", "UFI", "EUH0xx".
-       - Germany: German text, German address, "+49" phone
-       - France: French text, French address, "+33" phone  
-       - Sweden: Swedish text, Swedish address, "+46" phone
-       - Netherlands: Dutch text, Dutch address, "+31" phone
-       - UK: "GB-CLP", UK address, "+44" phone
-     • USA (OSHA HazCom 2012): "29 CFR 1910.1200", "Hazard(s) Identification" wording, NFPA/HMIS tables, US address, "+1" phone.
-     • Canada (WHMIS): "WHMIS", "HPR", "SOR/2015-17", bilingual EN/FR with Canadian supplier, Canadian address.
-     • Australia/NZ: "GHS Revision x (AU)", "SUSMP/Poisons Standard", "HSNO", Australian/NZ address, "+61"/"+64" phone.
-     • Other regions: cite their GHS/industrial safety laws if mentioned, look for country-specific indicators.
-   - If no explicit citation, use weaker signals (lower confidence): address/country of supplier, emergency phone country code, label element styles, language.
-   - IMPORTANT: Try to identify the specific country, not just the region. Only use "EU (CLP/REACH)" as fallback if no specific EU country can be determined.
+   - CRITICAL: Focus on regulatory framework and market indicators, NOT supplier location. A German supplier can write SDS for US market.
+   - Determine using explicit regulatory references and market indicators:
+     • EU/EEA countries: Look for regulatory framework + market language/emergency numbers:
+       - Germany: "Regulation (EC) No 1272/2008 (CLP)" + German language sections + German emergency numbers
+       - France: "Regulation (EC) No 1272/2008 (CLP)" + French language sections + French emergency numbers  
+       - Sweden: "Regulation (EC) No 1272/2008 (CLP)" + Swedish language sections + Swedish emergency numbers
+       - Netherlands: "Regulation (EC) No 1272/2008 (CLP)" + Dutch language sections + Dutch emergency numbers
+       - UK: "GB-CLP" or "Regulation (EC) No 1272/2008 (CLP)" + English language + UK emergency numbers
+     • USA (OSHA HazCom 2012): "29 CFR 1910.1200", "Hazard(s) Identification" wording, NFPA/HMIS tables, US emergency numbers.
+     • Canada (WHMIS): "WHMIS", "HPR", "SOR/2015-17", bilingual EN/FR sections, Canadian emergency numbers.
+     • Australia/NZ: "GHS Revision x (AU)", "SUSMP/Poisons Standard", "HSNO", Australian/NZ emergency numbers.
+   - Key indicators (in order of importance):
+     1. Regulatory citations (CLP/REACH, OSHA, WHMIS, etc.)
+     2. Emergency contact numbers (country codes indicate target market)
+     3. Language of safety sections (hazard statements, first aid, etc.)
+     4. Label elements and signal words
+   - IGNORE supplier address/phone - focus on emergency numbers and regulatory framework for the target market.
+   - If no specific country indicators found, use "EU (CLP/REACH)" as fallback for EU regulatory framework.
    - Output format: "Germany (GHS DE)", "France (GHS FR)", "Sweden (GHS SE)", "US (OSHA HazCom 2012)", "Canada (WHMIS)", "Australia (GHS AU)", etc.
 
 E) language
