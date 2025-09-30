@@ -25,7 +25,7 @@ function Badge({ children, tone = "gray" }: { children: React.ReactNode; tone?: 
   );
 }
 
-function TripleCell({ title, vendor, sku, market, language }: { title: string; vendor: string; sku: string; market?: string; language?: string }) {
+function TripleCell({ title, vendor, sku, market, legislation, language }: { title: string; vendor: string; sku: string; market?: string; legislation?: string; language?: string }) {
   const hasVendor = vendor && vendor !== "-" && vendor.trim() !== "";
   const hasSku = sku && sku !== "-" && sku.trim() !== "";
   const hasTitle = title && title !== "-" && title.trim() !== "";
@@ -53,6 +53,11 @@ function TripleCell({ title, vendor, sku, market, language }: { title: string; v
             {market && language && " | "}
             {language && <span>{language}</span>}
           </span>
+        </div>
+      )}
+      {legislation && (
+        <div className="text-xs text-blue-600">
+          <span>Legislation: {legislation}</span>
         </div>
       )}
     </div>
@@ -234,6 +239,7 @@ function CardView({ results, selectedIds, onSelectionChange }: { results: MatchR
                   vendor={r.customer_preview["Supplier"] || r.customer_preview["Leverantör"] || "-"} 
                   sku={r.customer_preview["Art.no"] || r.customer_preview["Artikelnummer"] || "-"} 
                   market={r.customer_preview["Market"] || r.customer_preview["Marknad"] || ""}
+                  legislation={r.customer_preview["Legislation"] || r.customer_preview["Legislation"] || ""}
                   language={r.customer_preview["Language"] || r.customer_preview["Språk"] || ""}
                 />
               </div>
@@ -244,6 +250,7 @@ function CardView({ results, selectedIds, onSelectionChange }: { results: MatchR
                   vendor={r.db_preview?.["Supplier"] || r.db_preview?.["Leverantör"] || "-"} 
                   sku={r.db_preview?.["Art.no"] || r.db_preview?.["Artikelnummer"] || "-"} 
                   market={r.db_preview?.["Market"] || r.db_preview?.["Marknad"] || ""}
+                  legislation={r.db_preview?.["Legislation"] || r.db_preview?.["Legislation"] || ""}
                   language={r.db_preview?.["Language"] || r.db_preview?.["Språk"] || ""}
                 />
               </div>

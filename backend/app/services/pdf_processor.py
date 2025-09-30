@@ -338,11 +338,51 @@ def create_fallback_entry(filename: str) -> Dict[str, Any]:
     }
 
 
+def separate_market_and_legislation(market_value: str) -> tuple[str, str]:
+    """Separera marknad och lagstiftning från authored_market fält"""
+    if not market_value:
+        return "", ""
+    
+    # Mappa från AI:s format till enkla marknader och lagstiftning
+    market_mapping = {
+        "EU (CLP/REACH)": ("EU", "CLP/REACH"),
+        "US (OSHA HazCom 2012)": ("US", "OSHA HazCom 2012"),
+        "Canada (WHMIS)": ("Canada", "WHMIS"),
+        "UK (GB-CLP)": ("UK", "GB-CLP"),
+        "Australia (GHS AU)": ("Australia", "GHS AU"),
+        "Germany (GHS DE)": ("Germany", "GHS DE"),
+        "France (GHS FR)": ("France", "GHS FR"),
+        "Sweden (GHS SE)": ("Sweden", "GHS SE"),
+        "Norway (GHS NO)": ("Norway", "GHS NO"),
+        "Denmark (GHS DK)": ("Denmark", "GHS DK"),
+        "Finland (GHS FI)": ("Finland", "GHS FI"),
+        "Japan (GHS JP)": ("Japan", "GHS JP"),
+        "Korea (GHS KR)": ("Korea", "GHS KR"),
+        "China (GHS CN)": ("China", "GHS CN"),
+        "Brazil (GHS BR)": ("Brazil", "GHS BR"),
+    }
+    
+    # Kontrollera exakt match först
+    if market_value in market_mapping:
+        return market_mapping[market_value]
+    
+    # Fallback: försök extrahera marknad från format "Marknad (Lagstiftning)"
+    import re
+    match = re.match(r'^([^(]+)\s*\(([^)]+)\)$', market_value.strip())
+    if match:
+        market = match.group(1).strip()
+        legislation = match.group(2).strip()
+        return market, legislation
+    
+    # Om inget matchar, returnera som marknad
+    return market_value, ""
+
+
 def create_csv_from_pdf_data(pdf_data: List[Dict[str, Any]], output_path: Path) -> Path:
     """Skapa CSV från extraherade PDF-data"""
     # Använd kolumnnamn som matchar auto_map_headers förväntningar
     fieldnames = [
-        "product", "vendor", "sku", "market", "language", "filename", "extraction_status"
+        "product", "vendor", "sku", "market", "legislation", "language", "filename", "extraction_status"
     ]
     
     print(f"Creating CSV with {len(pdf_data)} items at {output_path}")
@@ -353,11 +393,17 @@ def create_csv_from_pdf_data(pdf_data: List[Dict[str, Any]], output_path: Path) 
         
         for i, item in enumerate(pdf_data):
             # Extrahera värden från nested structure och mappa till rätt kolumnnamn
+            market_value = item.get("authored_market", {}).get("value", "")
+            
+            # Separera marknad och lagstiftning
+            market, legislation = separate_market_and_legislation(market_value)
+            
             row = {
                 "product": item.get("product_name", {}).get("value", ""),
                 "vendor": item.get("company_name", {}).get("value", ""),
                 "sku": item.get("article_number", {}).get("value", ""),
-                "market": item.get("authored_market", {}).get("value", ""),
+                "market": market,
+                "legislation": legislation,
                 "language": item.get("language", {}).get("value", ""),
                 "filename": item.get("filename", ""),
                 "extraction_status": item.get("extraction_status", "unknown")

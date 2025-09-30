@@ -137,6 +137,8 @@ def list_results(project_id: int, session: Session = Depends(get_session)) -> li
             "Market": (r.customer_fields_json.get("Market") or 
                       r.customer_fields_json.get("market") or 
                       r.customer_fields_json.get("authored_market") or ""),
+            "Legislation": (r.customer_fields_json.get("Legislation") or 
+                           r.customer_fields_json.get("legislation") or ""),
             "Language": (r.customer_fields_json.get("Language") or 
                         r.customer_fields_json.get("language") or ""),
         }
