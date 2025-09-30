@@ -109,6 +109,109 @@ def list_pdf_import_files(project_id: int, session: Session = Depends(get_sessio
     return imports
 
 
+@router.post("/projects/{project_id}/combine-imports", response_model=ImportUploadResponse)
+def combine_import_files(project_id: int, import_ids: List[int], session: Session = Depends(get_session)) -> ImportUploadResponse:
+    """Kombinera flera import-filer till en enda fil"""
+    p = session.get(Project, project_id)
+    if not p:
+        raise HTTPException(status_code=404, detail="Projekt saknas.")
+    
+    if not import_ids:
+        raise HTTPException(status_code=400, detail="Inga import-ID:n angivna.")
+    
+    # Hämta alla import-filer
+    imports = session.exec(
+        select(ImportFile).where(
+            ImportFile.project_id == project_id,
+            ImportFile.id.in_(import_ids)
+        )
+    ).all()
+    
+    if len(imports) != len(import_ids):
+        raise HTTPException(status_code=400, detail="Några import-filer hittades inte.")
+    
+    if len(imports) < 2:
+        raise HTTPException(status_code=400, detail="Minst 2 filer krävs för att kombinera.")
+    
+    try:
+        import pandas as pd
+        from ..services.files import detect_csv_separator
+        
+        # Läs alla CSV-filer och kombinera dem
+        combined_data = []
+        total_rows = 0
+        
+        for imp in imports:
+            csv_path = Path(settings.IMPORTS_DIR) / imp.filename
+            if not csv_path.exists():
+                raise HTTPException(status_code=404, detail=f"CSV-fil {imp.filename} hittades inte.")
+            
+            separator = detect_csv_separator(csv_path)
+            
+            # Läs CSV med pandas för bättre hantering
+            try:
+                df = pd.read_csv(csv_path, sep=separator, encoding='utf-8')
+            except UnicodeDecodeError:
+                try:
+                    df = pd.read_csv(csv_path, sep=separator, encoding='latin-1')
+                except:
+                    df = pd.read_csv(csv_path, sep=separator, encoding='cp1252')
+            
+            # Lägg till källinformation
+            df['_source_file'] = imp.original_name
+            df['_source_id'] = imp.id
+            
+            combined_data.append(df)
+            total_rows += len(df)
+        
+        # Kombinera alla dataframes
+        if combined_data:
+            combined_df = pd.concat(combined_data, ignore_index=True)
+            
+            # Skapa ny CSV-fil
+            combined_filename = f"combined_import_{project_id}_{len(imports)}_files.csv"
+            combined_path = Path(settings.IMPORTS_DIR) / combined_filename
+            
+            # Spara kombinerad CSV
+            combined_df.to_csv(combined_path, index=False, encoding='utf-8')
+            
+            # Skapa mapping för kolumner (använd första filens mapping som bas)
+            base_mapping = imports[0].columns_map_json
+            for imp in imports[1:]:
+                # Lägg till eventuella nya kolumner från andra filer
+                for key, value in imp.columns_map_json.items():
+                    if key not in base_mapping:
+                        base_mapping[key] = value
+            
+            # Lägg till mapping för de nya kolumnerna
+            base_mapping['_source_file'] = 'source_file'
+            base_mapping['_source_id'] = 'source_id'
+            
+            # Skapa ny ImportFile-post
+            combined_import = ImportFile(
+                project_id=project_id,
+                filename=combined_filename,
+                original_name=f"Kombinerad import ({len(imports)} filer)",
+                columns_map_json=base_mapping,
+                row_count=total_rows,
+            )
+            session.add(combined_import)
+            session.commit()
+            session.refresh(combined_import)
+            
+            return ImportUploadResponse(
+                import_file_id=combined_import.id,
+                filename=combined_import.filename,
+                row_count=combined_import.row_count,
+                columns_map_json=base_mapping
+            )
+        else:
+            raise HTTPException(status_code=500, detail="Inga data att kombinera.")
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Kombinering misslyckades: {str(e)}")
+
+
 @router.get("/debug/pdf-libraries")
 def debug_pdf_libraries():
     """Debug endpoint för att kolla vilka PDF-bibliotek som är tillgängliga"""
