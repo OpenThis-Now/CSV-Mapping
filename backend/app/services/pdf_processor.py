@@ -12,8 +12,16 @@ from ..openai_client import suggest_with_openai
 def extract_pdf_text(pdf_path: Path, max_pages: int = 3) -> Optional[str]:
     """Extrahera text från första 3 sidorna av PDF"""
     try:
+        # Check if PyMuPDF is available
+        import fitz
+    except ImportError:
+        print(f"PyMuPDF not available - cannot read PDF {pdf_path}")
+        return None
+    
+    try:
         doc = fitz.open(pdf_path)
         if len(doc) == 0:
+            print(f"PDF {pdf_path} is empty")
             return None
             
         text = ""
@@ -24,10 +32,17 @@ def extract_pdf_text(pdf_path: Path, max_pages: int = 3) -> Optional[str]:
                 text += page_text + "\n"
         
         doc.close()
-        return text.strip() if text.strip() else None
+        result = text.strip() if text.strip() else None
+        if result:
+            print(f"Successfully extracted {len(result)} characters from PDF {pdf_path}")
+        else:
+            print(f"No text found in PDF {pdf_path}")
+        return result
         
     except Exception as e:
         print(f"Error reading PDF {pdf_path}: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 
@@ -251,8 +266,15 @@ def process_pdf_files(pdf_files: List[Path]) -> List[Dict[str, Any]]:
         # Extrahera text från PDF
         text = extract_pdf_text(pdf_path)
         
-        # Använd AI för att extrahera produktinformation
-        product_info = extract_product_info_with_ai(text, filename)
+        if not text:
+            print(f"No text extracted from {filename} - creating fallback entry")
+            product_info = create_fallback_entry(filename)
+        else:
+            print(f"Extracted {len(text)} characters from {filename}")
+            # Använd AI för att extrahera produktinformation
+            product_info = extract_product_info_with_ai(text, filename)
+        
         all_products.append(product_info)
+        print(f"Processed {filename}: status = {product_info.get('extraction_status', 'unknown')}")
     
     return all_products

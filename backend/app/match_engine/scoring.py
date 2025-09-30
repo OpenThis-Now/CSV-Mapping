@@ -32,6 +32,17 @@ def score_pair(customer_row: dict[str, Any], db_row: dict[str, Any], mapping: di
     cv, cp, cs = (customer_row.get(mapping["vendor"], ""), customer_row.get(mapping["product"], ""), customer_row.get(mapping["sku"], ""))
     dv, dp, ds = db_row.get(mapping["vendor"], ""), db_row.get(mapping["product"], ""), db_row.get(mapping["sku"], "")
 
+    # Check if customer data is missing - if so, reject immediately
+    if not cv.strip() and not cp.strip() and not cs.strip():
+        return {
+            "vendor_score": 0,
+            "product_score": 0,
+            "overall": 0,
+            "exact": False,
+            "reason": "No customer data available for matching",
+            "decision": "not_approved",
+        }
+
     # Check market and language compatibility
     customer_market = customer_row.get(mapping.get("market", "Market"), "").strip()
     customer_language = customer_row.get(mapping.get("language", "Language"), "").strip()
@@ -59,8 +70,9 @@ def score_pair(customer_row: dict[str, Any], db_row: dict[str, Any], mapping: di
             "decision": "not_approved",
         }
 
-    vendor_score = score_fields(cv, dv)
-    product_score = score_fields(cp, dp)
+    # Only score fields that have customer data
+    vendor_score = score_fields(cv, dv) if cv.strip() else 0
+    product_score = score_fields(cp, dp) if cp.strip() else 0
 
     overall = int(thr.weight_vendor * vendor_score + thr.weight_product * product_score)
 
@@ -74,9 +86,13 @@ def score_pair(customer_row: dict[str, Any], db_row: dict[str, Any], mapping: di
     reason = []
     if sku_exact(cs, ds):
         reason.append("Exact SKU match")
-    if vendor_score < thr.vendor_min:
+    if not cv.strip():
+        reason.append("Missing vendor data")
+    elif vendor_score < thr.vendor_min:
         reason.append("Low vendor match")
-    if product_score < thr.product_min:
+    if not cp.strip():
+        reason.append("Missing product data")
+    elif product_score < thr.product_min:
         reason.append("Low product match")
 
     decision = "pending"
@@ -85,6 +101,11 @@ def score_pair(customer_row: dict[str, Any], db_row: dict[str, Any], mapping: di
         reason.append("Score too low (< 30)")
     elif overall >= thr.overall_accept and vendor_score >= thr.vendor_min and product_score >= thr.product_min:
         decision = "auto_approved"
+    elif not cv.strip() or not cp.strip():
+        # If essential data is missing, don't auto-approve
+        decision = "pending"
+        if not reason:
+            reason.append("Incomplete customer data")
 
     return {
         "vendor_score": vendor_score,
