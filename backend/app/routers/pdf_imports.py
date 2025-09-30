@@ -107,3 +107,37 @@ def list_pdf_import_files(project_id: int, session: Session = Depends(get_sessio
         select(ImportFile).where(ImportFile.project_id == project_id)
     ).all()
     return imports
+
+
+@router.get("/debug/pdf-libraries")
+def debug_pdf_libraries():
+    """Debug endpoint för att kolla vilka PDF-bibliotek som är tillgängliga"""
+    result = {
+        "pymupdf_available": False,
+        "pdfplumber_available": False,
+        "pymupdf_version": None,
+        "pdfplumber_version": None,
+        "errors": []
+    }
+    
+    # Test PyMuPDF
+    try:
+        import fitz
+        result["pymupdf_available"] = True
+        result["pymupdf_version"] = fitz.version
+    except ImportError as e:
+        result["errors"].append(f"PyMuPDF not available: {e}")
+    except Exception as e:
+        result["errors"].append(f"PyMuPDF error: {e}")
+    
+    # Test pdfplumber
+    try:
+        import pdfplumber
+        result["pdfplumber_available"] = True
+        result["pdfplumber_version"] = pdfplumber.__version__
+    except ImportError as e:
+        result["errors"].append(f"pdfplumber not available: {e}")
+    except Exception as e:
+        result["errors"].append(f"pdfplumber error: {e}")
+    
+    return result
