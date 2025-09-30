@@ -23,7 +23,7 @@ const api = axios.create({
 
 export default api;
 
-export type DatabaseListItem = { id: number; name: string; filename: string; created_at: string; updated_at: string; };
+export type DatabaseListItem = { id: number; name: string; filename: string; row_count: number; created_at: string; updated_at: string; };
 export type Project = { id: number; name: string; status: string; active_database_id?: number | null; };
 export type ImportUploadResponse = { import_file_id: number; filename: string; row_count: number; columns_map_json: Record<string, string>; };
 export type MatchResultItem = {
