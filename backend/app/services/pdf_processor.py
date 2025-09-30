@@ -74,29 +74,87 @@ def build_pdf_extraction_prompt(pdf_text: str, filename: str) -> str:
     pdf_text_clean = pdf_text.replace('ä', 'a').replace('ö', 'o').replace('å', 'a')
     
     prompt = f"""
-Extract product information from this document. Return ONLY a valid JSON object with these fields:
+You are a meticulous SDS (Safety Data Sheet) parser.
 
+TASK
+Read ONLY the FIRST THREE (3) PAGES of the provided SDS and extract:
+1) product_name
+2) article_number  
+3) company_name
+4) authored_market (which regulatory market/region the SDS is authored for)
+5) language (the primary language the SDS text is written in)
+
+FILENAME: {filename}
+
+SCOPE & RULES
+- Use only content from pages 1–3. Ignore all other pages, metadata, or prior knowledge.
+- Prefer Section 1 ("Identification") and headers/footers on p.1 for product & supplier fields.
+- If a field is not present in pages 1–3, set its "value" to null and include a brief reason in the evidence snippet (e.g., "not on p1–3").
+- Do NOT guess or hallucinate. Lower confidence if inference is needed.
+- Evidence.snippet should be a SHORT, verbatim fragment (≤200 characters) containing the cue that justified the value.
+
+DEFINITIONS & SIGNALS
+A) product_name
+   - Synonyms/labels: "Product name", "Trade name", "Commercial name", "Product identifier", "Productnaam", "Nom du produit", "Nombre del producto", "Handelsname", "Produktnamn", "Nazwa produktu".
+   - Exclude generic class names (e.g., "Epoxy resin, mixture" unless that is the stated trade name). Prefer bold title on the front page or Section 1.1.
+
+B) article_number
+   - Synonyms: "Article No.", "Artikelnummer/Artikel-Nr./Art.-Nr.", "Item No.", "Part No.", "Product code", "Kat. nr.", "Varenummer", "Tuotenumero", "Référence", "Código de artículo".
+   - Usually alphanumeric (e.g., 12345, AB-1234, 100-200-300).
+   - DO NOT return CAS numbers, REACH registration numbers, UFI codes, or batch/lot numbers as the article number unless the text explicitly labels them as such.
+
+C) company_name
+   - Synonyms: "Manufacturer", "Supplier", "Responsible person", "Importeur/Importer", "Distributör/Distributor".
+   - Prefer the legal entity name listed in Section 1.3 (EU) or Section 1 "Supplier/Manufacturer" block (US/CA).
+
+D) authored_market (regulatory market the SDS was authored for)
+   - Determine using explicit regulatory references first. Examples (non-exhaustive):
+     • EU/EEA (CLP/REACH): "Regulation (EC) No 1272/2008 (CLP)", "Regulation (EC) No 1907/2006 (REACH)", "UFI", "EUH0xx", "GB-CLP" (UK).
+     • USA (OSHA HazCom 2012): "29 CFR 1910.1200", "Hazard(s) Identification" wording, NFPA/HMIS tables.
+     • Canada (WHMIS): "WHMIS", "HPR", "SOR/2015-17", bilingual EN/FR with Canadian supplier.
+     • Australia/NZ: "GHS Revision x (AU)", "SUSMP/Poisons Standard", "HSNO".
+     • Other regions (JP/KR/CN/BR/…): cite their GHS/industrial safety laws if mentioned.
+   - If no explicit citation, use weaker signals (lower confidence): address/country of supplier, emergency phone country code, label element styles (e.g., EUH statements).
+   - Output a concise region string such as: "EU (CLP/REACH)", "US (OSHA HazCom 2012)", "Canada (WHMIS)", "UK (GB-CLP)", "Australia (GHS AU)", etc.
+
+E) language
+   - Detect by the dominant language of pages 1–3 (not the company location).
+   - Example cues: "Faraoangivelser" (SV), "Gefahrhinweise/H-Sätze" (DE), "Hazard statements" (EN), "Déclarations de danger" (FR), etc.
+   - If clearly bilingual, choose the primary/most complete language on p.1–3 and mention "bilingual" in evidence.
+
+PROCESS
+1. Scan pages 1-3 for the required information
+2. If PDF is unreadable, corrupted, or contains no text, return a single entry with all fields null
+3. Extract information using the definitions above
+4. Provide evidence snippets for each field
+5. Assign confidence scores (0.0-1.0) based on clarity of extraction
+
+QUALITY BAR
+- Confidence ≥0.8: Clear, unambiguous extraction with strong evidence
+- Confidence 0.5-0.7: Reasonable inference with some uncertainty
+- Confidence <0.5: Weak evidence or significant uncertainty
+- Confidence 0.0: Field not found or PDF unreadable
+
+EDGE CASES TO HANDLE
+- Multilingual SDS (e.g., EN/FR for Canada; EN/SE for Nordics).
+- Front pages that list multiple trade names or a product family: choose the exact trade name for THIS SDS if clearly indicated; otherwise return null with a short explanation.
+- If the SDS states "for industrial use only" etc., that is NOT the authored market—look for regulatory frameworks/region.
+- If PDF is corrupted, password-protected, or contains only images without OCR text: return single entry with all null values and confidence 0.0
+
+OUTPUT FORMAT
+Return a JSON array with exactly ONE object containing:
 {{
-  "product_name": {{"value": "string or null", "confidence": 0.0-1.0, "evidence": {{"snippet": "text fragment"}}}},
-  "article_number": {{"value": "string or null", "confidence": 0.0-1.0, "evidence": {{"snippet": "text fragment"}}}},
-  "company_name": {{"value": "string or null", "confidence": 0.0-1.0, "evidence": {{"snippet": "text fragment"}}}},
-  "authored_market": {{"value": "string or null", "confidence": 0.0-1.0, "evidence": {{"snippet": "text fragment"}}}},
-  "language": {{"value": "string or null", "confidence": 0.0-1.0, "evidence": {{"snippet": "text fragment"}}}},
+  "product_name": {{"value": "string or null", "confidence": 0.0-1.0, "evidence": {{"snippet": "short text fragment"}}}},
+  "article_number": {{"value": "string or null", "confidence": 0.0-1.0, "evidence": {{"snippet": "short text fragment"}}}},
+  "company_name": {{"value": "string or null", "confidence": 0.0-1.0, "evidence": {{"snippet": "short text fragment"}}}},
+  "authored_market": {{"value": "string or null", "confidence": 0.0-1.0, "evidence": {{"snippet": "short text fragment"}}}},
+  "language": {{"value": "string or null", "confidence": 0.0-1.0, "evidence": {{"snippet": "short text fragment"}}}},
   "filename": "{filename}",
-  "extraction_status": "success"
+  "extraction_status": "success|failed|partial"
 }}
 
-Look for:
-- Product name: "Product name", "Trade name", "Commercial name", etc.
-- Article number: "Article No", "Part No", "Item No", "Product code", etc.
-- Company: "Manufacturer", "Supplier", "Company", etc.
-- Market: "EU", "US", "Canada", "CLP", "REACH", "OSHA", "WHMIS", etc.
-- Language: Detect from content ("Hazard statements"=English, "Gefahrhinweise"=German, etc.)
-
-If you find any of these fields, set extraction_status to "success". If none found, set to "partial".
-
-Document text:
-{pdf_text_clean[:3000] if pdf_text_clean else "PDF could not be read"}
+PDF TEXT TO ANALYZE:
+{pdf_text_clean[:4000] if pdf_text_clean else "PDF could not be read or contains no text"}
 """
     
     # Clean the entire prompt of non-ASCII characters
