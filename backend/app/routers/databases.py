@@ -21,36 +21,43 @@ log = logging.getLogger("app.databases")
 
 @router.post("/databases", response_model=DatabaseCreateResponse)
 def upload_database_csv(file: UploadFile = File(...), session: Session = Depends(get_session)) -> Any:
-    check_upload(file)
-    file_hash, path = compute_hash_and_save(Path(settings.DATABASES_DIR), file)
+    try:
+        log.info(f"Starting database upload for file: {file.filename}")
+        check_upload(file)
+        file_hash, path = compute_hash_and_save(Path(settings.DATABASES_DIR), file)
+        log.info(f"File saved to: {path}")
 
-    from ..services.files import detect_csv_separator
-    separator = detect_csv_separator(path)
-    
-    # Read CSV file using the same approach as imports
-    with open_text_stream(path) as f:
-        reader = csv.DictReader(f, delimiter=separator)
-        headers = reader.fieldnames or []
-        if not headers:
-            raise HTTPException(status_code=400, detail="CSV saknar rubriker.")
-        mapping = auto_map_headers(headers)
-        row_count = sum(1 for _ in reader)
-    
-    # Log the row count for debugging
-    log.info(f"Database upload: {row_count} rows counted for {path.name}")
+        from ..services.files import detect_csv_separator
+        separator = detect_csv_separator(path)
+        log.info(f"Detected separator: '{separator}'")
+        
+        # Read CSV file using the same approach as imports
+        with open_text_stream(path) as f:
+            reader = csv.DictReader(f, delimiter=separator)
+            headers = reader.fieldnames or []
+            if not headers:
+                raise HTTPException(status_code=400, detail="CSV saknar rubriker.")
+            mapping = auto_map_headers(headers)
+            row_count = sum(1 for _ in reader)
+        
+        # Log the row count for debugging
+        log.info(f"Database upload: {row_count} rows counted for {path.name}")
 
-    db = DatabaseCatalog(
-        name=Path(file.filename or "databas.csv").stem,
-        filename=path.name,
-        file_hash=file_hash,
-        columns_map_json=mapping,
-        row_count=row_count,
-    )
-    session.add(db)
-    session.commit()
-    session.refresh(db)
-    log.info("Database CSV uploaded", extra={"request_id": "-", "project_id": "-", "db_id": db.id})
-    return DatabaseCreateResponse(id=db.id, name=db.name, filename=db.filename, row_count=db.row_count, columns_map_json=mapping)
+        db = DatabaseCatalog(
+            name=Path(file.filename or "databas.csv").stem,
+            filename=path.name,
+            file_hash=file_hash,
+            columns_map_json=mapping,
+            row_count=row_count,
+        )
+        session.add(db)
+        session.commit()
+        session.refresh(db)
+        log.info("Database CSV uploaded", extra={"request_id": "-", "project_id": "-", "db_id": db.id})
+        return DatabaseCreateResponse(id=db.id, name=db.name, filename=db.filename, row_count=db.row_count, columns_map_json=mapping)
+    except Exception as e:
+        log.error(f"Database upload failed: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Upload misslyckades: {str(e)}")
 
 
 @router.get("/databases", response_model=list[DatabaseListItem])
