@@ -167,7 +167,17 @@ def combine_import_files(project_id: int, req: CombineImportsRequest, session: S
         
         # Kombinera alla dataframes
         if combined_data:
+            # Debug: Log column information before combining
+            print(f"Combining {len(combined_data)} dataframes:")
+            for i, df in enumerate(combined_data):
+                print(f"  DataFrame {i}: columns = {list(df.columns)}")
+                print(f"  DataFrame {i}: shape = {df.shape}")
+                print(f"  DataFrame {i}: sample data = {df.head(1).to_dict('records')}")
+            
             combined_df = pd.concat(combined_data, ignore_index=True)
+            print(f"Combined DataFrame: columns = {list(combined_df.columns)}")
+            print(f"Combined DataFrame: shape = {combined_df.shape}")
+            print(f"Combined DataFrame: sample data = {combined_df.head(3).to_dict('records')}")
             
             # Skapa ny CSV-fil
             combined_filename = f"combined_import_{project_id}_{len(imports)}_files.csv"
@@ -177,16 +187,21 @@ def combine_import_files(project_id: int, req: CombineImportsRequest, session: S
             combined_df.to_csv(combined_path, index=False, encoding='utf-8')
             
             # Skapa mapping för kolumner (använd första filens mapping som bas)
-            base_mapping = imports[0].columns_map_json
+            base_mapping = imports[0].columns_map_json.copy()
+            print(f"Base mapping from first file: {base_mapping}")
+            
             for imp in imports[1:]:
+                print(f"Adding mapping from file {imp.id}: {imp.columns_map_json}")
                 # Lägg till eventuella nya kolumner från andra filer
                 for key, value in imp.columns_map_json.items():
                     if key not in base_mapping:
                         base_mapping[key] = value
+                        print(f"  Added new mapping: {key} -> {value}")
             
             # Lägg till mapping för de nya kolumnerna
             base_mapping['_source_file'] = 'source_file'
             base_mapping['_source_id'] = 'source_id'
+            print(f"Final combined mapping: {base_mapping}")
             
             # Skapa ny ImportFile-post
             combined_import = ImportFile(
