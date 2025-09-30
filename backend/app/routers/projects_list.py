@@ -57,7 +57,7 @@ def get_project_stats(project_id: int, session: Session = Depends(get_session)) 
         status_counts[status] = status_counts.get(status, 0) + 1
     
     # Ensure all statuses are present
-    all_statuses = ["pending", "auto_approved", "approved", "not_approved", "sent_to_ai", "ai_auto_approved"]
+    all_statuses = ["pending", "auto_approved", "approved", "not_approved", "auto_not_approved", "sent_to_ai", "ai_auto_approved"]
     status_breakdown = {status: status_counts.get(status, 0) for status in all_statuses}
     
     return {

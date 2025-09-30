@@ -89,7 +89,7 @@ export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: n
       total: stats.total_products,
       matched: breakdown.approved + breakdown.auto_approved + breakdown.ai_auto_approved,
       actionRequired: breakdown.pending + breakdown.sent_to_ai,
-      notAvailable: breakdown.not_approved
+      notAvailable: breakdown.not_approved + breakdown.auto_not_approved
     };
   };
   

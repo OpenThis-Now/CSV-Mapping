@@ -72,6 +72,7 @@ function TableView({ results, selectedIds, onSelectionChange }: { results: Match
         case "approved": return 5; // Lowest priority
         case "ai_auto_approved": return 4; // Fourth priority
         case "not_approved": return 3; // Third priority
+        case "auto_not_approved": return 3; // Third priority (same as not_approved)
         case "auto_approved": return 2; // Second priority
         default: return 1; // Highest priority (pending, sent_to_ai)
       }
@@ -149,6 +150,7 @@ function TableView({ results, selectedIds, onSelectionChange }: { results: Match
                 {r.decision === "approved" && <Badge tone="green">approved</Badge>}
                 {r.decision === "ai_auto_approved" && <Badge tone="green">AI-auto approved</Badge>}
                 {r.decision === "not_approved" && <Badge tone="red">not_approved</Badge>}
+                {r.decision === "auto_not_approved" && <Badge tone="red">Auto-not approved</Badge>}
                 {r.decision === "sent_to_ai" && <Badge tone="blue">sent_to_ai</Badge>}
                 {r.decision === "pending" && <Badge tone="yellow">pending</Badge>}
               </td>
@@ -190,6 +192,7 @@ function CardView({ results, selectedIds, onSelectionChange }: { results: MatchR
         case "approved": return 5; // Lowest priority
         case "ai_auto_approved": return 4; // Fourth priority
         case "not_approved": return 3; // Third priority
+        case "auto_not_approved": return 3; // Third priority (same as not_approved)
         case "auto_approved": return 2; // Second priority
         default: return 1; // Highest priority (pending, sent_to_ai)
       }
@@ -251,6 +254,7 @@ function CardView({ results, selectedIds, onSelectionChange }: { results: MatchR
                 {r.decision === "approved" && <Badge tone="green">approved</Badge>}
                 {r.decision === "ai_auto_approved" && <Badge tone="green">AI-auto approved</Badge>}
                 {r.decision === "not_approved" && <Badge tone="red">not_approved</Badge>}
+                {r.decision === "auto_not_approved" && <Badge tone="red">Auto-not approved</Badge>}
                 {r.decision === "sent_to_ai" && <Badge tone="blue">sent_to_ai</Badge>}
                 {r.decision === "pending" && <Badge tone="yellow">pending</Badge>}
               </div>
