@@ -126,7 +126,7 @@ def recount_database_rows(database_id: int, session: Session = Depends(get_sessi
     session.commit()
     session.refresh(db)
     
-    log.info("Database rows recounted", extra={"request_id": "-", "project_id": "-", "db_id": database_id, "row_count": row_count, "updated_row_count": db.row_count})
+    log.info(f"Database rows recounted: db_id={database_id}, row_count={row_count}, updated_row_count={db.row_count}")
     return {"message": f"Databas uppdaterad med {row_count} rader."}
 
 
