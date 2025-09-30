@@ -10,7 +10,7 @@ import InfoPage from "./pages/Info";
 import { AIProvider, useAI } from "./contexts/AIContext";
 import { ToastProvider } from "./contexts/ToastContext";
 
-type View = "databases" | "projects" | "import" | "pdf-import" | "match" | "ai" | "export" | "info";
+type View = "databases" | "projects" | "import" | "merge" | "match" | "ai" | "export" | "info";
 
 function AppContent() {
   const [view, setView] = useState<View>("projects");
@@ -43,14 +43,14 @@ function AppContent() {
               onClick={() => setView("import")} 
               disabled={!projectId}
             >
-              CSV Import
+              Customer Import
             </button>
             <button 
-              className={`chip ${view === "pdf-import" ? "bg-blue-100 border-blue-300 text-blue-800" : ""} ${!projectId ? "opacity-50 cursor-not-allowed" : ""}`}
-              onClick={() => setView("pdf-import")} 
+              className={`chip ${view === "merge" ? "bg-blue-100 border-blue-300 text-blue-800" : ""} ${!projectId ? "opacity-50 cursor-not-allowed" : ""}`}
+              onClick={() => setView("merge")} 
               disabled={!projectId}
             >
-              PDF Import
+              Merge
             </button>
             <button 
               className={`chip ${view === "match" ? "bg-blue-100 border-blue-300 text-blue-800" : ""} ${!projectId ? "opacity-50 cursor-not-allowed" : ""}`}
@@ -111,7 +111,7 @@ function AppContent() {
         }} selectedProjectId={projectId} />}
         {view === "databases" && <Databases activeProjectId={projectId} />}
         {view === "import" && projectId && <ImportPage projectId={projectId} />}
-        {view === "pdf-import" && projectId && <PDFImportPage projectId={projectId} />}
+        {view === "merge" && projectId && <PDFImportPage projectId={projectId} />}
         {view === "match" && projectId && <MatchPage projectId={projectId} />}
         {view === "ai" && projectId && <AIDeep projectId={projectId} />}
         {view === "export" && projectId && <ExportPage projectId={projectId} />}

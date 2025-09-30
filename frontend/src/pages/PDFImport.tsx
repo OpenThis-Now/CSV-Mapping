@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/contexts/ToastContext";
-import UploadArea from "@/components/UploadArea";
 import api from "@/lib/api";
 
 type ImportFile = {
@@ -20,12 +19,8 @@ type Project = {
 };
 
 export default function PDFImportPage({ projectId }: { projectId: number }) {
-  const [status, setStatus] = useState<string | null>(null);
-  const [last, setLast] = useState<any | null>(null);
   const [imports, setImports] = useState<ImportFile[]>([]);
   const [project, setProject] = useState<Project | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [selectedImports, setSelectedImports] = useState<Set<number>>(new Set());
   const [combining, setCombining] = useState(false);
   const { showToast } = useToast();
@@ -54,34 +49,6 @@ export default function PDFImportPage({ projectId }: { projectId: number }) {
     refreshProject();
   }, [projectId]);
 
-  const onPDFFiles = async (files: File[]) => {
-    setSelectedFiles(files);
-    setUploading(true);
-    
-    try {
-      const formData = new FormData();
-      files.forEach(file => {
-        formData.append('files', file);
-      });
-      
-      const res = await api.post(`/projects/${projectId}/pdf-import`, formData);
-      
-      setLast(res.data);
-      setStatus(`Processed ${files.length} PDF files, extracted ${res.data.row_count} products`);
-      showToast(`Successfully processed ${files.length} PDF files`, 'success');
-      
-      await refreshImports();
-      await refreshProject();
-    } catch (error: any) {
-      console.error("PDF upload failed:", error);
-      const errorMessage = error.response?.data?.detail || "PDF processing failed";
-      showToast(`PDF processing failed: ${errorMessage}`, 'error');
-      setStatus(`Failed to process PDF files: ${errorMessage}`);
-    } finally {
-      setUploading(false);
-      setSelectedFiles([]);
-    }
-  };
 
   const toggleImport = async (importId: number) => {
     try {
@@ -193,59 +160,27 @@ export default function PDFImportPage({ projectId }: { projectId: number }) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">PDF Import</h1>
+        <h1 className="text-2xl font-bold">Merge Files</h1>
         <div className="text-sm text-gray-600">
           Project: {project?.name || 'Loading...'}
         </div>
       </div>
 
-      {/* Upload Section */}
-      <div className="space-y-4">
-        <div>
-          <h2 className="text-lg font-semibold mb-2">Upload PDF Files</h2>
-          <p className="text-sm text-gray-600 mb-4">
-            Upload multiple PDF files (SDS documents) for AI-powered product information extraction.
-            The system will read the first 3 pages of each PDF and extract product names, article numbers, and supplier information.
-          </p>
-        </div>
-        
-        <UploadArea 
-          onFiles={onPDFFiles}
-          accept=".pdf"
-          multiple={true}
-        />
-        
-        {selectedFiles.length > 0 && (
-          <div className="mt-4">
-            <h3 className="text-sm font-medium mb-2">Selected files:</h3>
-            <ul className="text-sm text-gray-600">
-              {selectedFiles.map((file, index) => (
-                <li key={index}>• {file.name}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-        
-        {uploading && (
-          <div className="flex items-center gap-2 text-blue-600">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-            Processing PDF files with AI...
-          </div>
-        )}
-        
-        {status && (
-          <div className={`p-3 rounded text-sm ${
-            status.includes('Failed') ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'
-          }`}>
-            {status}
-          </div>
-        )}
+      {/* Info Section */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <h3 className="font-semibold text-blue-900 mb-2">How to Merge Files</h3>
+        <ul className="text-sm text-blue-800 space-y-1">
+          <li>• Upload your files using the "Customer Import" page</li>
+          <li>• Select multiple uploaded files with checkboxes below</li>
+          <li>• Click "Kombinera X filer" to merge them into one file</li>
+          <li>• Or click "Kombinera & Matcha X filer" to merge and start matching directly</li>
+        </ul>
       </div>
 
       {/* Import History */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">PDF Import History</h2>
+          <h2 className="text-lg font-semibold">Uploaded Files</h2>
           {selectedImports.size > 0 && (
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-600">
@@ -287,7 +222,7 @@ export default function PDFImportPage({ projectId }: { projectId: number }) {
         
         {imports.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
-            No PDF imports yet. Upload some PDF files to get started.
+            No files uploaded yet. Go to "Customer Import" to upload CSV or PDF files.
           </div>
         ) : (
           <div className="space-y-2">
@@ -343,15 +278,14 @@ export default function PDFImportPage({ projectId }: { projectId: number }) {
       </div>
 
       {/* Instructions */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h3 className="font-semibold text-blue-900 mb-2">How PDF Import Works</h3>
-        <ul className="text-sm text-blue-800 space-y-1">
-          <li>• Upload multiple PDF files (SDS documents) at once</li>
-          <li>• AI reads the first 3 pages of each PDF</li>
-          <li>• Extracts: Product name, Article number, Company name, Market, Language</li>
-          <li>• Creates a CSV file that can be used for matching</li>
-          <li>• Failed PDFs are included as empty rows with filename</li>
-          <li>• <strong>New:</strong> Select multiple imports with checkboxes and combine them for matching</li>
+      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+        <h3 className="font-semibold text-green-900 mb-2">Merge Instructions</h3>
+        <ul className="text-sm text-green-800 space-y-1">
+          <li>• <strong>Step 1:</strong> Upload files using "Customer Import" (CSV or PDF)</li>
+          <li>• <strong>Step 2:</strong> Select multiple files with checkboxes above</li>
+          <li>• <strong>Step 3:</strong> Click "Kombinera X filer" to merge into one file</li>
+          <li>• <strong>Step 4:</strong> Or use "Kombinera & Matcha X filer" for direct matching</li>
+          <li>• Merged files include source tracking (_source_file, _source_id columns)</li>
         </ul>
       </div>
     </div>

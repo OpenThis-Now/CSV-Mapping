@@ -1,6 +1,7 @@
 import UploadArea from "@/components/UploadArea";
 import api from "@/lib/api";
 import { useEffect, useState } from "react";
+import { useToast } from "@/contexts/ToastContext";
 
 type ImportFile = {
   id: number;
@@ -25,6 +26,9 @@ export default function ImportPage({ projectId }: { projectId: number }) {
   const [imports, setImports] = useState<ImportFile[]>([]);
   const [project, setProject] = useState<Project | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [pdfUploading, setPdfUploading] = useState(false);
+  const { showToast } = useToast();
 
   const refreshImports = async () => {
     try {
@@ -65,6 +69,35 @@ export default function ImportPage({ projectId }: { projectId: number }) {
     }
   };
 
+  const onPDFFiles = async (files: File[]) => {
+    setSelectedFiles(files);
+    setPdfUploading(true);
+    
+    try {
+      const formData = new FormData();
+      files.forEach(file => {
+        formData.append('files', file);
+      });
+      
+      const res = await api.post(`/projects/${projectId}/pdf-import`, formData);
+      
+      setLast(res.data);
+      setStatus(`Processed ${files.length} PDF files, extracted ${res.data.row_count} products`);
+      showToast(`Successfully processed ${files.length} PDF files`, 'success');
+      
+      await refreshImports();
+      await refreshProject();
+    } catch (error: any) {
+      console.error("PDF upload failed:", error);
+      const errorMessage = error.response?.data?.detail || "PDF processing failed";
+      showToast(`PDF processing failed: ${errorMessage}`, 'error');
+      setStatus(`Failed to process PDF files: ${errorMessage}`);
+    } finally {
+      setPdfUploading(false);
+      setSelectedFiles([]);
+    }
+  };
+
   const toggleImport = async (importId: number) => {
     try {
       // Check if this import is already selected
@@ -100,12 +133,75 @@ export default function ImportPage({ projectId }: { projectId: number }) {
   };
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Import customer file</h1>
-      <UploadArea onFile={onFile} />
-      {uploading && <div className="text-sm opacity-70">Uploading...</div>}
-      {status && <div className="chip">{status}</div>}
-      {/* Auto-mapping display removed for cleaner UI */}
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Customer Import</h1>
+        <div className="text-sm text-gray-600">
+          Project: {project?.name || 'Loading...'}
+        </div>
+      </div>
+
+      {/* CSV Upload Section */}
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold mb-2">Upload CSV File</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Upload a CSV file with customer product data for matching.
+          </p>
+        </div>
+        
+        <UploadArea onFile={onFile} accept=".csv" />
+        
+        {uploading && (
+          <div className="flex items-center gap-2 text-blue-600">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+            Uploading CSV file...
+          </div>
+        )}
+      </div>
+
+      {/* PDF Upload Section */}
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold mb-2">Upload PDF Files</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Upload multiple PDF files (SDS documents) for AI-powered product information extraction.
+            The system will read the first 3 pages of each PDF and extract product names, article numbers, and supplier information.
+          </p>
+        </div>
+        
+        <UploadArea 
+          onFiles={onPDFFiles}
+          accept=".pdf"
+          multiple={true}
+        />
+        
+        {selectedFiles.length > 0 && (
+          <div className="mt-4">
+            <h3 className="text-sm font-medium mb-2">Selected files:</h3>
+            <ul className="text-sm text-gray-600">
+              {selectedFiles.map((file, index) => (
+                <li key={index}>• {file.name}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        
+        {pdfUploading && (
+          <div className="flex items-center gap-2 text-blue-600">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+            Processing PDF files with AI...
+          </div>
+        )}
+      </div>
+
+      {status && (
+        <div className={`p-3 rounded text-sm ${
+          status.includes('Failed') ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'
+        }`}>
+          {status}
+        </div>
+      )}
       
       <div className="space-y-3">
         <h2 className="text-lg font-medium">Uploaded files</h2>
