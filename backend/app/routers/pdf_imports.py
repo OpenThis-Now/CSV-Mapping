@@ -138,9 +138,8 @@ def combine_import_files(project_id: int, req: CombineImportsRequest, session: S
         import pandas as pd
         from ..services.files import detect_csv_separator
         
-        # Läs alla CSV-filer och kombinera dem
-        combined_data = []
-        total_rows = 0
+        # Läs alla CSV-filer och skapa enhetlig struktur
+        unified_data = []
         
         for imp in imports:
             csv_path = Path(settings.IMPORTS_DIR) / imp.filename
@@ -158,26 +157,57 @@ def combine_import_files(project_id: int, req: CombineImportsRequest, session: S
                 except:
                     df = pd.read_csv(csv_path, sep=separator, encoding='cp1252')
             
-            # Lägg till källinformation
-            df['_source_file'] = imp.original_name
-            df['_source_id'] = imp.id
+            # Debug: Log column information
+            print(f"Processing file {imp.id} ({imp.original_name}):")
+            print(f"  Columns: {list(df.columns)}")
+            print(f"  Shape: {df.shape}")
+            print(f"  Mapping: {imp.columns_map_json}")
             
-            combined_data.append(df)
-            total_rows += len(df)
+            # Mappa kolumner baserat på filens mappning
+            file_mapping = imp.columns_map_json
+            
+            # Processa varje rad i denna fil
+            for row_idx in range(len(df)):
+                unified_row = {}
+                
+                # Mappa product
+                if 'product' in file_mapping:
+                    product_col = file_mapping['product']
+                    unified_row['product'] = df[product_col].iloc[row_idx] if product_col in df.columns else ''
+                else:
+                    unified_row['product'] = ''
+                
+                # Mappa vendor
+                if 'vendor' in file_mapping:
+                    vendor_col = file_mapping['vendor']
+                    unified_row['vendor'] = df[vendor_col].iloc[row_idx] if vendor_col in df.columns else ''
+                else:
+                    unified_row['vendor'] = ''
+                
+                # Mappa sku
+                if 'sku' in file_mapping:
+                    sku_col = file_mapping['sku']
+                    unified_row['sku'] = df[sku_col].iloc[row_idx] if sku_col in df.columns else ''
+                else:
+                    unified_row['sku'] = ''
+                
+                # Lägg till övriga kolumner
+                for col in df.columns:
+                    if col not in ['product', 'vendor', 'sku', 'Product_name', 'Supplier_name', 'Article_number']:
+                        unified_row[col] = df[col].iloc[row_idx] if len(df) > row_idx else ''
+                
+                # Lägg till källinformation
+                unified_row['_source_file'] = imp.original_name
+                unified_row['_source_id'] = imp.id
+                
+                unified_data.append(unified_row)
         
-        # Kombinera alla dataframes
-        if combined_data:
-            # Debug: Log column information before combining
-            print(f"Combining {len(combined_data)} dataframes:")
-            for i, df in enumerate(combined_data):
-                print(f"  DataFrame {i}: columns = {list(df.columns)}")
-                print(f"  DataFrame {i}: shape = {df.shape}")
-                print(f"  DataFrame {i}: sample data = {df.head(1).to_dict('records')}")
-            
-            combined_df = pd.concat(combined_data, ignore_index=True)
-            print(f"Combined DataFrame: columns = {list(combined_df.columns)}")
-            print(f"Combined DataFrame: shape = {combined_df.shape}")
-            print(f"Combined DataFrame: sample data = {combined_df.head(3).to_dict('records')}")
+        # Skapa enhetlig DataFrame
+        if unified_data:
+            combined_df = pd.DataFrame(unified_data)
+            print(f"Unified DataFrame: columns = {list(combined_df.columns)}")
+            print(f"Unified DataFrame: shape = {combined_df.shape}")
+            print(f"Unified DataFrame: sample data = {combined_df.head(3).to_dict('records')}")
             
             # Skapa ny CSV-fil
             combined_filename = f"combined_import_{project_id}_{len(imports)}_files.csv"
@@ -186,30 +216,23 @@ def combine_import_files(project_id: int, req: CombineImportsRequest, session: S
             # Spara kombinerad CSV
             combined_df.to_csv(combined_path, index=False, encoding='utf-8')
             
-            # Skapa mapping för kolumner (använd första filens mapping som bas)
-            base_mapping = imports[0].columns_map_json.copy()
-            print(f"Base mapping from first file: {base_mapping}")
             
-            for imp in imports[1:]:
-                print(f"Adding mapping from file {imp.id}: {imp.columns_map_json}")
-                # Lägg till eventuella nya kolumner från andra filer
-                for key, value in imp.columns_map_json.items():
-                    if key not in base_mapping:
-                        base_mapping[key] = value
-                        print(f"  Added new mapping: {key} -> {value}")
-            
-            # Lägg till mapping för de nya kolumnerna
-            base_mapping['_source_file'] = 'source_file'
-            base_mapping['_source_id'] = 'source_id'
-            print(f"Final combined mapping: {base_mapping}")
+            # Skapa enhetlig kolumnmappning för den kombinerade filen
+            unified_mapping = {
+                'product': 'product',
+                'vendor': 'vendor', 
+                'sku': 'sku',
+                '_source_file': 'source_file',
+                '_source_id': 'source_id'
+            }
             
             # Skapa ny ImportFile-post
             combined_import = ImportFile(
                 project_id=project_id,
                 filename=combined_filename,
                 original_name=f"Kombinerad import ({len(imports)} filer)",
-                columns_map_json=base_mapping,
-                row_count=total_rows,
+                columns_map_json=unified_mapping,  # Använd enhetlig mappning
+                row_count=len(unified_data),
             )
             session.add(combined_import)
             session.commit()
@@ -219,7 +242,7 @@ def combine_import_files(project_id: int, req: CombineImportsRequest, session: S
                 import_file_id=combined_import.id,
                 filename=combined_import.filename,
                 row_count=combined_import.row_count,
-                columns_map_json=base_mapping
+                columns_map_json=unified_mapping
             )
         else:
             raise HTTPException(status_code=500, detail="Inga data att kombinera.")
