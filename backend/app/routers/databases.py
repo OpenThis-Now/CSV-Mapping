@@ -29,12 +29,15 @@ def upload_database_csv(file: UploadFile = File(...), session: Session = Depends
     
     # Try different encodings to read the CSV file
     headers = []
+    row_count = 0
     for encoding in ["utf-8", "utf-8-sig", "latin-1", "cp1252", "iso-8859-1"]:
         try:
             with open(path, "r", encoding=encoding, newline="") as f:
                 reader = csv.DictReader(f, delimiter=separator)
                 headers = reader.fieldnames or []
                 if headers:
+                    # Count rows while we have the file open
+                    row_count = sum(1 for _ in reader)
                     break
         except (UnicodeDecodeError, UnicodeError):
             continue
@@ -45,6 +48,9 @@ def upload_database_csv(file: UploadFile = File(...), session: Session = Depends
             with open(path, "r", encoding="utf-8", errors="replace", newline="") as f:
                 reader = csv.DictReader(f, delimiter=separator)
                 headers = reader.fieldnames or []
+                if headers:
+                    # Count rows while we have the file open
+                    row_count = sum(1 for _ in reader)
         except Exception:
             raise HTTPException(status_code=400, detail="Kunde inte läsa CSV-filen. Kontrollera att filen är korrekt formaterad.")
     
@@ -58,6 +64,7 @@ def upload_database_csv(file: UploadFile = File(...), session: Session = Depends
         filename=path.name,
         file_hash=file_hash,
         columns_map_json=mapping,
+        row_count=row_count,
     )
     session.add(db)
     session.commit()
