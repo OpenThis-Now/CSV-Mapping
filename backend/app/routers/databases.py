@@ -102,6 +102,52 @@ def update_database(database_id: int, payload: dict, session: Session = Depends(
     return {"message": "Databas uppdaterad."}
 
 
+@router.patch("/databases/{database_id}/recount")
+def recount_database_rows(database_id: int, session: Session = Depends(get_session)) -> dict[str, str]:
+    """Recount rows for an existing database"""
+    db = session.get(DatabaseCatalog, database_id)
+    if not db:
+        raise HTTPException(status_code=404, detail="Databas saknas.")
+    
+    # Get the file path
+    file_path = Path(settings.DATABASES_DIR) / db.filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Databasfil saknas på disk.")
+    
+    # Count rows in the file
+    from ..services.files import detect_csv_separator
+    separator = detect_csv_separator(file_path)
+    
+    row_count = 0
+    for encoding in ["utf-8", "utf-8-sig", "latin-1", "cp1252", "iso-8859-1"]:
+        try:
+            with open(file_path, "r", encoding=encoding, newline="") as f:
+                reader = csv.DictReader(f, delimiter=separator)
+                if reader.fieldnames:
+                    row_count = sum(1 for _ in reader)
+                    break
+        except (UnicodeDecodeError, UnicodeError):
+            continue
+    
+    if row_count == 0:
+        # Fallback: try with error replacement
+        try:
+            with open(file_path, "r", encoding="utf-8", errors="replace", newline="") as f:
+                reader = csv.DictReader(f, delimiter=separator)
+                if reader.fieldnames:
+                    row_count = sum(1 for _ in reader)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Kunde inte läsa CSV-filen.")
+    
+    # Update the database record
+    db.row_count = row_count
+    session.add(db)
+    session.commit()
+    
+    log.info("Database rows recounted", extra={"request_id": "-", "project_id": "-", "db_id": database_id, "row_count": row_count})
+    return {"message": f"Databas uppdaterad med {row_count} rader."}
+
+
 @router.delete("/databases/{database_id}")
 def delete_database(database_id: int, session: Session = Depends(get_session)) -> dict[str, str]:
     db = session.get(DatabaseCatalog, database_id)
