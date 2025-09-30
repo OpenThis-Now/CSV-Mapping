@@ -60,10 +60,15 @@ export default function Databases({ activeProjectId }: { activeProjectId?: numbe
     const fd = new FormData();
     fd.append("file", file);
     setUploading(true);
+    setStatus(null); // Clear previous status
     try {
       const res = await api.post("/databases", fd);
       setStatus(`Uploaded ${res.data.row_count} products`);
       await refresh();
+    } catch (error: any) {
+      console.error("Upload failed:", error);
+      const errorMessage = error.response?.data?.detail || error.message || "Upload failed";
+      setStatus(`Error: ${errorMessage}`);
     } finally {
       setUploading(false);
     }
@@ -135,11 +140,13 @@ export default function Databases({ activeProjectId }: { activeProjectId?: numbe
 
   const recountRows = async (databaseId: number) => {
     try {
-      await api.patch(`/databases/${databaseId}/recount`);
+      const res = await api.patch(`/databases/${databaseId}/recount`);
+      setStatus(res.data.message || "Rows recounted successfully");
       await refresh();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to recount rows:", error);
-      alert("Could not recount rows. Please try again.");
+      const errorMessage = error.response?.data?.detail || error.message || "Could not recount rows";
+      setStatus(`Error: ${errorMessage}`);
     }
   };
 
