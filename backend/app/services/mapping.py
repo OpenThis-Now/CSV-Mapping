@@ -5,7 +5,7 @@ from typing import Iterable
 
 
 P_CANDIDATES = ["produkt", "product", "product_name", "name", "artikel", "artikelbenämning", "benämning", "title"]
-V_CANDIDATES = ["leverantör", "leverantor", "vendor", "supplier", "supplier_name", "brand", "manufacturer", "fabrik", "tillverkare"]
+V_CANDIDATES = ["leverantör", "leverantor", "vendor", "supplier", "supplier_name", "brand", "manufacturer", "fabrik", "tillverkare", "company_name"]
 S_CANDIDATES = ["sku", "artikelnummer", "artnr", "art_nr", "article_number", "item_no", "item", "partno", "part_no", "gtin", "ean"]
 
 def normalize_header(h: str) -> str:

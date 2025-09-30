@@ -123,12 +123,22 @@ def list_results(project_id: int, session: Session = Depends(get_session)) -> li
                 ).order_by(AiSuggestion.created_at.desc())
             ).first()
         
+        # Handle different field name formats from PDF imports vs CSV imports
         cust_preview = {
-            "Product": r.customer_fields_json.get("Product_name") or "",
-            "Supplier": r.customer_fields_json.get("Supplier_name") or "",
-            "Art.no": r.customer_fields_json.get("Article_number") or "",
-            "Market": r.customer_fields_json.get("Market") or "",
-            "Language": r.customer_fields_json.get("Language") or "",
+            "Product": (r.customer_fields_json.get("Product_name") or 
+                       r.customer_fields_json.get("product") or 
+                       r.customer_fields_json.get("product_name") or ""),
+            "Supplier": (r.customer_fields_json.get("Supplier_name") or 
+                        r.customer_fields_json.get("vendor") or 
+                        r.customer_fields_json.get("company_name") or ""),
+            "Art.no": (r.customer_fields_json.get("Article_number") or 
+                      r.customer_fields_json.get("sku") or 
+                      r.customer_fields_json.get("article_number") or ""),
+            "Market": (r.customer_fields_json.get("Market") or 
+                      r.customer_fields_json.get("market") or 
+                      r.customer_fields_json.get("authored_market") or ""),
+            "Language": (r.customer_fields_json.get("Language") or 
+                        r.customer_fields_json.get("language") or ""),
         }
         db_preview = None
         if r.db_fields_json:
