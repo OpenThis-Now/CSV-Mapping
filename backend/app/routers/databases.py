@@ -55,12 +55,14 @@ def upload_database_csv(file: UploadFile = File(...), session: Session = Depends
 @router.get("/databases", response_model=list[DatabaseListItem])
 def list_databases(session: Session = Depends(get_session)) -> list[DatabaseListItem]:
     items = session.exec(select(DatabaseCatalog).order_by(DatabaseCatalog.created_at.desc())).all()
-    return [
-        DatabaseListItem(
-            id=i.id, name=i.name, filename=i.filename, row_count=i.row_count, created_at=i.created_at, updated_at=i.updated_at
-        )
-        for i in items
-    ]
+    result = []
+    for i in items:
+        # Debug: check if row_count exists
+        row_count = getattr(i, 'row_count', None)
+        result.append(DatabaseListItem(
+            id=i.id, name=i.name, filename=i.filename, row_count=row_count or 0, created_at=i.created_at, updated_at=i.updated_at
+        ))
+    return result
 
 
 @router.patch("/databases/{database_id}")
@@ -112,7 +114,10 @@ def recount_database_rows(database_id: int, session: Session = Depends(get_sessi
     session.commit()
     session.refresh(db)
     
-    return {"message": f"Databas uppdaterad med {row_count} rader."}
+    # Debug: check if row_count was actually saved
+    saved_count = getattr(db, 'row_count', None)
+    
+    return {"message": f"Databas uppdaterad med {row_count} rader. Saved: {saved_count}"}
 
 
 @router.delete("/databases/{database_id}")
