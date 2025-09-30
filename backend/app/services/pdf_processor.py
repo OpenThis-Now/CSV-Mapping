@@ -14,8 +14,8 @@ def extract_pdf_text(pdf_path: Path, max_pages: int = 3) -> Optional[str]:
     try:
         # Check if PyMuPDF is available
         import fitz
-    except ImportError:
-        print(f"PyMuPDF not available - cannot read PDF {pdf_path}")
+    except ImportError as e:
+        print(f"PyMuPDF not available - cannot read PDF {pdf_path}: {e}")
         return None
     
     try:
@@ -229,10 +229,9 @@ def create_fallback_entry(filename: str) -> Dict[str, Any]:
 
 def create_csv_from_pdf_data(pdf_data: List[Dict[str, Any]], output_path: Path) -> Path:
     """Skapa CSV från extraherade PDF-data"""
-    # Definiera kolumner baserat på din befintliga mapping
+    # Använd kolumnnamn som matchar auto_map_headers förväntningar
     fieldnames = [
-        "product_name", "article_number", "company_name", 
-        "authored_market", "language", "filename", "extraction_status"
+        "product", "vendor", "sku", "market", "language", "filename", "extraction_status"
     ]
     
     with open(output_path, 'w', newline='', encoding='utf-8') as csvfile:
@@ -240,12 +239,12 @@ def create_csv_from_pdf_data(pdf_data: List[Dict[str, Any]], output_path: Path) 
         writer.writeheader()
         
         for item in pdf_data:
-            # Extrahera värden från nested structure
+            # Extrahera värden från nested structure och mappa till rätt kolumnnamn
             row = {
-                "product_name": item.get("product_name", {}).get("value", ""),
-                "article_number": item.get("article_number", {}).get("value", ""),
-                "company_name": item.get("company_name", {}).get("value", ""),
-                "authored_market": item.get("authored_market", {}).get("value", ""),
+                "product": item.get("product_name", {}).get("value", ""),
+                "vendor": item.get("company_name", {}).get("value", ""),
+                "sku": item.get("article_number", {}).get("value", ""),
+                "market": item.get("authored_market", {}).get("value", ""),
                 "language": item.get("language", {}).get("value", ""),
                 "filename": item.get("filename", ""),
                 "extraction_status": item.get("extraction_status", "unknown")
