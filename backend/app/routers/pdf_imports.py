@@ -141,3 +141,49 @@ def debug_pdf_libraries():
         result["errors"].append(f"pdfplumber error: {e}")
     
     return result
+
+
+@router.post("/debug/test-pdf-extraction")
+def test_pdf_extraction(file: UploadFile = File(...)):
+    """Debug endpoint för att testa PDF-extraktion"""
+    if not file.filename or not file.filename.lower().endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="Endast PDF-filer tillåtna.")
+    
+    try:
+        # Spara PDF temporärt
+        _, pdf_path = compute_hash_and_save(Path(settings.TMP_DIR), file)
+        
+        # Test text extraction
+        from ..services.pdf_processor import extract_pdf_text, simple_text_extraction, extract_product_info_with_ai
+        
+        text = extract_pdf_text(pdf_path)
+        
+        result = {
+            "filename": file.filename,
+            "text_extracted": len(text) if text else 0,
+            "text_preview": text[:500] if text else None,
+            "extraction_method": "PyMuPDF" if text else "None",
+        }
+        
+        if text:
+            # Test simple extraction
+            simple_result = simple_text_extraction(text, file.filename)
+            result["simple_extraction"] = simple_result
+            
+            # Test AI extraction if available
+            try:
+                ai_result = extract_product_info_with_ai(text, file.filename)
+                result["ai_extraction"] = ai_result
+            except Exception as e:
+                result["ai_extraction_error"] = str(e)
+        
+        # Clean up
+        try:
+            pdf_path.unlink()
+        except:
+            pass
+            
+        return result
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Test misslyckades: {str(e)}")
