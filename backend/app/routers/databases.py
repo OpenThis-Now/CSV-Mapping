@@ -108,16 +108,21 @@ def recount_database_rows(database_id: int, session: Session = Depends(get_sessi
     except Exception as e:
         raise HTTPException(status_code=400, detail="Kunde inte läsa CSV-filen.")
     
+    # Update the database record using raw SQL to ensure the column exists
+    from sqlalchemy import text
+    try:
+        session.execute(text("ALTER TABLE databasecatalog ADD COLUMN IF NOT EXISTS row_count INTEGER DEFAULT 0"))
+        session.commit()
+    except Exception:
+        pass  # Column might already exist
+    
     # Update the database record
     db.row_count = row_count
     session.add(db)
     session.commit()
     session.refresh(db)
     
-    # Debug: check if row_count was actually saved
-    saved_count = getattr(db, 'row_count', None)
-    
-    return {"message": f"Databas uppdaterad med {row_count} rader. Saved: {saved_count}"}
+    return {"message": f"Databas uppdaterad med {row_count} rader."}
 
 
 @router.delete("/databases/{database_id}")
