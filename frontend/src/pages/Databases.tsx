@@ -198,7 +198,7 @@ export default function Databases({ activeProjectId }: { activeProjectId?: numbe
                 <div className="chip">ID {db.id}</div>
                 <button
                   onClick={() => deleteDatabase(db.id)}
-                  className="flex items-center gap-1 px-3 py-1 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                  className="flex items-center gap-1 px-3 py-1 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded border border-gray-200 hover:border-red-200 transition-colors"
                   title="Delete database"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
