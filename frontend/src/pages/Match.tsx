@@ -11,7 +11,7 @@ export default function MatchPage({ projectId }: { projectId: number }) {
   const [status, setStatus] = useState("");
   const [thresholds, setThresholds] = useState({ vendor_min: 80, product_min: 75, overall_accept: 85 });
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [view, setView] = useState<"table" | "card">("table");
+  const [view, setView] = useState<"table" | "card">("card");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const { startAnalysisForSentToAI } = useAI();
   const { showToast } = useToast();
