@@ -142,7 +142,7 @@ EDGE CASES TO HANDLE
 - If PDF is corrupted, password-protected, or contains only images without OCR text: return single entry with all null values and confidence 0.0
 
 OUTPUT FORMAT
-Return a JSON array with exactly ONE object containing:
+Return ONLY a valid JSON object (no markdown, no extra text) with exactly these fields:
 {{
   "product_name": {{"value": "string or null", "confidence": 0.0-1.0, "evidence": {{"snippet": "short text fragment"}}}},
   "article_number": {{"value": "string or null", "confidence": 0.0-1.0, "evidence": {{"snippet": "short text fragment"}}}},
