@@ -11,14 +11,10 @@ from ..openai_client import suggest_with_openai
 
 def extract_pdf_text(pdf_path: Path, max_pages: int = 3) -> Optional[str]:
     """Extrahera text från första 3 sidorna av PDF"""
+    # Try PyMuPDF first
     try:
-        # Check if PyMuPDF is available
         import fitz
-    except ImportError as e:
-        print(f"PyMuPDF not available - cannot read PDF {pdf_path}: {e}")
-        return None
-    
-    try:
+        print(f"Using PyMuPDF for {pdf_path}")
         doc = fitz.open(pdf_path)
         if len(doc) == 0:
             print(f"PDF {pdf_path} is empty")
@@ -34,16 +30,42 @@ def extract_pdf_text(pdf_path: Path, max_pages: int = 3) -> Optional[str]:
         doc.close()
         result = text.strip() if text.strip() else None
         if result:
-            print(f"Successfully extracted {len(result)} characters from PDF {pdf_path}")
+            print(f"PyMuPDF: Successfully extracted {len(result)} characters from PDF {pdf_path}")
+            return result
         else:
-            print(f"No text found in PDF {pdf_path}")
-        return result
-        
+            print(f"PyMuPDF: No text found in PDF {pdf_path}")
+            
+    except ImportError as e:
+        print(f"PyMuPDF not available: {e}")
     except Exception as e:
-        print(f"Error reading PDF {pdf_path}: {e}")
-        import traceback
-        traceback.print_exc()
-        return None
+        print(f"PyMuPDF error reading PDF {pdf_path}: {e}")
+    
+    # Fallback to pdfplumber
+    try:
+        import pdfplumber
+        print(f"Using pdfplumber for {pdf_path}")
+        text = ""
+        with pdfplumber.open(pdf_path) as pdf:
+            for page_num in range(min(max_pages, len(pdf.pages))):
+                page = pdf.pages[page_num]
+                page_text = page.extract_text()
+                if page_text and page_text.strip():
+                    text += page_text + "\n"
+        
+        result = text.strip() if text.strip() else None
+        if result:
+            print(f"pdfplumber: Successfully extracted {len(result)} characters from PDF {pdf_path}")
+            return result
+        else:
+            print(f"pdfplumber: No text found in PDF {pdf_path}")
+            
+    except ImportError as e:
+        print(f"pdfplumber not available: {e}")
+    except Exception as e:
+        print(f"pdfplumber error reading PDF {pdf_path}: {e}")
+    
+    print(f"All PDF extraction methods failed for {pdf_path}")
+    return None
 
 
 def build_pdf_extraction_prompt(pdf_text: str, filename: str) -> str:
