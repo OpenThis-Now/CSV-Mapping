@@ -109,13 +109,19 @@ C) company_name
 
 D) authored_market (regulatory market the SDS was authored for)
    - Determine using explicit regulatory references first. Examples (non-exhaustive):
-     • EU/EEA (CLP/REACH): "Regulation (EC) No 1272/2008 (CLP)", "Regulation (EC) No 1907/2006 (REACH)", "UFI", "EUH0xx", "GB-CLP" (UK).
-     • USA (OSHA HazCom 2012): "29 CFR 1910.1200", "Hazard(s) Identification" wording, NFPA/HMIS tables.
-     • Canada (WHMIS): "WHMIS", "HPR", "SOR/2015-17", bilingual EN/FR with Canadian supplier.
-     • Australia/NZ: "GHS Revision x (AU)", "SUSMP/Poisons Standard", "HSNO".
-     • Other regions (JP/KR/CN/BR/…): cite their GHS/industrial safety laws if mentioned.
-   - If no explicit citation, use weaker signals (lower confidence): address/country of supplier, emergency phone country code, label element styles (e.g., EUH statements).
-   - Output a concise region string such as: "EU (CLP/REACH)", "US (OSHA HazCom 2012)", "Canada (WHMIS)", "UK (GB-CLP)", "Australia (GHS AU)", etc.
+     • EU/EEA countries: Look for specific country indicators (address, phone codes, language) combined with "Regulation (EC) No 1272/2008 (CLP)", "Regulation (EC) No 1907/2006 (REACH)", "UFI", "EUH0xx".
+       - Germany: German text, German address, "+49" phone
+       - France: French text, French address, "+33" phone  
+       - Sweden: Swedish text, Swedish address, "+46" phone
+       - Netherlands: Dutch text, Dutch address, "+31" phone
+       - UK: "GB-CLP", UK address, "+44" phone
+     • USA (OSHA HazCom 2012): "29 CFR 1910.1200", "Hazard(s) Identification" wording, NFPA/HMIS tables, US address, "+1" phone.
+     • Canada (WHMIS): "WHMIS", "HPR", "SOR/2015-17", bilingual EN/FR with Canadian supplier, Canadian address.
+     • Australia/NZ: "GHS Revision x (AU)", "SUSMP/Poisons Standard", "HSNO", Australian/NZ address, "+61"/"+64" phone.
+     • Other regions: cite their GHS/industrial safety laws if mentioned, look for country-specific indicators.
+   - If no explicit citation, use weaker signals (lower confidence): address/country of supplier, emergency phone country code, label element styles, language.
+   - IMPORTANT: Try to identify the specific country, not just the region. Only use "EU (CLP/REACH)" as fallback if no specific EU country can be determined.
+   - Output format: "Germany (GHS DE)", "France (GHS FR)", "Sweden (GHS SE)", "US (OSHA HazCom 2012)", "Canada (WHMIS)", "Australia (GHS AU)", etc.
 
 E) language
    - Detect by the dominant language of pages 1–3 (not the company location).
@@ -343,10 +349,10 @@ def separate_market_and_legislation(market_value: str) -> tuple[str, str]:
     if not market_value:
         return "", ""
     
-    # Mappa från AI:s format till enkla marknader och lagstiftning
+    # Mappa från AI:s format till specifika länder och lagstiftning
     market_mapping = {
-        "EU (CLP/REACH)": ("EU", "CLP/REACH"),
-        "US (OSHA HazCom 2012)": ("US", "OSHA HazCom 2012"),
+        "EU (CLP/REACH)": ("EU", "CLP/REACH"),  # Fallback för EU om inget specifikt land hittas
+        "US (OSHA HazCom 2012)": ("USA", "OSHA HazCom 2012"),
         "Canada (WHMIS)": ("Canada", "WHMIS"),
         "UK (GB-CLP)": ("UK", "GB-CLP"),
         "Australia (GHS AU)": ("Australia", "GHS AU"),
@@ -356,10 +362,22 @@ def separate_market_and_legislation(market_value: str) -> tuple[str, str]:
         "Norway (GHS NO)": ("Norway", "GHS NO"),
         "Denmark (GHS DK)": ("Denmark", "GHS DK"),
         "Finland (GHS FI)": ("Finland", "GHS FI"),
+        "Netherlands (GHS NL)": ("Netherlands", "GHS NL"),
+        "Belgium (GHS BE)": ("Belgium", "GHS BE"),
+        "Austria (GHS AT)": ("Austria", "GHS AT"),
+        "Switzerland (GHS CH)": ("Switzerland", "GHS CH"),
+        "Italy (GHS IT)": ("Italy", "GHS IT"),
+        "Spain (GHS ES)": ("Spain", "GHS ES"),
+        "Poland (GHS PL)": ("Poland", "GHS PL"),
+        "Czech Republic (GHS CZ)": ("Czech Republic", "GHS CZ"),
+        "Hungary (GHS HU)": ("Hungary", "GHS HU"),
         "Japan (GHS JP)": ("Japan", "GHS JP"),
         "Korea (GHS KR)": ("Korea", "GHS KR"),
         "China (GHS CN)": ("China", "GHS CN"),
         "Brazil (GHS BR)": ("Brazil", "GHS BR"),
+        "India (GHS IN)": ("India", "GHS IN"),
+        "Mexico (GHS MX)": ("Mexico", "GHS MX"),
+        "South Africa (GHS ZA)": ("South Africa", "GHS ZA"),
     }
     
     # Kontrollera exakt match först
