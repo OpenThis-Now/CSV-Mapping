@@ -27,37 +27,17 @@ def upload_database_csv(file: UploadFile = File(...), session: Session = Depends
     from ..services.files import detect_csv_separator
     separator = detect_csv_separator(path)
     
-    # Try different encodings to read the CSV file
-    headers = []
-    row_count = 0
-    for encoding in ["utf-8", "utf-8-sig", "latin-1", "cp1252", "iso-8859-1"]:
-        try:
-            with open(path, "r", encoding=encoding, newline="") as f:
-                reader = csv.DictReader(f, delimiter=separator)
-                headers = reader.fieldnames or []
-                if headers:
-                    # Count rows while we have the file open
-                    row_count = sum(1 for _ in reader)
-                    break
-        except (UnicodeDecodeError, UnicodeError):
-            continue
+    # Read CSV file using the same approach as imports
+    with open_text_stream(path) as f:
+        reader = csv.DictReader(f, delimiter=separator)
+        headers = reader.fieldnames or []
+        if not headers:
+            raise HTTPException(status_code=400, detail="CSV saknar rubriker.")
+        mapping = auto_map_headers(headers)
+        row_count = sum(1 for _ in reader)
     
-    if not headers:
-        # Fallback: try with error replacement
-        try:
-            with open(path, "r", encoding="utf-8", errors="replace", newline="") as f:
-                reader = csv.DictReader(f, delimiter=separator)
-                headers = reader.fieldnames or []
-                if headers:
-                    # Count rows while we have the file open
-                    row_count = sum(1 for _ in reader)
-        except Exception:
-            raise HTTPException(status_code=400, detail="Kunde inte läsa CSV-filen. Kontrollera att filen är korrekt formaterad.")
-    
-    if not headers:
-        raise HTTPException(status_code=400, detail="CSV saknar rubriker.")
-    
-    mapping = auto_map_headers(headers)
+    # Log the row count for debugging
+    log.info(f"Database upload: {row_count} rows counted for {path.name}")
 
     db = DatabaseCatalog(
         name=Path(file.filename or "databas.csv").stem,
@@ -114,30 +94,22 @@ def recount_database_rows(database_id: int, session: Session = Depends(get_sessi
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Databasfil saknas på disk.")
     
-    # Count rows in the file
-    from ..services.files import detect_csv_separator
+    # Count rows in the file using the same approach as imports
+    from ..services.files import detect_csv_separator, open_text_stream
     separator = detect_csv_separator(file_path)
     
-    row_count = 0
-    for encoding in ["utf-8", "utf-8-sig", "latin-1", "cp1252", "iso-8859-1"]:
-        try:
-            with open(file_path, "r", encoding=encoding, newline="") as f:
-                reader = csv.DictReader(f, delimiter=separator)
-                if reader.fieldnames:
-                    row_count = sum(1 for _ in reader)
-                    break
-        except (UnicodeDecodeError, UnicodeError):
-            continue
+    log.info(f"Recounting rows for {file_path.name}, separator: '{separator}'")
     
-    if row_count == 0:
-        # Fallback: try with error replacement
-        try:
-            with open(file_path, "r", encoding="utf-8", errors="replace", newline="") as f:
-                reader = csv.DictReader(f, delimiter=separator)
-                if reader.fieldnames:
-                    row_count = sum(1 for _ in reader)
-        except Exception:
-            raise HTTPException(status_code=400, detail="Kunde inte läsa CSV-filen.")
+    try:
+        with open_text_stream(file_path) as f:
+            reader = csv.DictReader(f, delimiter=separator)
+            if not reader.fieldnames:
+                raise HTTPException(status_code=400, detail="CSV saknar rubriker.")
+            row_count = sum(1 for _ in reader)
+            log.info(f"Recount successful: {row_count} rows")
+    except Exception as e:
+        log.error(f"Recount failed: {str(e)}")
+        raise HTTPException(status_code=400, detail="Kunde inte läsa CSV-filen.")
     
     # Update the database record
     db.row_count = row_count
