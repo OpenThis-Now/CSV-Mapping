@@ -63,7 +63,7 @@ def upload_database_csv(file: UploadFile = File(...), session: Session = Depends
     session.commit()
     session.refresh(db)
     log.info("Database CSV uploaded", extra={"request_id": "-", "project_id": "-", "db_id": db.id})
-    return DatabaseCreateResponse(id=db.id, name=db.name, filename=db.filename, columns_map_json=mapping)
+    return DatabaseCreateResponse(id=db.id, name=db.name, filename=db.filename, row_count=db.row_count, columns_map_json=mapping)
 
 
 @router.get("/databases", response_model=list[DatabaseListItem])

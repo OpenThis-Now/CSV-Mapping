@@ -10,6 +10,7 @@ class DatabaseCreateResponse(BaseModel):
     id: int
     name: str
     filename: str
+    row_count: int
     columns_map_json: dict[str, str]
 
 
