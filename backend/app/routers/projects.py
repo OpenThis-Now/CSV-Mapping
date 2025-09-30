@@ -31,6 +31,9 @@ def patch_project(project_id: int, payload: dict, session: Session = Depends(get
         raise HTTPException(status_code=404, detail="Projekt saknas.")
     
     # Only update fields that are explicitly provided in the payload
+    if 'name' in payload and payload['name'] is not None:
+        p.name = payload['name']
+    
     if 'active_database_id' in payload:
         if payload['active_database_id'] is not None:
             db = session.get(DatabaseCatalog, payload['active_database_id'])

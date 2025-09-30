@@ -20,33 +20,73 @@ router = APIRouter()
 def build_ai_prompt(customer_row, db_sample, mapping, k: int) -> str:
     import textwrap
     return textwrap.dedent(f"""
-        You are an expert at product matching. Analyze the customer row against the best {k} candidates from the database.
-        
-        IMPORTANT: You can suggest products from ANY market/language, not just the customer's market. 
-        If you find a better match in a different market/language, explain why it's better and mention the market difference.
-        
-        Return a JSON array with {k} objects. Each object should contain:
-        - "database_fields_json": the entire database row (as JSON object)
-        - "confidence": number 0..1 (how confident you are in the match)
-        - "rationale": balanced explanation in English that describes:
-          * Why this is a good match OR why it is not
-          * Specific similarities/differences in product name, supplier, article number
-          * Market/language differences and why they matter (or don't matter)
-          * Reasoning about why this match is best/worst
-          * Whether there are other better alternatives or not
-        
-        Examples of good rationale:
-        - "Exact match: All critical identifiers match perfectly. This is a secure match because both product name, supplier and article number are identical. No better match exists in the database."
-        - "Strong match from different market: Product name and supplier match perfectly, but this is from USA market while customer is Canada. The product appears to be the same but for different regional market. This is likely the same product with regional variations."
-        - "No exact match found. Best candidate shares construction industry context but product name differs significantly. Supplier is different but within the same industry. This match is uncertain because the product name doesn't match. No other better alternatives identified in the database."
-        
+        You are an expert in product matching. Rank the best {k} candidates from the database against the given customer row, tolerate typos, and clearly flag any market/language differences. Return ONLY a JSON array with {k} objects.
+
+        — Core rules —
+        1) Evidence priority:
+           GTIN/EAN/UPC > exact article/SKU/MPN > supplier (incl. aliases) > product name tokens > attributes/specs.
+
+        2) Canonicalization & typo tolerance:
+           - Normalize: lowercase, trim, collapse whitespace, remove punctuation & hyphens, strip company suffixes (AB/Inc/Co/Company/Ltd/GmbH), remove "The".
+           - Diacritics: normalize (ö→o, å→a, etc.).
+           - Article/SKU normalization: remove spaces/slashes/dots, unify case, strip leading zeros.
+           - Accept *single-edit* typos/transpositions and common OCR confusions in identifiers (0↔O, 1↔I↔l, 5↔S, 8↔B) **only if** all other evidence is consistent. Do not invent identifiers.
+
+        3) Language & market policy (IMPORTANT):
+           - Language MUST match; otherwise cap confidence at ≤0.49.
+           - Market may differ; if so, explicitly flag it and apply a deduction (see scoring). Market must match for 1.0.
+
+        4) Supplier/brand variance:
+           - Treat distributor/private-label/subsidiary names as potential aliases if canonical tokens overlap strongly (e.g., "Sherwinn Williams" ≈ "The Sherwin-Williams Company"). Do not penalize alias when strong identifiers align.
+
+        5) Variant control:
+           - Variant tokens (e.g., "Part A/B", size, revision, pack count, color) must match; otherwise apply a significant penalty.
+
+        — Confidence scoring (0..1) —
+        A) Exact canonical match → set confidence = **1.0** when ALL are true:
+           - Language identical.
+           - Market identical.
+           - Article/SKU/MPN or GTIN are **equal after canonicalization** (per Rule 2).
+           - Product name token set equivalent after normalization (parentheses/hyphens ignored).
+           - Variant tokens equivalent (e.g., both "Part B").
+           - No contradictory evidence.
+           (Do not deduct for supplier alias/typo in this case.)
+
+        B) Otherwise start from evidence and deduct:
+           - Start points:
+             * 0.95 if exact article/SKU/MPN match (canonicalized) and names align strongly.
+             * 0.90 if GTIN/EAN/UPC match but minor name drift.
+             * 0.75–0.89 strong partials (identifier partials + high token similarity).
+             * 0.50–0.74 contextual/industry matches with weak identifiers.
+           - Deductions (sum; floor at 0):
+             * −0.20 market mismatch (severity by region distance).
+             * −0.25 language mismatch (cap total at ≤0.49 if language differs).
+             * −0.10 supplier alias uncertainty (skip if Exact canonical match).
+             * −0.15 variant risk (e.g., Part A vs Part B, different size/revision).
+             * −0.10 inconsistent identifiers across sources.
+
+        — What to return —
+        Return ONLY a JSON array with exactly {k} objects. Each object MUST include:
+        - "database_fields_json": the unmodified database row (as a JSON object)
+        - "confidence": number 0..1
+        - "rationale": 2–6 sentences in English that MUST include:
+           * Match summary: Exact/Strong/Partial/Weak
+           * Evidence (identifiers, name/supplier/article similarities; mention typo corrections)
+           * Market/language differences and impact (explicit flags: "OTHER MARKET: …"; "LANGUAGE MISMATCH: …")
+           * Variant considerations
+           * Whether better alternatives likely exist in this candidate set
+
+        — Calibration examples (for the model; do not output) —
+        Example 1 — should be 1.0:
+        Input: name "HEAT-FLEX 1200 PLUS (Part B) Hardener", supplier "Sherwinn Williams", art.no "B59V01200", market "Canada", language "English".
+        Candidate: name identical, supplier "The Sherwin-Williams Company", art.no "B59V1200", market "Canada", language "English".
+        Reasoning: article number equal after canonicalization (extra '0' removed); supplier alias; identical variant "Part B"; same market/language → **Exact canonical match; confidence 1.0**.
+
         Customer row to match:
         {json.dumps(customer_row, ensure_ascii=False)}
-        
+
         Database candidates to analyze:
         {json.dumps(db_sample[: 3 * k], ensure_ascii=False)}
-        
-        Return only JSON array without any other text.
     """).strip()
 
 
