@@ -173,7 +173,15 @@ export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: n
       </div>
       <div className="card flex gap-2">
         <input className="border rounded-xl px-3 py-2 flex-1" placeholder="Project name" value={name} onChange={e => setName(e.target.value)} />
-        <button className="btn" onClick={create}>Create</button>
+        <button 
+          className="flex items-center gap-1 px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded border border-blue-600 hover:border-blue-700 transition-colors"
+          onClick={create}
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+          </svg>
+          Create
+        </button>
       </div>
       <div className="grid gap-2">
         {list.map(p => {
