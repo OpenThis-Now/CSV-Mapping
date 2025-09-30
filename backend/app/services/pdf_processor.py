@@ -170,10 +170,13 @@ def simple_text_extraction(text: str, filename: str) -> Dict[str, Any]:
     
     # Look for article number patterns (more comprehensive)
     article_patterns = [
-        r'(?:Article number|Article No|Artikelnummer|Artikel-Nr|Art.-Nr|Part No|Item No|Product code)[:\s]+([^\n\r\s]+)',
+        r'(?:Article number|Article No|Artikelnummer|Artikel-Nr|Art\.-Nr|Part No|Item No|Product code|Product Code)[:\s]+([^\n\r\s]+)',
         r'(?:Kat\.\s*nr|Varenummer|Tuotenumero|Référence|Código de artículo)[:\s]+([^\n\r\s]+)',
-        r'\b([A-Z0-9]{3,}-[A-Z0-9]{3,})\b',  # Pattern like ABC-123
-        r'\b([0-9]{4,})\b',  # Long numeric codes
+        r'\b([A-Z0-9]{2,}-[A-Z0-9]{2,})\b',  # Pattern like ABC-123
+        r'\b([A-Z]{2,}[0-9]{3,})\b',  # Pattern like ABC123
+        r'\b([0-9]{4,})\b',  # Long numeric codes (but not too long)
+        r'\b(DS\d+)\b',  # Pattern like DS025
+        r'\b(CCS\d+)\b',  # Pattern like CCS10019
     ]
     
     for pattern in article_patterns:
@@ -184,9 +187,11 @@ def simple_text_extraction(text: str, filename: str) -> Dict[str, Any]:
     
     # Look for manufacturer/supplier patterns (more comprehensive)
     company_patterns = [
-        r'(?:Manufacturer|Supplier|Company|Responsible person|Importeur|Importer|Distributör|Distributor)[:\s]+([^\n\r]+)',
-        r'(?:Hersteller|Lieferant|Unternehmen|Verantwortliche Person)[:\s]+([^\n\r]+)',
-        r'(?:Fabricant|Fournisseur|Société|Personne responsable)[:\s]+([^\n\r]+)',
+        r'(?:Manufacturer|Supplier|Company|Responsible person|Importeur|Importer|Distributör|Distributor)[:\s]+([^\n\r]+?)(?:\n|$)',
+        r'(?:Hersteller|Lieferant|Unternehmen|Verantwortliche Person)[:\s]+([^\n\r]+?)(?:\n|$)',
+        r'(?:Fabricant|Fournisseur|Société|Personne responsable)[:\s]+([^\n\r]+?)(?:\n|$)',
+        r'^([A-Z][A-Za-z\s&]+(?:Inc|Ltd|AB|GmbH|Co|Corp|Company|Limited))',  # Company names at start of line
+        r'(?:CRC|3M|BASF|Dow|DuPont|Henkel|AkzoNobel)\s+([A-Za-z\s&]+)',  # Known manufacturers
     ]
     
     for pattern in company_patterns:
