@@ -151,13 +151,13 @@ function TableView({ results, selectedIds, onSelectionChange }: { results: Match
                 />
               </td>
               <td className="px-3 py-4 align-top">
-                {r.decision === "auto_approved" && <Badge tone="green">Approved</Badge>}
+                {r.decision === "auto_approved" && <Badge tone="green">Auto approved</Badge>}
                 {r.decision === "approved" && <Badge tone="green">Approved</Badge>}
-                {r.decision === "ai_auto_approved" && <Badge tone="green">Approved</Badge>}
+                {r.decision === "ai_auto_approved" && <Badge tone="green">AI auto approved</Badge>}
                 {r.decision === "rejected" && <Badge tone="red">Rejected</Badge>}
-                {r.decision === "auto_rejected" && <Badge tone="red">Rejected</Badge>}
-                {r.decision === "sent_to_ai" && <Badge tone="blue">Review required</Badge>}
-                {r.decision === "pending" && <Badge tone="yellow">Review required</Badge>}
+                {r.decision === "auto_rejected" && <Badge tone="red">Auto-rejected</Badge>}
+                {r.decision === "sent_to_ai" && <Badge tone="blue">Sent to AI</Badge>}
+                {r.decision === "pending" && <Badge tone="yellow">Pending</Badge>}
               </td>
               <td className="px-3 py-4 align-top">
                 <div className="text-sm font-semibold">{r.overall_score}</div>
@@ -257,13 +257,13 @@ function CardView({ results, selectedIds, onSelectionChange }: { results: MatchR
             </div>
             <div className="ml-auto flex w-64 shrink-0 flex-col items-end gap-2">
               <div>
-                {r.decision === "auto_approved" && <Badge tone="green">Approved</Badge>}
+                {r.decision === "auto_approved" && <Badge tone="green">Auto approved</Badge>}
                 {r.decision === "approved" && <Badge tone="green">Approved</Badge>}
-                {r.decision === "ai_auto_approved" && <Badge tone="green">Approved</Badge>}
+                {r.decision === "ai_auto_approved" && <Badge tone="green">AI auto approved</Badge>}
                 {r.decision === "rejected" && <Badge tone="red">Rejected</Badge>}
-                {r.decision === "auto_rejected" && <Badge tone="red">Rejected</Badge>}
-                {r.decision === "sent_to_ai" && <Badge tone="blue">Review required</Badge>}
-                {r.decision === "pending" && <Badge tone="yellow">Review required</Badge>}
+                {r.decision === "auto_rejected" && <Badge tone="red">Auto-rejected</Badge>}
+                {r.decision === "sent_to_ai" && <Badge tone="blue">Sent to AI</Badge>}
+                {r.decision === "pending" && <Badge tone="yellow">Pending</Badge>}
               </div>
               <div className="text-sm">
                 Score <span className="font-semibold">{r.overall_score}</span>

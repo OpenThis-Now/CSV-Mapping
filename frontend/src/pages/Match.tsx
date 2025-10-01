@@ -151,9 +151,9 @@ export default function MatchPage({ projectId }: { projectId: number }) {
             onChange={(e) => setStatusFilter(e.target.value)}
           >
             <option value="all">All</option>
-            <option value="review_required">Review required</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
+            <option value="review_required">Review required (Pending, Sent to AI)</option>
+            <option value="approved">Approved (Auto approved, Approved, AI auto approved)</option>
+            <option value="rejected">Rejected (Auto-rejected, Rejected)</option>
           </select>
         </div>
         
