@@ -81,6 +81,15 @@ def build_ai_prompt(customer_row, db_sample, mapping, k: int) -> str:
            
            Write as a natural paragraph, not as structured JSON fields. Example format:
            "Strong match. The product name matches exactly, and the supplier is a recognized alias of [supplier]. The article number '[article]' has a minor typo correction from '[original]' ([change]), but the identifiers are consistent. Both market and language are identical. No variant issues are present. Better alternatives are unlikely as this is the closest match."
+           
+           IMPORTANT: At the end of your rationale, always include a clear section for fields that need review. Use this exact format:
+           "FIELDS_TO_REVIEW: [field names separated by commas]"
+           
+           Examples:
+           - "FIELDS_TO_REVIEW: Article number"
+           - "FIELDS_TO_REVIEW: Article number, Product name"
+           - "FIELDS_TO_REVIEW: Supplier, Article number"
+           - "FIELDS_TO_REVIEW: None" (if no fields need review)
 
         — Calibration examples (for the model; do not output) —
         Example 1 — should be 1.0:

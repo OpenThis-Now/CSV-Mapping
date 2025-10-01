@@ -231,9 +231,26 @@ export default function AIDeep({ projectId }: { projectId: number }) {
                               <div className="bg-blue-50 p-3 rounded">
                                 <p className="font-semibold text-blue-700">AI explanation:</p>
                                 <p className="mb-2">{item.details.explanation}</p>
-                                <p className="text-sm text-blue-600">
-                                  <span className="font-medium">AI recommendation fields to review:</span> The fields the AI have explained isn't a 100% match, ex. "Article number" or "Article number & Product name"
-                                </p>
+                                {(() => {
+                                  // Extract fields to review from AI explanation
+                                  const explanation = item.details.explanation || '';
+                                  const fieldsMatch = explanation.match(/FIELDS_TO_REVIEW:\s*([^\.]+)/i);
+                                  const fieldsToReview = fieldsMatch ? fieldsMatch[1].trim() : null;
+                                  
+                                  if (fieldsToReview && fieldsToReview.toLowerCase() !== 'none') {
+                                    return (
+                                      <p className="text-sm text-blue-600">
+                                        <span className="font-medium">AI recommendation fields to review:</span> {fieldsToReview}
+                                      </p>
+                                    );
+                                  } else {
+                                    return (
+                                      <p className="text-sm text-green-600">
+                                        <span className="font-medium">AI recommendation:</span> No fields need review - this is a strong match
+                                      </p>
+                                    );
+                                  }
+                                })()}
                     </div>
                               <div className="grid grid-cols-2 gap-4">
                                 <div>
