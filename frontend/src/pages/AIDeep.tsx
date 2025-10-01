@@ -116,52 +116,6 @@ export default function AIDeep({ projectId }: { projectId: number }) {
       )}
 
 
-      {isAnalyzing && (
-        <div className="card border-l-4 border-l-blue-500 bg-blue-50">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="flex space-x-1">
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-              </div>
-              <div className="text-sm font-medium text-blue-900">
-                AI is analyzing your products...
-              </div>
-            </div>
-            <button 
-              onClick={stopAnalysis}
-              className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
-            >
-              Stop Analysis
-            </button>
-          </div>
-          
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 border-2 border-blue-200 border-t-blue-500 rounded-full animate-spin"></div>
-              <span className="text-sm text-blue-800">
-                {thinkingStep === 0 && "Analyzing product data..."}
-                {thinkingStep === 1 && "Searching database..."}
-                {thinkingStep === 2 && "Comparing products..."}
-                {thinkingStep === 3 && "Generating suggestions..."}
-                {thinkingStep === 4 && "Completing analysis..."}
-              </span>
-            </div>
-            
-            <div className="w-full bg-blue-100 rounded-full h-2">
-              <div 
-                className="bg-blue-500 h-2 rounded-full transition-all duration-1000 ease-out"
-                style={{ width: `${((thinkingStep + 1) / 5) * 100}%` }}
-              ></div>
-            </div>
-            
-            <div className="text-xs text-blue-600">
-              AI analysis in progress... This may take 1-5 minutes depending on the number of products. You can navigate to other pages while the analysis is running.
-            </div>
-          </div>
-        </div>
-      )}
 
       {!!suggestions.length && (
         <div className="space-y-6">
