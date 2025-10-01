@@ -34,7 +34,7 @@ export default function UploadArea(props: {
 
   return (
     <div
-      className={`card border-dashed ${drag ? "border-sky-500" : "border-gray-200"} text-center`}
+      className={`card ${drag ? "border-sky-500" : "border-gray-200"} text-center`}
       onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
       onDragLeave={() => setDrag(false)}
       onDrop={(e) => {
