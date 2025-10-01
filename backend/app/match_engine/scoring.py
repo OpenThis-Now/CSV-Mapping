@@ -70,9 +70,11 @@ def score_pair(customer_row: dict[str, Any], db_row: dict[str, Any], customer_ma
 
     overall -= numeric_penalty(cp, dp, thr.numeric_mismatch_penalty)
     
-    # Cap score at 50% for market mismatches
+    # Cap score at 50% for market mismatches, 40% for language mismatches
     if market_mismatch:
         overall = min(50, overall)
+    if language_mismatch:
+        overall = min(40, overall)
 
     exact = vendor_score >= 95 and product_score >= 95 or sku_exact(cs, ds)
 
