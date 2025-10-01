@@ -325,71 +325,79 @@ def auto_queue_ai_analysis(project_id: int, session: Session = Depends(get_sessi
         def run_ai_queue():
             """Process AI queue in batches of 10 products"""
             import time
+            from ..db import get_session
             
             try:
                 # Process in batches until no more queued products
                 while True:
-                    # Get next batch of queued products for the latest match run
-                    latest_run = session.exec(
-                        select(MatchRun).where(MatchRun.project_id == project_id).order_by(MatchRun.started_at.desc())
-                    ).first()
+                    # Create new session for each batch
+                    batch_session = next(get_session())
                     
-                    if not latest_run:
-                        log.info(f"No match run found for project {project_id}")
-                        break
-                    
-                    queued_products = session.exec(
-                        select(MatchResult).where(
-                            MatchResult.match_run_id == latest_run.id,
-                            MatchResult.decision == "sent_to_ai",
-                            MatchResult.ai_status == "queued"
-                        ).limit(10)  # Process 10 at a time
-                    ).all()
-                    
-                    if not queued_products:
-                        log.info(f"No more queued products to process for project {project_id}")
-                        break
-                    
-                    log.info(f"Processing batch of {len(queued_products)} products for project {project_id}")
-                    
-                    # Mark as processing
-                    for product in queued_products:
-                        product.ai_status = "processing"
-                        session.add(product)
-                    session.commit()
-                    
-                    # Process each product in the batch
-                    for product in queued_products:
-                        try:
-                            log.info(f"Processing product {product.customer_row_index}")
-                            
-                            # Use existing AI suggest endpoint logic
-                            from .ai import ai_suggest
-                            from ..schemas import AiSuggestRequest
-                            
-                            # Create request for this single product
-                            req = AiSuggestRequest(
-                                customer_row_indices=[product.customer_row_index],
-                                max_suggestions=3
-                            )
-                            
-                            # Call the existing AI suggest function
-                            suggestions = ai_suggest(project_id, req, session)
-                            
-                            log.info(f"Generated {len(suggestions)} suggestions for product {product.customer_row_index}")
-                            
-                            # Mark as completed
-                            product.ai_status = "completed"
-                            session.add(product)
-                            session.commit()
-                            
-                        except Exception as e:
-                            log.error(f"Error processing product {product.customer_row_index}: {e}")
-                            product.ai_status = "failed"
-                            session.add(product)
-                            session.commit()
-                    
-                    log.info(f"Completed batch processing for project {project_id}")
+                    try:
+                        # Get next batch of queued products for the latest match run
+                        latest_run = batch_session.exec(
+                            select(MatchRun).where(MatchRun.project_id == project_id).order_by(MatchRun.started_at.desc())
+                        ).first()
+                        
+                        if not latest_run:
+                            log.info(f"No match run found for project {project_id}")
+                            break
+                        
+                        queued_products = batch_session.exec(
+                            select(MatchResult).where(
+                                MatchResult.match_run_id == latest_run.id,
+                                MatchResult.decision == "sent_to_ai",
+                                MatchResult.ai_status == "queued"
+                            ).limit(10)  # Process 10 at a time
+                        ).all()
+                        
+                        if not queued_products:
+                            log.info(f"No more queued products to process for project {project_id}")
+                            break
+                        
+                        log.info(f"Processing batch of {len(queued_products)} products for project {project_id}")
+                        
+                        # Mark as processing
+                        for product in queued_products:
+                            product.ai_status = "processing"
+                            batch_session.add(product)
+                        batch_session.commit()
+                        
+                        # Process each product in the batch
+                        for product in queued_products:
+                            try:
+                                log.info(f"Processing product {product.customer_row_index}")
+                                
+                                # Use existing AI suggest endpoint logic
+                                from .ai import ai_suggest
+                                from ..schemas import AiSuggestRequest
+                                
+                                # Create request for this single product
+                                req = AiSuggestRequest(
+                                    customer_row_indices=[product.customer_row_index],
+                                    max_suggestions=3
+                                )
+                                
+                                # Call the existing AI suggest function
+                                suggestions = ai_suggest(project_id, req, batch_session)
+                                
+                                log.info(f"Generated {len(suggestions)} suggestions for product {product.customer_row_index}")
+                                
+                                # Mark as completed
+                                product.ai_status = "completed"
+                                batch_session.add(product)
+                                batch_session.commit()
+                                
+                            except Exception as e:
+                                log.error(f"Error processing product {product.customer_row_index}: {e}")
+                                product.ai_status = "failed"
+                                batch_session.add(product)
+                                batch_session.commit()
+                        
+                        log.info(f"Completed batch processing for project {project_id}")
+                        
+                    finally:
+                        batch_session.close()
                     
                     # Small delay before next batch
                     time.sleep(1)
@@ -434,29 +442,29 @@ def get_ai_queue_status(project_id: int, session: Session = Depends(get_session)
         }
     
     # Count products in different AI states for this match run
-    queued_count = session.exec(
+    queued_count = len(session.exec(
         select(MatchResult).where(
             MatchResult.match_run_id == latest_run.id,
             MatchResult.decision == "sent_to_ai",
             MatchResult.ai_status == "queued"
         )
-    ).count()
+    ).all())
     
-    processing_count = session.exec(
+    processing_count = len(session.exec(
         select(MatchResult).where(
             MatchResult.match_run_id == latest_run.id,
             MatchResult.decision == "sent_to_ai",
             MatchResult.ai_status == "processing"
         )
-    ).count()
+    ).all())
     
-    completed_count = session.exec(
+    completed_count = len(session.exec(
         select(MatchResult).where(
             MatchResult.match_run_id == latest_run.id,
             MatchResult.decision == "sent_to_ai",
             MatchResult.ai_status.in_(["completed", "auto_approved"])
         )
-    ).count()
+    ).all())
     
     return {
         "queued": queued_count,
