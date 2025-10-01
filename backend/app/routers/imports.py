@@ -62,10 +62,21 @@ def list_import_files(project_id: int, session: Session = Depends(get_session)):
             "original_name": imp.original_name,
             "row_count": imp.row_count,
             "created_at": imp.created_at,
-            "columns_map_json": imp.columns_map_json
+            "columns_map_json": imp.columns_map_json,
+            "has_sds_urls": _has_sds_url_column(imp.columns_map_json)
         }
         for imp in imports
     ]
+
+
+def _has_sds_url_column(columns_map: dict[str, str]) -> bool:
+    """Check if import file has SDS URL column with actual URLs"""
+    url_field = columns_map.get("url")
+    if not url_field:
+        return False
+    
+    # Check if the URL field exists in the mapping
+    return url_field != "URL"  # If it's mapped to something other than default "URL", it has URLs
 
 
 @router.delete("/projects/{project_id}/import/{import_id}")

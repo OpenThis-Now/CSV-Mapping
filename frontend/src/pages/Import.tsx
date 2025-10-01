@@ -10,6 +10,7 @@ type ImportFile = {
   row_count: number;
   created_at: string;
   columns_map_json: Record<string, string>;
+  has_sds_urls?: boolean;
 };
 
 type Project = {
@@ -28,6 +29,7 @@ export default function ImportPage({ projectId }: { projectId: number }) {
   const [uploading, setUploading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [pdfUploading, setPdfUploading] = useState(false);
+  const [urlEnhancing, setUrlEnhancing] = useState<number | null>(null);
   const { showToast } = useToast();
 
   const refreshImports = async () => {
@@ -129,6 +131,32 @@ export default function ImportPage({ projectId }: { projectId: number }) {
     } catch (error) {
       console.error("Failed to delete import:", error);
       alert("Could not delete import file. Please try again.");
+    }
+  };
+
+  const enhanceWithUrls = async (importId: number) => {
+    if (!confirm("This will enhance the import file by extracting data from SDS URLs. This may take several minutes. Continue?")) {
+      return;
+    }
+    
+    setUrlEnhancing(importId);
+    try {
+      // First set this import as active
+      await api.patch(`/projects/${projectId}`, { active_import_id: importId });
+      
+      // Then enhance with URLs
+      const res = await api.post(`/projects/${projectId}/enhance-with-urls`);
+      showToast(`Successfully enhanced import file with SDS data`, 'success');
+      setStatus(`Enhanced import file created with ${res.data.row_count} rows`);
+      await refreshImports();
+      await refreshProject();
+    } catch (error: any) {
+      console.error("URL enhancement failed:", error);
+      const errorMessage = error.response?.data?.detail || "URL enhancement failed";
+      showToast(`URL enhancement failed: ${errorMessage}`, 'error');
+      setStatus(`URL enhancement failed: ${errorMessage}`);
+    } finally {
+      setUrlEnhancing(null);
     }
   };
 
@@ -245,6 +273,24 @@ export default function ImportPage({ projectId }: { projectId: number }) {
                   >
                     {project?.active_import_id === imp.id ? 'Selected ✓' : 'Select this file'}
                   </button>
+                  
+                  {imp.has_sds_urls && (
+                    <button
+                      className="chip bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200 transition-colors"
+                      onClick={() => enhanceWithUrls(imp.id)}
+                      disabled={urlEnhancing === imp.id}
+                      title="Extract product data from SDS URLs using AI"
+                    >
+                      {urlEnhancing === imp.id ? (
+                        <>
+                          <div className="animate-spin rounded-full h-3 w-3 border-b border-blue-600 mr-1"></div>
+                          Processing...
+                        </>
+                      ) : (
+                        'Re-write with URL link data'
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

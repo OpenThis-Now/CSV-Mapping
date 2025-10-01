@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import fitz  # PyMuPDF
 import csv
+import requests
+import tempfile
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from fastapi import HTTPException
@@ -481,3 +483,43 @@ def process_pdf_files(pdf_files: List[Path]) -> List[Dict[str, Any]]:
     
     print(f"Completed processing {len(pdf_files)} PDF files, got {len(all_products)} results")
     return all_products
+
+
+def extract_pdf_data_with_ai(url: str) -> List[Dict[str, Any]]:
+    """Download PDF from URL and extract data using AI."""
+    try:
+        # Download PDF from URL
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        
+        # Create temporary file
+        with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as temp_file:
+            temp_file.write(response.content)
+            temp_path = Path(temp_file.name)
+        
+        try:
+            # Extract text from PDF
+            text = extract_pdf_text(temp_path)
+            if not text:
+                print(f"No text extracted from URL: {url}")
+                return []
+            
+            # Use AI to extract structured data
+            ai_result = extract_structured_data_with_ai(text, Path(url).name)
+            if not ai_result:
+                print(f"AI extraction failed for URL: {url}")
+                return []
+            
+            # Convert to the expected format
+            return [ai_result]
+            
+        finally:
+            # Clean up temporary file
+            temp_path.unlink(missing_ok=True)
+            
+    except requests.RequestException as e:
+        print(f"Error downloading PDF from URL {url}: {str(e)}")
+        return []
+    except Exception as e:
+        print(f"Error processing PDF from URL {url}: {str(e)}")
+        return []
