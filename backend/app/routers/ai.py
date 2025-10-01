@@ -155,7 +155,9 @@ def ai_suggest(project_id: int, req: AiSuggestRequest, session: Session = Depend
             db_df = pd.read_csv(Path(settings.DATABASES_DIR) / db.filename, dtype=str, keep_default_na=False, on_bad_lines='skip', sep=db_separator, encoding='utf-8', errors='replace')
         except Exception as e:
             raise Exception(f"Could not read database file: {str(e)}")
-    mapping = imp.columns_map_json or auto_map_headers(db_df.columns)
+    # Use separate mappings for customer and database
+    customer_mapping = imp.columns_map_json or auto_map_headers(cust_df.columns)
+    db_mapping = db.columns_map_json or auto_map_headers(db_df.columns)
 
     # Limit to max 10 rows at a time to prevent timeout
     limited_indices = req.customer_row_indices[:10]
@@ -171,13 +173,13 @@ def ai_suggest(project_id: int, req: AiSuggestRequest, session: Session = Depend
             continue
         crow = dict(cust_df.iloc[idx])
 
-        db_df["__sim"] = db_df[mapping["product"]].apply(lambda x: score_fields(crow.get(mapping["product"], ""), x))
+        db_df["__sim"] = db_df[db_mapping["product"]].apply(lambda x: score_fields(crow.get(customer_mapping["product"], ""), x))
         short = db_df.sort_values("__sim", ascending=False).head(max(20, 5 * req.max_suggestions)).drop(columns=["__sim"])
         db_sample = [dict(r) for _, r in short.iterrows()]
 
         used = "ai"
         try:
-            prompt = build_ai_prompt(crow, db_sample, mapping, req.max_suggestions)
+            prompt = build_ai_prompt(crow, db_sample, customer_mapping, req.max_suggestions)
             ai_list = suggest_with_openai(prompt, max_items=req.max_suggestions)
         except Exception:
             used = "heuristic"
@@ -185,8 +187,8 @@ def ai_suggest(project_id: int, req: AiSuggestRequest, session: Session = Depend
             ai_list = []
             for i, r in enumerate(db_sample[: req.max_suggestions]):
                 confidence = max(0.5, (i + 1) / (req.max_suggestions + 2))
-                product_name = r.get(mapping.get("product", ""), "Unknown product")
-                supplier_name = r.get(mapping.get("vendor", ""), "Unknown supplier")
+                product_name = r.get(db_mapping.get("product", ""), "Unknown product")
+                supplier_name = r.get(db_mapping.get("vendor", ""), "Unknown supplier")
                 
                 if i == 0:
                     rationale = f"Best match: Confidence {confidence:.0%}. Product name matches well with customer search, supplier is relevant, and match is based on strong similarities. This match is recommended because it shows highest consistency. No better alternative found in database."
