@@ -7,6 +7,11 @@ const getBaseURL = () => {
     return "https://csv-mapping-backend-stagning-experimental.up.railway.app/api";
   }
   
+  // Check if we're running locally
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return "http://localhost:8000/api";
+  }
+  
   // Check environment variable first
   const envURL = (import.meta as any).env?.VITE_API_BASE;
   if (envURL) {
