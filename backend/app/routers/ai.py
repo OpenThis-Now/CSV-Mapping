@@ -462,13 +462,22 @@ def get_ai_queue_status(project_id: int, session: Session = Depends(get_session)
         select(MatchResult).where(
             MatchResult.match_run_id == latest_run.id,
             MatchResult.decision == "sent_to_ai",
-            MatchResult.ai_status.in_(["completed", "auto_approved"])
+            MatchResult.ai_status == "completed"
+        )
+    ).all())
+    
+    auto_approved_count = len(session.exec(
+        select(MatchResult).where(
+            MatchResult.match_run_id == latest_run.id,
+            MatchResult.decision == "sent_to_ai",
+            MatchResult.ai_status == "auto_approved"
         )
     ).all())
     
     return {
         "queued": queued_count,
         "processing": processing_count,
-        "completed": completed_count,
-        "total": queued_count + processing_count + completed_count
+        "ready": completed_count,
+        "autoApproved": auto_approved_count,
+        "total": queued_count + processing_count + completed_count + auto_approved_count
     }

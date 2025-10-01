@@ -2,6 +2,7 @@ import api, { AiSuggestionItem, MatchResultItem } from "@/lib/api";
 import { useEffect, useState } from "react";
 import { useAI } from "@/contexts/AIContext";
 import CountryFlag from "@/components/CountryFlag";
+import AIQueueStatus from "@/components/AIQueueStatus";
 
 export default function AIDeep({ projectId }: { projectId: number }) {
   const [results, setResults] = useState<MatchResultItem[]>([]);
@@ -80,109 +81,19 @@ export default function AIDeep({ projectId }: { projectId: number }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <h1 className="text-xl font-semibold">AI Deep Analysis</h1>
-        <div className="ml-auto flex gap-2">
-          <button 
-            className="btn bg-green-600 hover:bg-green-700" 
-            onClick={() => startAutoQueue(projectId)}
-            disabled={isQueueProcessing}
-          >
-            {isQueueProcessing ? (
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                <span>Processing Queue...</span>
-              </div>
-            ) : (
-              "Auto-Queue (70-95 score)"
-            )}
-          </button>
-          <button 
-            className={`btn ${isAnalyzing ? 'opacity-50 cursor-not-allowed' : ''}`} 
-            onClick={sendAI} 
-            disabled={!selected.length || isAnalyzing}
-          >
-            {isAnalyzing ? (
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                <span>Analyzing...</span>
-              </div>
-            ) : (
-              "Send selected rows"
-            )}
-          </button>
-        </div>
-      </div>
 
       {/* AI Queue Status */}
       {queueStatus && (
-        <div className="card bg-blue-50 border-blue-200">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-blue-900">AI Queue Status</h3>
-            {isQueueProcessing && (
-              <div className="flex items-center gap-2 text-blue-700">
-                <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
-                <span className="text-sm">Processing...</span>
-              </div>
-            )}
-          </div>
-          <div className="grid grid-cols-4 gap-4 text-sm">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{queueStatus.queued}</div>
-              <div className="text-blue-700">Queued</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-yellow-600">{queueStatus.processing}</div>
-              <div className="text-yellow-700">Processing</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">{queueStatus.completed}</div>
-              <div className="text-green-700">Completed</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-gray-600">{queueStatus.total}</div>
-              <div className="text-gray-700">Total</div>
-            </div>
-          </div>
-          {queueStatus.total > 0 && (
-            <div className="mt-3">
-              <div className="w-full bg-blue-200 rounded-full h-2">
-                <div 
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-500"
-                  style={{ width: `${(queueStatus.completed / queueStatus.total) * 100}%` }}
-                ></div>
-              </div>
-              <div className="text-xs text-blue-600 mt-1">
-                {Math.round((queueStatus.completed / queueStatus.total) * 100)}% completed
-              </div>
-            </div>
-          )}
-        </div>
+        <AIQueueStatus 
+          stats={{
+            queued: queueStatus.queued,
+            processing: queueStatus.processing,
+            ready: queueStatus.ready,
+            autoApproved: queueStatus.autoApproved
+          }}
+        />
       )}
 
-      <div className="card">
-        <div className="font-medium mb-2">Select rows (only products sent to AI)</div>
-        {(() => {
-          const aiResults = results.filter(r => r.decision === "sent_to_ai");
-          return aiResults.length === 0 ? (
-            <div className="text-gray-500 text-sm">
-              No products have been sent to AI yet. Go to the Matching page and select products to "Send to AI".
-            </div>
-          ) : (
-          <div className="flex flex-wrap gap-2">
-            {aiResults.map(r => (
-              <button key={r.customer_row_index}
-                className={`chip ${selected.includes(r.customer_row_index) ? "border-sky-500" : ""}`}
-                onClick={() => {
-                  setSelected(s => s.includes(r.customer_row_index) ? s.filter(i => i !== r.customer_row_index) : [...s, r.customer_row_index]);
-                }}>
-                #{r.customer_row_index} · {r.customer_preview["Product"] || r.customer_preview["Product_name"] || r.customer_preview["Produkt"] || r.customer_preview["product"] || "Unknown product"}
-              </button>
-            ))}
-          </div>
-          );
-        })()}
-      </div>
 
       {isAnalyzing && (
         <div className="card border-l-4 border-l-blue-500 bg-blue-50">
@@ -314,7 +225,7 @@ export default function AIDeep({ projectId }: { projectId: number }) {
                 <div key={rowIndex} className="space-y-4">
                   {/* Header */}
                   <div className="bg-white rounded-2xl shadow p-6">
-                    <h1 className="text-2xl mb-6"><span className="font-bold">Analysis for</span> "{productName}"</h1>
+                    <h1 className="text-2xl mb-6"><span className="font-bold">Review for:</span> "{productName}"</h1>
                     
                     <div className="space-y-4">
                       {analysisResults.map((item, i) => (
@@ -359,7 +270,10 @@ export default function AIDeep({ projectId }: { projectId: number }) {
                             <div className="mt-4 space-y-3 border-t pt-3 text-sm">
                               <div className="bg-blue-50 p-3 rounded">
                                 <p className="font-semibold text-blue-700">AI explanation:</p>
-                                <p>{item.details.explanation}</p>
+                                <p className="mb-2">{item.details.explanation}</p>
+                                <p className="text-sm text-blue-600">
+                                  <span className="font-medium">AI recommendation fields to review:</span> The fields the AI have explained isn't a 100% match, ex. "Article number" or "Article number & Product name"
+                                </p>
                     </div>
                               <div className="grid grid-cols-2 gap-4">
                                 <div>

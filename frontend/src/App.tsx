@@ -72,6 +72,12 @@ function AppContent() {
       <header className="sticky top-0 z-20 bg-white border-b">
         <div className="max-w-6xl mx-auto flex items-center gap-3 p-3">
           <div className="text-xl font-semibold">CSV Match Assistant</div>
+          {isAnalyzing && (
+            <div className="flex items-center gap-2 text-sm text-blue-600">
+              <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+              <span>Thinking...</span>
+            </div>
+          )}
           <nav className="ml-6 flex gap-2">
             <button 
               className={`chip ${view === "projects" ? "bg-blue-100 border-blue-300 text-blue-800" : ""}`}
@@ -111,7 +117,7 @@ function AppContent() {
               onClick={() => setView("ai")} 
               disabled={!projectId || !hasDatabase || !hasImports || !hasSelectedImport}
             >
-              AI Deep Analysis
+              AI reviews
             </button>
             <button 
               className={`chip ${view === "export" ? "bg-blue-100 border-blue-300 text-blue-800" : ""} ${!projectId || !hasDatabase || !hasImports || !hasSelectedImport ? "opacity-50 cursor-not-allowed" : ""}`}
