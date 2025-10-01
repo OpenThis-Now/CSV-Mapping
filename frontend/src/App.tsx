@@ -20,7 +20,7 @@ function AppContent() {
   const [hasDatabase, setHasDatabase] = useState<boolean>(false);
   const [hasImports, setHasImports] = useState<boolean>(false);
   const [hasSelectedImport, setHasSelectedImport] = useState<boolean>(false);
-  const { isAnalyzing, thinkingStep } = useAI();
+  const { isAnalyzing, thinkingStep, isQueueProcessing, queueStatus } = useAI();
 
   // Function to check project status
   const checkProjectStatus = async (projectId: number) => {
@@ -128,14 +128,16 @@ function AppContent() {
             </button>
           </nav>
           <div className="ml-auto flex items-center gap-3">
-            {isAnalyzing && (
-              <div className="flex items-center gap-2 bg-blue-50 px-3 py-1 rounded-full">
-                <div className="flex space-x-1">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+            {(isAnalyzing || isQueueProcessing) && (
+              <div className="flex items-center gap-1.5 bg-blue-50 px-2 py-1 rounded-full text-xs">
+                <div className="flex space-x-0.5">
+                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce"></div>
+                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
                 </div>
-                <span className="text-sm text-blue-800 font-medium">Analysing...</span>
+                <span className="text-blue-800 font-medium">
+                  {isQueueProcessing ? `AI working...` : `Analysing...`}
+                </span>
               </div>
             )}
             <div className="flex items-center gap-2">

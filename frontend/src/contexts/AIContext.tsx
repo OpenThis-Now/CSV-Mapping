@@ -250,12 +250,11 @@ export function AIProvider({ children }: { children: ReactNode }) {
       const isProcessing = response.data.processing > 0 || response.data.queued > 0;
       setIsQueueProcessing(isProcessing);
       
-      // Also set isAnalyzing when AI queue is processing
-      if (isProcessing) {
-        setIsAnalyzing(true);
-      } else if (!isProcessing && isAnalyzing && !suggestions.length) {
-        // Only stop analyzing if no manual analysis is running
-        setIsAnalyzing(false);
+      // Update isAnalyzing based on queue processing status
+      // Keep analyzing state if either manual analysis or queue processing is active
+      if (!isProcessing && isAnalyzing) {
+        // Only stop analyzing if no queue processing and no manual analysis
+        // This will be handled by the individual analysis functions
       }
       
       return response.data;
@@ -288,6 +287,13 @@ export function AIProvider({ children }: { children: ReactNode }) {
       queuePollingRef.current = null;
     }
     setIsQueueProcessing(false);
+    
+    // Only stop analyzing if no manual analysis is currently running
+    // Check if we have any active timeout or manual analysis
+    if (isAnalyzing && !timeoutRef.current) {
+      // No manual analysis timeout active, so it's safe to stop analyzing
+      setIsAnalyzing(false);
+    }
   };
 
   const pauseQueue = async (projectId: number) => {
