@@ -77,6 +77,7 @@ def enhance_csv_with_urls(project_id: int, session: Session = Depends(get_sessio
                     
                     # Download and process PDF
                     pdf_data = extract_pdf_data_with_ai(url)
+                    log.info(f"PDF data extracted: {pdf_data}")
                     
                     if pdf_data and len(pdf_data) > 0:
                         # Extract data from first result
@@ -85,18 +86,23 @@ def enhance_csv_with_urls(project_id: int, session: Session = Depends(get_sessio
                         # Update only specific fields, preserve all others
                         if pdf_item.get("product_name", {}).get("value"):
                             enhanced_row[product_column] = pdf_item["product_name"]["value"]
+                            log.info(f"Updated product: {enhanced_row[product_column]}")
                         
                         if pdf_item.get("company_name", {}).get("value"):
                             enhanced_row[vendor_column] = pdf_item["company_name"]["value"]
+                            log.info(f"Updated vendor: {enhanced_row[vendor_column]}")
                         
                         if pdf_item.get("article_number", {}).get("value"):
                             enhanced_row[sku_column] = pdf_item["article_number"]["value"]
+                            log.info(f"Updated SKU: {enhanced_row[sku_column]}")
                         
                         if pdf_item.get("authored_market", {}).get("value"):
                             enhanced_row[market_column] = pdf_item["authored_market"]["value"]
+                            log.info(f"Updated market: {enhanced_row[market_column]}")
                         
                         if pdf_item.get("language", {}).get("value"):
                             enhanced_row[language_column] = pdf_item["language"]["value"]
+                            log.info(f"Updated language: {enhanced_row[language_column]}")
                         
                         processed_count += 1
                         log.info(f"Successfully enhanced row with URL: {url}")

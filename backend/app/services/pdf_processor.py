@@ -505,7 +505,7 @@ def extract_pdf_data_with_ai(url: str) -> List[Dict[str, Any]]:
                 return []
             
             # Use AI to extract structured data
-            ai_result = extract_structured_data_with_ai(text, Path(url).name)
+            ai_result = extract_product_info_with_ai(text, Path(url).name)
             if not ai_result:
                 print(f"AI extraction failed for URL: {url}")
                 return []
