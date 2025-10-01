@@ -71,12 +71,13 @@ def build_ai_prompt(customer_row, db_sample, mapping, k: int) -> str:
         Return ONLY a JSON array with exactly {k} objects. Each object MUST include:
         - "database_fields_json": the unmodified database row (as a JSON object)
         - "confidence": number 0..1
-        - "rationale": 2–6 sentences in English that MUST include:
-           * Match summary: Exact/Strong/Partial/Weak
-           * Evidence (identifiers, name/supplier/article similarities; mention typo corrections)
+        - "rationale": Detailed explanation that MUST include:
+           * Match summary: Exact/Strong/Partial/Weak match
+           * Evidence analysis: product name, supplier, article number matches and any typo corrections
            * Market/language differences and impact (explicit flags: "OTHER MARKET: …"; "LANGUAGE MISMATCH: …")
            * Variant considerations
            * Whether better alternatives likely exist in this candidate set
+           * Specific fields that need review (e.g., "Article number", "Product name & Article number")
 
         — Calibration examples (for the model; do not output) —
         Example 1 — should be 1.0:
@@ -323,13 +324,21 @@ def auto_queue_ai_analysis(project_id: int, session: Session = Depends(get_sessi
         import time
         
         def run_ai_queue():
-            """Process AI queue in batches of 10 products"""
+            """Process AI queue in batches of 10 products with pause/resume support"""
             import time
             from ..db import get_session
+            from ..services.ai_queue_manager import ai_queue_manager
+            
+            # Register this thread
+            ai_queue_manager.register_thread(project_id, threading.current_thread())
             
             try:
                 # Process in batches until no more queued products
                 while True:
+                    # Check if paused before each batch
+                    if not ai_queue_manager.wait_if_paused(project_id):
+                        break
+                    
                     # Create new session for each batch
                     batch_session = next(get_session())
                     
@@ -365,6 +374,16 @@ def auto_queue_ai_analysis(project_id: int, session: Session = Depends(get_sessi
                         
                         # Process each product in the batch
                         for product in queued_products:
+                            # Check if paused before each product
+                            if not ai_queue_manager.wait_if_paused(project_id):
+                                # Mark remaining products as queued again
+                                for remaining in queued_products:
+                                    if remaining.ai_status == "processing":
+                                        remaining.ai_status = "queued"
+                                        batch_session.add(remaining)
+                                batch_session.commit()
+                                return
+                            
                             try:
                                 log.info(f"Processing product {product.customer_row_index}")
                                 
@@ -406,6 +425,9 @@ def auto_queue_ai_analysis(project_id: int, session: Session = Depends(get_sessi
                 
             except Exception as e:
                 log.error(f"Error in AI queue processing: {e}")
+            finally:
+                # Unregister this thread
+                ai_queue_manager.unregister_thread(project_id)
         
         thread = threading.Thread(target=run_ai_queue)
         thread.daemon = True
@@ -485,14 +507,16 @@ def get_ai_queue_status(project_id: int, session: Session = Depends(get_session)
 @router.post("/projects/{project_id}/ai/pause-queue")
 def pause_ai_queue(project_id: int, session: Session = Depends(get_session)):
     """Pause the AI queue processing."""
-    # This is a placeholder - in a real implementation, you'd need to track
-    # the background thread and pause it. For now, we'll just return success.
+    from ..services.ai_queue_manager import ai_queue_manager
+    
+    ai_queue_manager.pause(project_id)
     return {"message": "AI queue paused", "paused": True}
 
 
 @router.post("/projects/{project_id}/ai/resume-queue")
 def resume_ai_queue(project_id: int, session: Session = Depends(get_session)):
     """Resume the AI queue processing."""
-    # This is a placeholder - in a real implementation, you'd need to track
-    # the background thread and resume it. For now, we'll just return success.
+    from ..services.ai_queue_manager import ai_queue_manager
+    
+    ai_queue_manager.resume(project_id)
     return {"message": "AI queue resumed", "resumed": True}
