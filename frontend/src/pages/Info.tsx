@@ -3,10 +3,10 @@ import { useState } from 'react';
 export default function InfoPage() {
   const [activeTab, setActiveTab] = useState<'input' | 'database'>('input');
 
-  const inputTemplate = `Product_name;Supplier_name;Article_number;Market;Language;Description
-THINNER 215;Carboline;05570910001D;Canada;English;Industrial paint thinner
-MAPEFLOOR FILLER;MAPEI INC.;245633;Canada;English;Floor filler compound
-BAR-RUST 235 BLACK;AkzoNobel;HB9903;Canada;English;Rust protection paint`;
+  const inputTemplate = `Product_name;Supplier_name;Article_number;Market;Language;Description;SDS-URL
+THINNER 215;Carboline;05570910001D;Canada;English;Industrial paint thinner;https://example.com/sds/thinner215.pdf
+MAPEFLOOR FILLER;MAPEI INC.;245633;Canada;English;Floor filler compound;https://example.com/sds/mapefloor.pdf
+BAR-RUST 235 BLACK;AkzoNobel;HB9903;Canada;English;Rust protection paint;https://example.com/sds/bar-rust.pdf`;
 
   const databaseTemplate = `Product_name;Supplier_name;Article_number;Unique_ID;Location_ID;Market;Language;MSDSkey;Revision_date;Expire_date
 THINNER 215;Carboline;05570910001D;12345;12345;Canada;English;26139007;2024-01-15;2025-12-31
@@ -78,6 +78,7 @@ BAR-RUST 235 BLACK PART A;AkzoNobel;HB9903;12348;12345;Canada;English;26146498;2
                     <li>• <code>Market</code> - Market/Region</li>
                     <li>• <code>Language</code> - Language</li>
                     <li>• <code>Description</code> - Description</li>
+                    <li>• <code>SDS-URL</code> - URL to PDF safety data sheet</li>
                   </ul>
                 </div>
               </div>
@@ -96,6 +97,47 @@ BAR-RUST 235 BLACK PART A;AkzoNobel;HB9903;12348;12345;Canada;English;26146498;2
               <pre className="bg-white border rounded p-3 text-sm overflow-x-auto">
                 <code>{inputTemplate}</code>
               </pre>
+            </div>
+
+            {/* SDS-URL Enhancement Section */}
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+              <h2 className="text-xl font-semibold text-purple-900 mb-3">🤖 AI-Powered SDS-URL Enhancement</h2>
+              <p className="text-purple-800 mb-4">
+                When you include SDS-URL links in your CSV, the system can automatically extract and enhance product information using AI.
+              </p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <h3 className="font-semibold text-purple-900 mb-2">✨ What gets enhanced:</h3>
+                  <ul className="text-sm text-purple-800 space-y-1">
+                    <li>• <code>Product_name</code> - From PDF content</li>
+                    <li>• <code>Supplier_name</code> - From PDF content</li>
+                    <li>• <code>Article_number</code> - From PDF content</li>
+                    <li>• <code>Market</code> - Detected market/region</li>
+                    <li>• <code>Language</code> - Detected document language</li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-purple-900 mb-2">🔒 What stays the same:</h3>
+                  <ul className="text-sm text-purple-800 space-y-1">
+                    <li>• All unique IDs and identifiers</li>
+                    <li>• Custom fields and descriptions</li>
+                    <li>• Existing data not found in PDF</li>
+                    <li>• Original CSV structure</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="bg-white border border-purple-200 rounded p-3 mb-3">
+                <h4 className="font-semibold text-purple-900 mb-2">🚀 How to use:</h4>
+                <ol className="text-sm text-purple-800 space-y-1 list-decimal list-inside">
+                  <li>Add SDS-URL column with PDF links to your CSV</li>
+                  <li>Upload the CSV file as usual</li>
+                  <li>Click "Re-write with URL link data" button</li>
+                  <li>AI processes PDFs and enhances your data</li>
+                  <li>Download the enhanced CSV with updated information</li>
+                </ol>
+              </div>
             </div>
           </div>
         )}
@@ -160,6 +202,8 @@ BAR-RUST 235 BLACK PART A;AkzoNobel;HB9903;12348;12345;Canada;English;26146498;2
             <li>• <strong>First row</strong> should contain column names</li>
             <li>• <strong>Empty cells</strong> are allowed for optional fields</li>
             <li>• <strong>Date format:</strong> YYYY-MM-DD (e.g. 2024-01-15)</li>
+            <li>• <strong>SDS-URL:</strong> Must be direct links to PDF files (http:// or https://)</li>
+            <li>• <strong>AI Enhancement:</strong> Works best with well-formatted SDS documents</li>
           </ul>
         </div>
       </div>
