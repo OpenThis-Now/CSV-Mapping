@@ -47,7 +47,7 @@ export default function ExportPage({ projectId }: { projectId: number }) {
     {
       key: "rejected",
       title: "Rejected matches",
-      desc: "Exports matches marked as not_approved",
+      desc: "Exports matches marked as rejected",
       badge: { label: "Rejected", tone: "rose" },
       toneBg: "bg-rose-50",
       iconBg: "bg-rose-100",

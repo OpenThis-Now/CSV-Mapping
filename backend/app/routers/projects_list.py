@@ -56,9 +56,18 @@ def get_project_stats(project_id: int, session: Session = Depends(get_session)) 
         status = result.decision
         status_counts[status] = status_counts.get(status, 0) + 1
     
-    # Ensure all statuses are present
-    all_statuses = ["pending", "auto_approved", "approved", "not_approved", "auto_not_approved", "sent_to_ai", "ai_auto_approved"]
-    status_breakdown = {status: status_counts.get(status, 0) for status in all_statuses}
+    # Map rejected statuses to not_approved for frontend compatibility
+    not_approved_count = status_counts.get("rejected", 0) + status_counts.get("auto_rejected", 0)
+    
+    # Ensure all statuses are present with mapping
+    status_breakdown = {
+        "pending": status_counts.get("pending", 0),
+        "auto_approved": status_counts.get("auto_approved", 0),
+        "approved": status_counts.get("approved", 0),
+        "not_approved": not_approved_count,  # Maps rejected + auto_rejected
+        "sent_to_ai": status_counts.get("sent_to_ai", 0),
+        "ai_auto_approved": status_counts.get("ai_auto_approved", 0)
+    }
     
     return {
         "total_products": len(results),

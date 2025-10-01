@@ -111,7 +111,7 @@ function AppContent() {
               onClick={() => setView("ai")} 
               disabled={!projectId || !hasDatabase || !hasImports || !hasSelectedImport}
             >
-              AI Deep Analysis
+              AI reviews
             </button>
             <button 
               className={`chip ${view === "export" ? "bg-blue-100 border-blue-300 text-blue-800" : ""} ${!projectId || !hasDatabase || !hasImports || !hasSelectedImport ? "opacity-50 cursor-not-allowed" : ""}`}
@@ -135,7 +135,7 @@ function AppContent() {
                   <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
                   <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
                 </div>
-                <span className="text-sm text-blue-800 font-medium">AI analyzing...</span>
+                <span className="text-sm text-blue-800 font-medium">Analysing...</span>
               </div>
             )}
             <div className="flex items-center gap-2">

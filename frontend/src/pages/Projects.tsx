@@ -7,7 +7,7 @@ type ProjectStats = {
     pending: number;
     auto_approved: number;
     approved: number;
-    not_approved: number;
+    not_approved: number; // Maps to rejected + auto_rejected from backend
     sent_to_ai: number;
     ai_auto_approved: number;
   };
@@ -259,7 +259,7 @@ export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: n
                       <div className="grid grid-cols-3 gap-4">
                         <Stat label="Matched" value={counts.matched} />
                         <Stat label="Action required" value={counts.actionRequired} />
-                        <Stat label="No match found" value={counts.notAvailable} />
+                        <Stat label="Rejected" value={counts.notAvailable} />
                       </div>
 
                       {/* Progress bar */}
@@ -289,8 +289,8 @@ export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: n
                           </span>
                         )}
                         {counts.notAvailable > 0 && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">
-                            ✗ {counts.notAvailable} no match found
+                          <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-700">
+                            ✗ {counts.notAvailable} rejected
                           </span>
                         )}
                       </div>

@@ -123,8 +123,25 @@ def score_pair(customer_row: dict[str, Any], db_row: dict[str, Any], customer_ma
             "product_score": 0,
             "overall": 0,
             "exact": False,
-            "reason": "No customer data available for matching",
-            "decision": "not_approved",
+            "reason": "Poor data - No customer data available for matching",
+            "decision": "auto_rejected",
+        }
+
+    # Auto-reject if essential data is missing (supplier name or product name)
+    if not cv.strip() or not cp.strip():
+        missing_fields = []
+        if not cv.strip():
+            missing_fields.append("supplier name")
+        if not cp.strip():
+            missing_fields.append("product name")
+        
+        return {
+            "vendor_score": 0,
+            "product_score": 0,
+            "overall": 0,
+            "exact": False,
+            "reason": f"Poor data - Missing {', '.join(missing_fields)}",
+            "decision": "auto_rejected",
         }
 
     # Check market and language compatibility
@@ -169,18 +186,14 @@ def score_pair(customer_row: dict[str, Any], db_row: dict[str, Any], customer_ma
         reason.append("Other market")
     if language_mismatch:
         reason.append("Language mismatch")
-    if not cv.strip():
-        reason.append("Missing vendor data")
-    elif vendor_score < thr.vendor_min:
+    if vendor_score < thr.vendor_min:
         reason.append("Low vendor match")
-    if not cp.strip():
-        reason.append("Missing product data")
-    elif product_score < thr.product_min:
+    if product_score < thr.product_min:
         reason.append("Low product match")
 
     decision = "pending"
     if overall < 30:
-        decision = "auto_not_approved"
+        decision = "auto_rejected"
         reason.append("Score too low (< 30)")
     elif overall >= thr.overall_accept and vendor_score >= thr.vendor_min and product_score >= thr.product_min:
         # Check for chemical differences before auto-approving
@@ -190,11 +203,7 @@ def score_pair(customer_row: dict[str, Any], db_row: dict[str, Any], customer_ma
             reason.append("Potential chemical difference - requires manual review")
         else:
             decision = "auto_approved"
-    elif not cv.strip() or not cp.strip():
-        # If essential data is missing, don't auto-approve
-        decision = "pending"
-        if not reason:
-            reason.append("Incomplete customer data")
+    # Note: Missing essential data is now handled early in the function with auto_rejected decision
 
     return {
         "vendor_score": vendor_score,

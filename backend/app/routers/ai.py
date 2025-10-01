@@ -13,6 +13,8 @@ from ..schemas import AiSuggestRequest, AiSuggestionItem
 from ..openai_client import suggest_with_openai
 from ..services.mapping import auto_map_headers
 from ..match_engine.scoring import score_fields
+from ..services.ai_queue_processor import process_ai_queue
+import asyncio
 
 router = APIRouter()
 
@@ -69,18 +71,41 @@ def build_ai_prompt(customer_row, db_sample, mapping, k: int) -> str:
         Return ONLY a JSON array with exactly {k} objects. Each object MUST include:
         - "database_fields_json": the unmodified database row (as a JSON object)
         - "confidence": number 0..1
-        - "rationale": 2–6 sentences in English that MUST include:
-           * Match summary: Exact/Strong/Partial/Weak
-           * Evidence (identifiers, name/supplier/article similarities; mention typo corrections)
+        - "rationale": A natural, flowing explanation in paragraph form that includes:
+           * Match strength assessment (Exact/Strong/Partial/Weak match)
+           * Evidence analysis: product name, supplier, article number matches and any typo corrections
            * Market/language differences and impact (explicit flags: "OTHER MARKET: …"; "LANGUAGE MISMATCH: …")
            * Variant considerations
            * Whether better alternatives likely exist in this candidate set
+           
+           CRITICAL REQUIREMENT: Your rationale MUST end with exactly this format:
+           "FIELDS_TO_REVIEW: [comma-separated field names]"
+           
+           Field names to use: "Product name", "Article number", "Supplier", "Market", "Language"
+           
+           Examples of correct endings:
+           - "FIELDS_TO_REVIEW: Article number" (if article number has issues)
+           - "FIELDS_TO_REVIEW: Product name, Article number" (if both have issues)
+           - "FIELDS_TO_REVIEW: Supplier" (if supplier is different)
+           - "FIELDS_TO_REVIEW: None" (only if it's a perfect match)
+           
+           NEVER end without FIELDS_TO_REVIEW section. This is mandatory.
 
         — Calibration examples (for the model; do not output) —
         Example 1 — should be 1.0:
         Input: name "HEAT-FLEX 1200 PLUS (Part B) Hardener", supplier "Sherwinn Williams", art.no "B59V01200", market "Canada", language "English".
         Candidate: name identical, supplier "The Sherwin-Williams Company", art.no "B59V1200", market "Canada", language "English".
         Reasoning: article number equal after canonicalization (extra '0' removed); supplier alias; identical variant "Part B"; same market/language → **Exact canonical match; confidence 1.0**.
+        
+        Example 2 — should include FIELDS_TO_REVIEW:
+        Input: name "THINNER 215", supplier "Carboline", art.no "05570910001D", market "Canada", language "English".
+        Candidate: name "THINNER 25", supplier "Carboline Global Inc", art.no "0525S1NL", market "Canada", language "English".
+        Expected rationale ending: "FIELDS_TO_REVIEW: Product name, Article number"
+        
+        Example 3 — perfect match:
+        Input: name "PAINT 100", supplier "Company A", art.no "P100", market "USA", language "English".
+        Candidate: name "PAINT 100", supplier "Company A", art.no "P100", market "USA", language "English".
+        Expected rationale ending: "FIELDS_TO_REVIEW: None"
 
         Customer row to match:
         {json.dumps(customer_row, ensure_ascii=False)}
@@ -268,3 +293,252 @@ def get_ai_suggestions(project_id: int, session: Session = Depends(get_session))
         )
         for s in suggestions
     ]
+
+
+@router.post("/projects/{project_id}/ai/auto-queue")
+def auto_queue_ai_analysis(project_id: int, session: Session = Depends(get_session)):
+    """Automatically queue products with scores between 70-95 for AI analysis."""
+    import logging
+    log = logging.getLogger("app.ai")
+    
+    p = session.get(Project, project_id)
+    if not p:
+        raise HTTPException(status_code=404, detail="Project not found.")
+    
+    # Get the latest match run
+    latest_run = session.exec(
+        select(MatchRun).where(MatchRun.project_id == project_id).order_by(MatchRun.started_at.desc())
+    ).first()
+    
+    if not latest_run:
+        raise HTTPException(status_code=400, detail="No match run found. Run matching first.")
+    
+    log.info(f"Latest match run ID: {latest_run.id}")
+    
+    # Find results with scores between 70-95 that are not already sent to AI
+    results_to_queue = session.exec(
+        select(MatchResult).where(
+            MatchResult.match_run_id == latest_run.id,
+            MatchResult.overall_score >= 70,
+            MatchResult.overall_score <= 95,
+            MatchResult.decision.in_(["pending", "auto_approved", "rejected"])
+        )
+    ).all()
+    
+    log.info(f"Found {len(results_to_queue)} products in 70-95 score range")
+    
+    if not results_to_queue:
+        return {"message": "No products found in the 70-95 score range to queue for AI analysis.", "queued_count": 0}
+    
+    # Update these results to "sent_to_ai" status
+    queued_count = 0
+    for result in results_to_queue:
+        result.decision = "sent_to_ai"
+        result.ai_status = "queued"
+        session.add(result)
+        queued_count += 1
+    
+    session.commit()
+    
+    # Start background processing immediately using the existing AI suggest endpoint
+    try:
+        import threading
+        import time
+        
+        def run_ai_queue():
+            """Process AI queue in batches of 10 products with pause/resume support"""
+            import time
+            from ..db import get_session
+            from ..services.ai_queue_manager import ai_queue_manager
+            
+            # Register this thread
+            ai_queue_manager.register_thread(project_id, threading.current_thread())
+            
+            try:
+                # Process in batches until no more queued products
+                while True:
+                    # Check if paused before each batch
+                    if not ai_queue_manager.wait_if_paused(project_id):
+                        break
+                    
+                    # Create new session for each batch
+                    batch_session = next(get_session())
+                    
+                    try:
+                        # Get next batch of queued products for the latest match run
+                        latest_run = batch_session.exec(
+                            select(MatchRun).where(MatchRun.project_id == project_id).order_by(MatchRun.started_at.desc())
+                        ).first()
+                        
+                        if not latest_run:
+                            log.info(f"No match run found for project {project_id}")
+                            break
+                        
+                        queued_products = batch_session.exec(
+                            select(MatchResult).where(
+                                MatchResult.match_run_id == latest_run.id,
+                                MatchResult.decision == "sent_to_ai",
+                                MatchResult.ai_status == "queued"
+                            ).limit(10)  # Process 10 at a time
+                        ).all()
+                        
+                        if not queued_products:
+                            log.info(f"No more queued products to process for project {project_id}")
+                            break
+                        
+                        log.info(f"Processing batch of {len(queued_products)} products for project {project_id}")
+                        
+                        # Mark as processing
+                        for product in queued_products:
+                            product.ai_status = "processing"
+                            batch_session.add(product)
+                        batch_session.commit()
+                        
+                        # Process each product in the batch
+                        for product in queued_products:
+                            # Check if paused before each product
+                            if not ai_queue_manager.wait_if_paused(project_id):
+                                # Mark remaining products as queued again
+                                for remaining in queued_products:
+                                    if remaining.ai_status == "processing":
+                                        remaining.ai_status = "queued"
+                                        batch_session.add(remaining)
+                                batch_session.commit()
+                                return
+                            
+                            try:
+                                log.info(f"Processing product {product.customer_row_index}")
+                                
+                                # Use existing AI suggest endpoint logic
+                                from .ai import ai_suggest
+                                from ..schemas import AiSuggestRequest
+                                
+                                # Create request for this single product
+                                req = AiSuggestRequest(
+                                    customer_row_indices=[product.customer_row_index],
+                                    max_suggestions=3
+                                )
+                                
+                                # Call the existing AI suggest function
+                                suggestions = ai_suggest(project_id, req, batch_session)
+                                
+                                log.info(f"Generated {len(suggestions)} suggestions for product {product.customer_row_index}")
+                                
+                                # Mark as completed
+                                product.ai_status = "completed"
+                                batch_session.add(product)
+                                batch_session.commit()
+                                
+                            except Exception as e:
+                                log.error(f"Error processing product {product.customer_row_index}: {e}")
+                                product.ai_status = "failed"
+                                batch_session.add(product)
+                                batch_session.commit()
+                        
+                        log.info(f"Completed batch processing for project {project_id}")
+                        
+                    finally:
+                        batch_session.close()
+                    
+                    # Small delay before next batch
+                    time.sleep(1)
+                
+                log.info(f"All AI processing completed for project {project_id}")
+                
+            except Exception as e:
+                log.error(f"Error in AI queue processing: {e}")
+            finally:
+                # Unregister this thread
+                ai_queue_manager.unregister_thread(project_id)
+        
+        thread = threading.Thread(target=run_ai_queue)
+        thread.daemon = True
+        thread.start()
+        
+        log.info(f"Started AI queue processing thread for project {project_id}")
+    except Exception as e:
+        log.error(f"Failed to start AI queue processing: {e}")
+    
+    return {
+        "message": f"Successfully queued {queued_count} products for AI analysis.",
+        "queued_count": queued_count,
+        "score_range": "70-95",
+        "processing_started": True
+    }
+
+
+@router.get("/projects/{project_id}/ai/queue-status")
+def get_ai_queue_status(project_id: int, session: Session = Depends(get_session)):
+    """Get the current status of the AI queue."""
+    from ..models import MatchRun
+    
+    # Get the latest match run for this project
+    latest_run = session.exec(
+        select(MatchRun).where(MatchRun.project_id == project_id).order_by(MatchRun.started_at.desc())
+    ).first()
+    
+    if not latest_run:
+        return {
+            "queued": 0,
+            "processing": 0,
+            "completed": 0,
+            "total": 0
+        }
+    
+    # Count products in different AI states for this match run
+    queued_count = len(session.exec(
+        select(MatchResult).where(
+            MatchResult.match_run_id == latest_run.id,
+            MatchResult.decision == "sent_to_ai",
+            MatchResult.ai_status == "queued"
+        )
+    ).all())
+    
+    processing_count = len(session.exec(
+        select(MatchResult).where(
+            MatchResult.match_run_id == latest_run.id,
+            MatchResult.decision == "sent_to_ai",
+            MatchResult.ai_status == "processing"
+        )
+    ).all())
+    
+    completed_count = len(session.exec(
+        select(MatchResult).where(
+            MatchResult.match_run_id == latest_run.id,
+            MatchResult.decision == "sent_to_ai",
+            MatchResult.ai_status == "completed"
+        )
+    ).all())
+    
+    auto_approved_count = len(session.exec(
+        select(MatchResult).where(
+            MatchResult.match_run_id == latest_run.id,
+            MatchResult.decision == "ai_auto_approved"
+        )
+    ).all())
+    
+    return {
+        "queued": queued_count,
+        "processing": processing_count,
+        "ready": completed_count,
+        "autoApproved": auto_approved_count,
+        "total": queued_count + processing_count + completed_count + auto_approved_count
+    }
+
+
+@router.post("/projects/{project_id}/ai/pause-queue")
+def pause_ai_queue(project_id: int, session: Session = Depends(get_session)):
+    """Pause the AI queue processing."""
+    from ..services.ai_queue_manager import ai_queue_manager
+    
+    ai_queue_manager.pause(project_id)
+    return {"message": "AI queue paused", "paused": True}
+
+
+@router.post("/projects/{project_id}/ai/resume-queue")
+def resume_ai_queue(project_id: int, session: Session = Depends(get_session)):
+    """Resume the AI queue processing."""
+    from ..services.ai_queue_manager import ai_queue_manager
+    
+    ai_queue_manager.resume(project_id)
+    return {"message": "AI queue resumed", "resumed": True}

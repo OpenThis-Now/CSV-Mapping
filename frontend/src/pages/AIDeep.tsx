@@ -2,12 +2,31 @@ import api, { AiSuggestionItem, MatchResultItem } from "@/lib/api";
 import { useEffect, useState } from "react";
 import { useAI } from "@/contexts/AIContext";
 import CountryFlag from "@/components/CountryFlag";
+import AIQueueStatus from "@/components/AIQueueStatus";
 
 export default function AIDeep({ projectId }: { projectId: number }) {
   const [results, setResults] = useState<MatchResultItem[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const { isAnalyzing, thinkingStep, suggestions, startAnalysis, stopAnalysis, approveSuggestion, rejectSuggestion, loadExistingSuggestions } = useAI();
+  const { 
+    isAnalyzing, 
+    thinkingStep, 
+    suggestions, 
+    queueStatus, 
+    isQueueProcessing,
+    isQueuePaused,
+    startAnalysis, 
+    stopAnalysis, 
+    approveSuggestion, 
+    rejectSuggestion, 
+    loadExistingSuggestions,
+    startAutoQueue,
+    getQueueStatus,
+    startQueuePolling,
+    stopQueuePolling,
+    pauseQueue,
+    resumeQueue
+  } = useAI();
 
   const refresh = async () => {
     try {
@@ -23,7 +42,20 @@ export default function AIDeep({ projectId }: { projectId: number }) {
   useEffect(() => { 
     refresh(); 
     loadExistingSuggestions(projectId);
+    getQueueStatus(projectId);
   }, [projectId]);
+
+  // Auto-refresh suggestions when queue processing
+  useEffect(() => {
+    if (isQueueProcessing) {
+      const interval = setInterval(() => {
+        loadExistingSuggestions(projectId);
+        getQueueStatus(projectId);
+      }, 3000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [isQueueProcessing, projectId]);
 
   const sendAI = async () => {
     // Only send items that are marked as "sent_to_ai"
@@ -52,96 +84,23 @@ export default function AIDeep({ projectId }: { projectId: number }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <h1 className="text-xl font-semibold">AI Deep Analysis</h1>
-        <div className="ml-auto">
-          <button 
-            className={`btn ${isAnalyzing ? 'opacity-50 cursor-not-allowed' : ''}`} 
-            onClick={sendAI} 
-            disabled={!selected.length || isAnalyzing}
-          >
-            {isAnalyzing ? (
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                <span>Analyzing...</span>
-              </div>
-            ) : (
-              "Send selected rows"
-            )}
-          </button>
-        </div>
-      </div>
 
-      <div className="card">
-        <div className="font-medium mb-2">Select rows (only products sent to AI)</div>
-        {(() => {
-          const aiResults = results.filter(r => r.decision === "sent_to_ai");
-          return aiResults.length === 0 ? (
-            <div className="text-gray-500 text-sm">
-              No products have been sent to AI yet. Go to the Matching page and select products to "Send to AI".
-            </div>
-          ) : (
-          <div className="flex flex-wrap gap-2">
-            {aiResults.map(r => (
-              <button key={r.customer_row_index}
-                className={`chip ${selected.includes(r.customer_row_index) ? "border-sky-500" : ""}`}
-                onClick={() => {
-                  setSelected(s => s.includes(r.customer_row_index) ? s.filter(i => i !== r.customer_row_index) : [...s, r.customer_row_index]);
-                }}>
-                #{r.customer_row_index} · {r.customer_preview["Product"] || r.customer_preview["Product_name"] || r.customer_preview["Produkt"] || r.customer_preview["product"] || "Unknown product"}
-              </button>
-            ))}
-          </div>
-          );
-        })()}
-      </div>
-
-      {isAnalyzing && (
-        <div className="card border-l-4 border-l-blue-500 bg-blue-50">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="flex space-x-1">
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-              </div>
-              <div className="text-sm font-medium text-blue-900">
-                AI is analyzing your products...
-              </div>
-            </div>
-            <button 
-              onClick={stopAnalysis}
-              className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
-            >
-              Stop Analysis
-            </button>
-          </div>
+      {/* AI Queue Status */}
+      {queueStatus && (
+        <div className="space-y-4">
+          <AIQueueStatus 
+            stats={{
+              queued: queueStatus.queued,
+              processing: queueStatus.processing,
+              ready: queueStatus.ready,
+              autoApproved: queueStatus.autoApproved
+            }}
+          />
           
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 border-2 border-blue-200 border-t-blue-500 rounded-full animate-spin"></div>
-              <span className="text-sm text-blue-800">
-                {thinkingStep === 0 && "Analyzing product data..."}
-                {thinkingStep === 1 && "Searching database..."}
-                {thinkingStep === 2 && "Comparing products..."}
-                {thinkingStep === 3 && "Generating suggestions..."}
-                {thinkingStep === 4 && "Completing analysis..."}
-              </span>
-            </div>
-            
-            <div className="w-full bg-blue-100 rounded-full h-2">
-              <div 
-                className="bg-blue-500 h-2 rounded-full transition-all duration-1000 ease-out"
-                style={{ width: `${((thinkingStep + 1) / 5) * 100}%` }}
-              ></div>
-            </div>
-            
-            <div className="text-xs text-blue-600">
-              AI analysis in progress... This may take 1-5 minutes depending on the number of products. You can navigate to other pages while the analysis is running.
-            </div>
-          </div>
         </div>
       )}
+
+
 
       {!!suggestions.length && (
         <div className="space-y-6">
@@ -226,7 +185,7 @@ export default function AIDeep({ projectId }: { projectId: number }) {
                 <div key={rowIndex} className="space-y-4">
                   {/* Header */}
                   <div className="bg-white rounded-2xl shadow p-6">
-                    <h1 className="text-2xl mb-6"><span className="font-bold">Analysis for</span> "{productName}"</h1>
+                    <h1 className="text-2xl mb-6"><span className="font-bold">Review for:</span> "{productName}"</h1>
                     
                     <div className="space-y-4">
                       {analysisResults.map((item, i) => (
@@ -271,7 +230,27 @@ export default function AIDeep({ projectId }: { projectId: number }) {
                             <div className="mt-4 space-y-3 border-t pt-3 text-sm">
                               <div className="bg-blue-50 p-3 rounded">
                                 <p className="font-semibold text-blue-700">AI explanation:</p>
-                                <p>{item.details.explanation}</p>
+                                <p className="mb-2">{item.details.explanation}</p>
+                                {(() => {
+                                  // Extract fields to review from AI explanation
+                                  const explanation = item.details.explanation || '';
+                                  const fieldsMatch = explanation.match(/FIELDS_TO_REVIEW:\s*([^\.]+)/i);
+                                  const fieldsToReview = fieldsMatch ? fieldsMatch[1].trim() : null;
+                                  
+                                  if (fieldsToReview && fieldsToReview.toLowerCase() !== 'none') {
+                                    return (
+                                      <p className="text-sm text-blue-600">
+                                        <span className="font-medium">AI recommendation fields to review:</span> {fieldsToReview}
+                                      </p>
+                                    );
+                                  } else {
+                                    return (
+                                      <p className="text-sm text-green-600">
+                                        <span className="font-medium">AI recommendation:</span> No fields need review - this is a strong match
+                                      </p>
+                                    );
+                                  }
+                                })()}
                     </div>
                               <div className="grid grid-cols-2 gap-4">
                                 <div>

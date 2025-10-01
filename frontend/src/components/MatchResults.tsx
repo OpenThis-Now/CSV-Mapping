@@ -68,7 +68,7 @@ function TableView({ results, selectedIds, onSelectionChange }: { results: Match
   // Sort results according to priority:
   // 1. Lowest score first (highest priority)
   // 2. Auto approved second
-  // 3. Not approved third
+  // 3. Rejected third
   // 4. Approved last (lowest priority)
   const sortedResults = [...results].sort((a, b) => {
     // First sort by decision priority
@@ -76,8 +76,8 @@ function TableView({ results, selectedIds, onSelectionChange }: { results: Match
       switch (decision) {
         case "approved": return 5; // Lowest priority
         case "ai_auto_approved": return 4; // Fourth priority
-        case "not_approved": return 3; // Third priority
-        case "auto_not_approved": return 3; // Third priority (same as not_approved)
+        case "rejected": return 3; // Third priority
+        case "auto_rejected": return 3; // Third priority (same as rejected)
         case "auto_approved": return 2; // Second priority
         default: return 1; // Highest priority (pending, sent_to_ai)
       }
@@ -151,13 +151,13 @@ function TableView({ results, selectedIds, onSelectionChange }: { results: Match
                 />
               </td>
               <td className="px-3 py-4 align-top">
-                {r.decision === "auto_approved" && <Badge tone="green">auto_approved</Badge>}
-                {r.decision === "approved" && <Badge tone="green">approved</Badge>}
-                {r.decision === "ai_auto_approved" && <Badge tone="green">AI-auto approved</Badge>}
-                {r.decision === "not_approved" && <Badge tone="red">not_approved</Badge>}
-                {r.decision === "auto_not_approved" && <Badge tone="red">Auto-not approved</Badge>}
-                {r.decision === "sent_to_ai" && <Badge tone="blue">sent_to_ai</Badge>}
-                {r.decision === "pending" && <Badge tone="yellow">pending</Badge>}
+                {r.decision === "auto_approved" && <Badge tone="green">Auto approved</Badge>}
+                {r.decision === "approved" && <Badge tone="green">Approved</Badge>}
+                {r.decision === "ai_auto_approved" && <Badge tone="green">AI auto approved</Badge>}
+                {r.decision === "rejected" && <Badge tone="red">Rejected</Badge>}
+                {r.decision === "auto_rejected" && <Badge tone="red">Auto-rejected</Badge>}
+                {r.decision === "sent_to_ai" && <Badge tone="blue">Sent to AI</Badge>}
+                {r.decision === "pending" && <Badge tone="yellow">Pending</Badge>}
               </td>
               <td className="px-3 py-4 align-top">
                 <div className="text-sm font-semibold">{r.overall_score}</div>
@@ -188,7 +188,7 @@ function CardView({ results, selectedIds, onSelectionChange }: { results: MatchR
   // Sort results according to priority:
   // 1. Lowest score first (highest priority)
   // 2. Auto approved second
-  // 3. Not approved third
+  // 3. Rejected third
   // 4. Approved last (lowest priority)
   const sortedResults = [...results].sort((a, b) => {
     // First sort by decision priority
@@ -196,8 +196,8 @@ function CardView({ results, selectedIds, onSelectionChange }: { results: MatchR
       switch (decision) {
         case "approved": return 5; // Lowest priority
         case "ai_auto_approved": return 4; // Fourth priority
-        case "not_approved": return 3; // Third priority
-        case "auto_not_approved": return 3; // Third priority (same as not_approved)
+        case "rejected": return 3; // Third priority
+        case "auto_rejected": return 3; // Third priority (same as rejected)
         case "auto_approved": return 2; // Second priority
         default: return 1; // Highest priority (pending, sent_to_ai)
       }
@@ -257,13 +257,13 @@ function CardView({ results, selectedIds, onSelectionChange }: { results: MatchR
             </div>
             <div className="ml-auto flex w-64 shrink-0 flex-col items-end gap-2">
               <div>
-                {r.decision === "auto_approved" && <Badge tone="green">auto_approved</Badge>}
-                {r.decision === "approved" && <Badge tone="green">approved</Badge>}
-                {r.decision === "ai_auto_approved" && <Badge tone="green">AI-auto approved</Badge>}
-                {r.decision === "not_approved" && <Badge tone="red">not_approved</Badge>}
-                {r.decision === "auto_not_approved" && <Badge tone="red">Auto-not approved</Badge>}
-                {r.decision === "sent_to_ai" && <Badge tone="blue">sent_to_ai</Badge>}
-                {r.decision === "pending" && <Badge tone="yellow">pending</Badge>}
+                {r.decision === "auto_approved" && <Badge tone="green">Auto approved</Badge>}
+                {r.decision === "approved" && <Badge tone="green">Approved</Badge>}
+                {r.decision === "ai_auto_approved" && <Badge tone="green">AI auto approved</Badge>}
+                {r.decision === "rejected" && <Badge tone="red">Rejected</Badge>}
+                {r.decision === "auto_rejected" && <Badge tone="red">Auto-rejected</Badge>}
+                {r.decision === "sent_to_ai" && <Badge tone="blue">Sent to AI</Badge>}
+                {r.decision === "pending" && <Badge tone="yellow">Pending</Badge>}
               </div>
               <div className="text-sm">
                 Score <span className="font-semibold">{r.overall_score}</span>
@@ -289,12 +289,29 @@ function CardView({ results, selectedIds, onSelectionChange }: { results: MatchR
 export default function MatchResults({ results, selectedIds, onSelectionChange, view, statusFilter }: MatchResultsProps) {
   const [localView, setLocalView] = useState<'table' | 'card'>(view);
   
-  // Filter results based on status
+  // Filter results based on status with mapping
   const filteredResults = useMemo(() => {
     if (statusFilter === "all") {
       return results;
     }
-    return results.filter(result => result.decision === statusFilter);
+    
+    return results.filter(result => {
+      switch (statusFilter) {
+        case "review_required":
+          // Pending & Sent to AI = Review required
+          return result.decision === "pending" || result.decision === "sent_to_ai";
+        case "approved":
+          // Auto approved, Approved, AI auto approved = Approved
+          return result.decision === "auto_approved" || 
+                 result.decision === "approved" || 
+                 result.decision === "ai_auto_approved";
+        case "rejected":
+          // Auto-rejected & Rejected = Rejected
+          return result.decision === "auto_rejected" || result.decision === "rejected";
+        default:
+          return false;
+      }
+    });
   }, [results, statusFilter]);
 
   if (results.length === 0) {
