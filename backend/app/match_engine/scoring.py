@@ -62,8 +62,11 @@ def calculate_chemical_penalty(customer: str, db: str) -> int:
     # If both contain "acid" but are different types of acids
     if 'acid' in customer_lower and 'acid' in db_lower:
         # Extract the main chemical name before "acid"
-        customer_chemical = customer_lower.split('acid')[0].strip().split()[-1] if 'acid' in customer_lower else ''
-        db_chemical = db_lower.split('acid')[0].strip().split()[-1] if 'acid' in db_lower else ''
+        customer_parts = customer_lower.split('acid')[0].strip().split()
+        db_parts = db_lower.split('acid')[0].strip().split()
+        
+        customer_chemical = customer_parts[-1] if customer_parts else ''
+        db_chemical = db_parts[-1] if db_parts else ''
         
         if customer_chemical and db_chemical and customer_chemical != db_chemical:
             # Check if they are in the same chemical family
