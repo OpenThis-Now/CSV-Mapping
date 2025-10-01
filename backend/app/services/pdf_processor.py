@@ -199,7 +199,18 @@ def extract_product_info_with_ai(text: str, filename: str) -> Dict[str, Any]:
         
         if result and len(result) > 0:
             print(f"AI extraction successful for {filename}")
-            return result[0]
+            ai_result = result[0]
+            
+            # Justera marknad baserat på språk (t.ex. EU + Swedish -> Sweden)
+            if ai_result.get("authored_market", {}).get("value") and ai_result.get("language", {}).get("value"):
+                market_value = ai_result["authored_market"]["value"]
+                language_value = ai_result["language"]["value"]
+                adjusted_market = adjust_market_by_language(market_value, language_value)
+                if adjusted_market != market_value:
+                    print(f"AI: Adjusted market from '{market_value}' to '{adjusted_market}' based on language '{language_value}'")
+                    ai_result["authored_market"]["value"] = adjusted_market
+            
+            return ai_result
         else:
             print(f"AI extraction returned empty result for {filename}, using fallback extraction")
             # Use simple text extraction as fallback instead of creating empty entry
@@ -309,7 +320,8 @@ def simple_text_extraction(text: str, filename: str) -> Dict[str, Any]:
         # Om inget land hittats, leta efter andra marknad patterns
         market_patterns = [
             r'(?:Market|Region|Regulatory market)[:\s]+([^\n\r]+)',
-            r'(?:EU|USA|US|Canada|UK|Australia)[\s\w]*',  # Regions först
+            r'\bEU\b',  # EU som separat ord
+            r'(?:USA|US|Canada|UK|Australia)[\s\w]*',  # Andra regions
             r'(?:CLP|REACH|OSHA|WHMIS|GHS)[\s\w]*',  # Regulatory frameworks sist
         ]
         
@@ -325,24 +337,31 @@ def simple_text_extraction(text: str, filename: str) -> Dict[str, Any]:
         authored_market = market  # Använd bara marknaden
     
     # Detect language from content
-    if re.search(r'(?:Faraoangivelser|Gefahrhinweise|H-Sätze)', text, re.IGNORECASE):
+    if re.search(r'(?:Faraangivelser|Riskfraser|Produktnamn|Leverantör|Företag|Sverige|Swedish)', text, re.IGNORECASE):
+        language = "Swedish"
+    elif re.search(r'(?:Faraoangivelser|Gefahrhinweise|H-Sätze)', text, re.IGNORECASE):
         language = "German"
     elif re.search(r'(?:Déclarations de danger|Phrases de risque)', text, re.IGNORECASE):
         language = "French"
     elif re.search(r'(?:Hazard statements|Danger statements)', text, re.IGNORECASE):
         language = "English"
-    elif re.search(r'(?:Faraangivelser|Riskfraser)', text, re.IGNORECASE):
-        language = "Swedish"
     
     # If no specific language detected, default to English
     if not language:
         language = "English"
     
+    # Justera marknad baserat på språk (t.ex. EU + Swedish -> Sweden)
+    if authored_market and language:
+        adjusted_market = adjust_market_by_language(authored_market, language)
+        if adjusted_market != authored_market:
+            print(f"Adjusted market from '{authored_market}' to '{adjusted_market}' based on language '{language}'")
+            authored_market = adjusted_market
+    
     # Determine extraction status
     extracted_fields = [product_name, article_number, company_name]
     status = "success" if any(extracted_fields) else "partial"
     
-    print(f"Simple extraction results for {filename}: product={product_name}, article={article_number}, company={company_name}, status={status}")
+    print(f"Simple extraction results for {filename}: product={product_name}, article={article_number}, company={company_name}, market={authored_market}, language={language}, status={status}")
     
     return {
         "product_name": {"value": product_name, "confidence": 0.8 if product_name else 0.0, "evidence": {"snippet": f"Found in text: {product_name or 'not found'}"}},
@@ -366,6 +385,44 @@ def create_fallback_entry(filename: str) -> Dict[str, Any]:
         "filename": filename,
         "extraction_status": "failed"
     }
+
+
+def adjust_market_by_language(market: str, language: str) -> str:
+    """Justera marknad baserat på språk - t.ex. EU + Swedish -> Sweden"""
+    if not market or not language:
+        return market
+    
+    # Språk-till-land mapping
+    language_to_country = {
+        "Swedish": "Sweden",
+        "German": "Germany", 
+        "French": "France",
+        "Spanish": "Spain",
+        "Italian": "Italy",
+        "Dutch": "Netherlands",
+        "Danish": "Denmark",
+        "Norwegian": "Norway",
+        "Finnish": "Finland",
+        "Polish": "Poland",
+        "Czech": "Czech Republic",
+        "Hungarian": "Hungary",
+        "Portuguese": "Portugal",
+        "Greek": "Greece",
+        "Slovak": "Slovakia",
+        "Slovenian": "Slovenia",
+        "Croatian": "Croatia",
+        "Romanian": "Romania",
+        "Bulgarian": "Bulgaria",
+        "Estonian": "Estonia",
+        "Latvian": "Latvia",
+        "Lithuanian": "Lithuania",
+    }
+    
+    # Om marknaden är EU och språket matchar ett EU-land, ändra till det specifika landet
+    if market.upper() == "EU" and language in language_to_country:
+        return language_to_country[language]
+    
+    return market
 
 
 def separate_market_and_legislation(market_value: str) -> tuple[str, str]:
