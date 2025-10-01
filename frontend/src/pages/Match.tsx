@@ -13,7 +13,7 @@ export default function MatchPage({ projectId }: { projectId: number }) {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [view, setView] = useState<"table" | "card">("card");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const { startAnalysisForSentToAI } = useAI();
+  const { startAnalysisForSentToAI, startAutoQueue } = useAI();
   const { showToast } = useToast();
 
   const run = async () => {
@@ -185,6 +185,12 @@ export default function MatchPage({ projectId }: { projectId: number }) {
             onClick={rejectSelected}
           >
             Reject selected
+          </button>
+          <button 
+            className="rounded-2xl bg-green-100 px-4 py-2 text-sm font-medium text-green-700 hover:bg-green-200" 
+            onClick={() => startAutoQueue(projectId)}
+          >
+            Auto-Queue AI (70-95 score)
           </button>
           <button 
             className="rounded-2xl bg-blue-100 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-200" 
