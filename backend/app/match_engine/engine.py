@@ -88,8 +88,13 @@ def run_match(customer_csv: Path, db_csv: Path, customer_mapping: dict[str, str]
             if meta["overall"] > best_score:
                 best_score = meta["overall"]
                 best_meta, best_db = meta, db_row
-                print(f"  New best match (score {best_score}): {db_row.get('product', 'N/A')} from {db_row.get('vendor', 'N/A')}")
+                # Use mapped field names for display
+                product_field = db_mapping.get("product", "Product_name")
+                vendor_field = db_mapping.get("vendor", "Supplier_name")
+                print(f"  New best match (score {best_score}): {db_row.get(product_field, 'N/A')} from {db_row.get(vendor_field, 'N/A')}")
         
         assert best_meta is not None and best_db is not None
-        print(f"Final match for row {idx}: {best_db.get('product', 'N/A')} (score: {best_score})")
+        # Use mapped field names for display
+        product_field = db_mapping.get("product", "Product_name")
+        print(f"Final match for row {idx}: {best_db.get(product_field, 'N/A')} (score: {best_score})")
         yield idx, crow, best_db, best_meta
