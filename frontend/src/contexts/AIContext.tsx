@@ -34,6 +34,7 @@ interface AIContextType {
   stopQueuePolling: () => void;
   pauseQueue: (projectId: number) => Promise<void>;
   resumeQueue: (projectId: number) => Promise<void>;
+  checkAndResumeQueue: (projectId: number) => Promise<void>;
 }
 
 const AIContext = createContext<AIContextType | undefined>(undefined);
@@ -320,6 +321,25 @@ export function AIProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const checkAndResumeQueue = async (projectId: number) => {
+    try {
+      const { default: api } = await import('@/lib/api');
+      const response = await api.get(`/projects/${projectId}/ai/queue-status`);
+      const isProcessing = response.data.processing > 0 || response.data.queued > 0;
+      
+      if (isProcessing) {
+        setIsQueueProcessing(true);
+        setIsAnalyzing(true);
+        setQueueStatus(response.data);
+        startQueuePolling(projectId);
+      }
+      
+      return response.data;
+    } catch (error) {
+      console.error("Failed to check queue status:", error);
+    }
+  };
+
   return (
     <AIContext.Provider value={{
       isAnalyzing,
@@ -340,7 +360,8 @@ export function AIProvider({ children }: { children: ReactNode }) {
       startQueuePolling,
       stopQueuePolling,
       pauseQueue,
-      resumeQueue
+      resumeQueue,
+      checkAndResumeQueue
     }}>
       {children}
     </AIContext.Provider>

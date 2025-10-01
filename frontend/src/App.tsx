@@ -20,7 +20,7 @@ function AppContent() {
   const [hasDatabase, setHasDatabase] = useState<boolean>(false);
   const [hasImports, setHasImports] = useState<boolean>(false);
   const [hasSelectedImport, setHasSelectedImport] = useState<boolean>(false);
-  const { isAnalyzing, thinkingStep, isQueueProcessing, queueStatus } = useAI();
+  const { isAnalyzing, thinkingStep, isQueueProcessing, queueStatus, checkAndResumeQueue } = useAI();
 
   // Function to check project status
   const checkProjectStatus = async (projectId: number) => {
@@ -66,6 +66,14 @@ function AppContent() {
       setHasSelectedImport(false);
     }
   }, [projectId]);
+
+  // Check AI status when projectId changes or component mounts
+  useEffect(() => {
+    if (projectId && checkAndResumeQueue) {
+      // Check if AI is currently processing for this project and resume if needed
+      checkAndResumeQueue(projectId);
+    }
+  }, [projectId, checkAndResumeQueue]);
 
   return (
     <div className="min-h-screen">
@@ -129,15 +137,10 @@ function AppContent() {
           </nav>
           <div className="ml-auto flex items-center gap-3">
             {(isAnalyzing || isQueueProcessing) && (
-              <div className="flex items-center gap-1.5 bg-blue-50 px-2 py-1 rounded-full text-xs">
-                <div className="flex space-x-0.5">
-                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce"></div>
-                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                </div>
-                <span className="text-blue-800 font-medium">
-                  {isQueueProcessing ? `AI working...` : `Analysing...`}
-                </span>
+              <div className="flex space-x-0.5">
+                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce"></div>
+                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
               </div>
             )}
             <div className="flex items-center gap-2">
