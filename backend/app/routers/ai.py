@@ -247,3 +247,24 @@ def ai_suggest(project_id: int, req: AiSuggestRequest, session: Session = Depend
                 source=s.source,
             ))
     return out
+
+
+@router.get("/projects/{project_id}/ai/suggestions", response_model=list[AiSuggestionItem])
+def get_ai_suggestions(project_id: int, session: Session = Depends(get_session)) -> list[AiSuggestionItem]:
+    """Get all AI suggestions for a project."""
+    suggestions = session.exec(
+        select(AiSuggestion).where(AiSuggestion.project_id == project_id).order_by(AiSuggestion.customer_row_index, AiSuggestion.rank)
+    ).all()
+    
+    return [
+        AiSuggestionItem(
+            id=s.id,
+            customer_row_index=s.customer_row_index,
+            rank=s.rank,
+            database_fields_json=s.database_fields_json,
+            confidence=s.confidence,
+            rationale=s.rationale,
+            source=s.source,
+        )
+        for s in suggestions
+    ]

@@ -7,7 +7,7 @@ export default function AIDeep({ projectId }: { projectId: number }) {
   const [results, setResults] = useState<MatchResultItem[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const { isAnalyzing, thinkingStep, suggestions, startAnalysis, stopAnalysis, approveSuggestion, rejectSuggestion } = useAI();
+  const { isAnalyzing, thinkingStep, suggestions, startAnalysis, stopAnalysis, approveSuggestion, rejectSuggestion, loadExistingSuggestions } = useAI();
 
   const refresh = async () => {
     try {
@@ -20,7 +20,10 @@ export default function AIDeep({ projectId }: { projectId: number }) {
       console.error("Failed to load results:", error);
     }
   };
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => { 
+    refresh(); 
+    loadExistingSuggestions(projectId);
+  }, [projectId]);
 
   const sendAI = async () => {
     // Only send items that are marked as "sent_to_ai"
