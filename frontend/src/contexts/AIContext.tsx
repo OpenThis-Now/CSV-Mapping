@@ -8,15 +8,6 @@ interface AIContextType {
   thinkingStep: number;
   suggestions: AiSuggestionItem[];
   
-  // AI Queue State
-  queueStatus: {
-    queued: number;
-    processing: number;
-    completed: number;
-    total: number;
-  } | null;
-  isQueueProcessing: boolean;
-  
   // AI Analysis Actions
   startAnalysis: (projectId: number, selectedIndices: number[]) => Promise<void>;
   startAnalysisForSentToAI: (projectId: number) => Promise<void>;
@@ -25,12 +16,6 @@ interface AIContextType {
   approveSuggestion: (suggestion: AiSuggestionItem, projectId: number) => Promise<void>;
   rejectSuggestion: (suggestion: AiSuggestionItem, projectId: number) => Promise<void>;
   loadExistingSuggestions: (projectId: number) => Promise<void>;
-  
-  // AI Queue Actions
-  startAutoQueue: (projectId: number) => Promise<void>;
-  getQueueStatus: (projectId: number) => Promise<void>;
-  startQueuePolling: (projectId: number) => void;
-  stopQueuePolling: () => void;
 }
 
 const AIContext = createContext<AIContextType | undefined>(undefined);
@@ -39,16 +24,8 @@ export function AIProvider({ children }: { children: ReactNode }) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [thinkingStep, setThinkingStep] = useState(0);
   const [suggestions, setSuggestions] = useState<AiSuggestionItem[]>([]);
-  const [queueStatus, setQueueStatus] = useState<{
-    queued: number;
-    processing: number;
-    completed: number;
-    total: number;
-  } | null>(null);
-  const [isQueueProcessing, setIsQueueProcessing] = useState(false);
   const { showToast } = useToast();
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const queuePollingRef = useRef<NodeJS.Timeout | null>(null);
 
   const loadExistingSuggestions = async (projectId: number) => {
     try {
@@ -214,82 +191,18 @@ export function AIProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // AI Queue Functions
-  const startAutoQueue = async (projectId: number) => {
-    try {
-      const { default: api } = await import('@/lib/api');
-      const response = await api.post(`/projects/${projectId}/ai/auto-queue`);
-      
-      showToast(`Successfully queued ${response.data.queued_count} products for AI analysis!`, 'success');
-      
-      // Start polling for queue status
-      startQueuePolling(projectId);
-      
-      return response.data;
-    } catch (error) {
-      console.error("Failed to start auto queue:", error);
-      showToast("Could not start AI queue. Please try again.", 'error');
-    }
-  };
-
-  const getQueueStatus = async (projectId: number) => {
-    try {
-      const { default: api } = await import('@/lib/api');
-      const response = await api.get(`/projects/${projectId}/ai/queue-status`);
-      setQueueStatus(response.data);
-      
-      // Update processing state
-      setIsQueueProcessing(response.data.processing > 0 || response.data.queued > 0);
-      
-      return response.data;
-    } catch (error) {
-      console.error("Failed to get queue status:", error);
-    }
-  };
-
-  const startQueuePolling = (projectId: number) => {
-    // Clear existing polling
-    if (queuePollingRef.current) {
-      clearInterval(queuePollingRef.current);
-    }
-    
-    // Start new polling every 3 seconds
-    queuePollingRef.current = setInterval(async () => {
-      await getQueueStatus(projectId);
-      
-      // If no more items in queue, stop polling
-      if (queueStatus && queueStatus.queued === 0 && queueStatus.processing === 0) {
-        stopQueuePolling();
-      }
-    }, 3000);
-  };
-
-  const stopQueuePolling = () => {
-    if (queuePollingRef.current) {
-      clearInterval(queuePollingRef.current);
-      queuePollingRef.current = null;
-    }
-    setIsQueueProcessing(false);
-  };
-
   return (
     <AIContext.Provider value={{
       isAnalyzing,
       thinkingStep,
       suggestions,
-      queueStatus,
-      isQueueProcessing,
       startAnalysis,
       startAnalysisForSentToAI,
       stopAnalysis,
       clearSuggestions,
       approveSuggestion,
       rejectSuggestion,
-      loadExistingSuggestions,
-      startAutoQueue,
-      getQueueStatus,
-      startQueuePolling,
-      stopQueuePolling
+      loadExistingSuggestions
     }}>
       {children}
     </AIContext.Provider>
