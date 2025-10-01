@@ -329,10 +329,18 @@ def auto_queue_ai_analysis(project_id: int, session: Session = Depends(get_sessi
             try:
                 # Process in batches until no more queued products
                 while True:
-                    # Get next batch of queued products
+                    # Get next batch of queued products for the latest match run
+                    latest_run = session.exec(
+                        select(MatchRun).where(MatchRun.project_id == project_id).order_by(MatchRun.started_at.desc())
+                    ).first()
+                    
+                    if not latest_run:
+                        log.info(f"No match run found for project {project_id}")
+                        break
+                    
                     queued_products = session.exec(
                         select(MatchResult).where(
-                            MatchResult.project_id == project_id,
+                            MatchResult.match_run_id == latest_run.id,
                             MatchResult.decision == "sent_to_ai",
                             MatchResult.ai_status == "queued"
                         ).limit(10)  # Process 10 at a time
@@ -410,10 +418,25 @@ def auto_queue_ai_analysis(project_id: int, session: Session = Depends(get_sessi
 @router.get("/projects/{project_id}/ai/queue-status")
 def get_ai_queue_status(project_id: int, session: Session = Depends(get_session)):
     """Get the current status of the AI queue."""
-    # Count products in different AI states
+    from ..models import MatchRun
+    
+    # Get the latest match run for this project
+    latest_run = session.exec(
+        select(MatchRun).where(MatchRun.project_id == project_id).order_by(MatchRun.started_at.desc())
+    ).first()
+    
+    if not latest_run:
+        return {
+            "queued": 0,
+            "processing": 0,
+            "completed": 0,
+            "total": 0
+        }
+    
+    # Count products in different AI states for this match run
     queued_count = session.exec(
         select(MatchResult).where(
-            MatchResult.project_id == project_id,
+            MatchResult.match_run_id == latest_run.id,
             MatchResult.decision == "sent_to_ai",
             MatchResult.ai_status == "queued"
         )
@@ -421,7 +444,7 @@ def get_ai_queue_status(project_id: int, session: Session = Depends(get_session)
     
     processing_count = session.exec(
         select(MatchResult).where(
-            MatchResult.project_id == project_id,
+            MatchResult.match_run_id == latest_run.id,
             MatchResult.decision == "sent_to_ai",
             MatchResult.ai_status == "processing"
         )
@@ -429,7 +452,7 @@ def get_ai_queue_status(project_id: int, session: Session = Depends(get_session)
     
     completed_count = session.exec(
         select(MatchResult).where(
-            MatchResult.project_id == project_id,
+            MatchResult.match_run_id == latest_run.id,
             MatchResult.decision == "sent_to_ai",
             MatchResult.ai_status.in_(["completed", "auto_approved"])
         )
