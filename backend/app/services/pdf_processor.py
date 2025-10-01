@@ -294,18 +294,35 @@ def simple_text_extraction(text: str, filename: str) -> Dict[str, Any]:
                 company_name = candidate
                 break
     
-    # Look for market patterns (more comprehensive)
-    market_patterns = [
-        r'(?:Market|Region|Regulatory market)[:\s]+([^\n\r]+)',
-        r'(?:CLP|REACH|OSHA|WHMIS|GHS)[\s\w]*',  # Regulatory frameworks
-        r'(?:EU|USA|US|Canada|UK|Australia)[\s\w]*',  # Regions
-    ]
+    # Först försök hitta länder från företagsnamn eller språk (högre prioritet)
+    if re.search(r'Sweden|Sverige', text, re.IGNORECASE):
+        authored_market = "Sweden"
+    elif re.search(r'Germany|Deutschland', text, re.IGNORECASE):
+        authored_market = "Germany"
+    elif re.search(r'France|Français', text, re.IGNORECASE):
+        authored_market = "France"
+    elif re.search(r'Canada|Canadian', text, re.IGNORECASE):
+        authored_market = "Canada"
+    elif re.search(r'USA|United States|American', text, re.IGNORECASE):
+        authored_market = "USA"
+    else:
+        # Om inget land hittats, leta efter andra marknad patterns
+        market_patterns = [
+            r'(?:Market|Region|Regulatory market)[:\s]+([^\n\r]+)',
+            r'(?:EU|USA|US|Canada|UK|Australia)[\s\w]*',  # Regions först
+            r'(?:CLP|REACH|OSHA|WHMIS|GHS)[\s\w]*',  # Regulatory frameworks sist
+        ]
+        
+        for pattern in market_patterns:
+            market_match = re.search(pattern, text, re.IGNORECASE)
+            if market_match:
+                authored_market = market_match.group(0).strip()
+                break
     
-    for pattern in market_patterns:
-        market_match = re.search(pattern, text, re.IGNORECASE)
-        if market_match:
-            authored_market = market_match.group(0).strip()
-            break
+    # Separera marknad och lagstiftning även för simple text extraction
+    if authored_market:
+        market, legislation = separate_market_and_legislation(authored_market)
+        authored_market = market  # Använd bara marknaden
     
     # Detect language from content
     if re.search(r'(?:Faraoangivelser|Gefahrhinweise|H-Sätze)', text, re.IGNORECASE):

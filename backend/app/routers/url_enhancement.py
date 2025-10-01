@@ -15,7 +15,7 @@ from ..db import get_session
 from ..models import ImportFile, Project
 from ..schemas import ImportUploadResponse
 from ..services.files import detect_csv_separator, open_text_stream
-from ..services.pdf_processor import extract_pdf_data_with_ai
+from ..services.pdf_processor import extract_pdf_data_with_ai, separate_market_and_legislation
 
 router = APIRouter()
 log = logging.getLogger("app.url_enhancement")
@@ -97,8 +97,11 @@ def enhance_csv_with_urls(project_id: int, session: Session = Depends(get_sessio
                             log.info(f"Updated SKU: {enhanced_row[sku_column]}")
                         
                         if pdf_item.get("authored_market", {}).get("value"):
-                            enhanced_row[market_column] = pdf_item["authored_market"]["value"]
-                            log.info(f"Updated market: {enhanced_row[market_column]}")
+                            # Separera marknad och lagstiftning som i PDF-uppladdning
+                            market_value = pdf_item["authored_market"]["value"]
+                            market, legislation = separate_market_and_legislation(market_value)
+                            enhanced_row[market_column] = market  # Använd bara marknaden, inte lagstiftningen
+                            log.info(f"Updated market: {enhanced_row[market_column]} (from {market_value})")
                         
                         if pdf_item.get("language", {}).get("value"):
                             enhanced_row[language_column] = pdf_item["language"]["value"]
