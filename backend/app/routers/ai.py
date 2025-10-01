@@ -275,6 +275,9 @@ def get_ai_suggestions(project_id: int, session: Session = Depends(get_session))
 @router.post("/projects/{project_id}/ai/auto-queue")
 def auto_queue_ai_analysis(project_id: int, session: Session = Depends(get_session)):
     """Automatically queue products with scores between 70-95 for AI analysis."""
+    import logging
+    log = logging.getLogger("app.ai")
+    
     p = session.get(Project, project_id)
     if not p:
         raise HTTPException(status_code=404, detail="Project not found.")
@@ -287,6 +290,8 @@ def auto_queue_ai_analysis(project_id: int, session: Session = Depends(get_sessi
     if not latest_run:
         raise HTTPException(status_code=400, detail="No match run found. Run matching first.")
     
+    log.info(f"Latest match run ID: {latest_run.id}")
+    
     # Find results with scores between 70-95 that are not already sent to AI
     results_to_queue = session.exec(
         select(MatchResult).where(
@@ -296,6 +301,8 @@ def auto_queue_ai_analysis(project_id: int, session: Session = Depends(get_sessi
             MatchResult.decision.in_(["pending", "auto_approved", "not_approved"])
         )
     ).all()
+    
+    log.info(f"Found {len(results_to_queue)} products in 70-95 score range")
     
     if not results_to_queue:
         return {"message": "No products found in the 70-95 score range to queue for AI analysis.", "queued_count": 0}
@@ -311,7 +318,21 @@ def auto_queue_ai_analysis(project_id: int, session: Session = Depends(get_sessi
     session.commit()
     
     # Start background processing
-    asyncio.create_task(process_ai_queue(project_id))
+    try:
+        # Run the AI queue processing in a separate thread to avoid blocking
+        import threading
+        def run_ai_queue():
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(process_ai_queue(project_id))
+            loop.close()
+        
+        thread = threading.Thread(target=run_ai_queue)
+        thread.daemon = True
+        thread.start()
+    except Exception as e:
+        log.error(f"Failed to start AI queue processing: {e}")
     
     return {
         "message": f"Successfully queued {queued_count} products for AI analysis.",

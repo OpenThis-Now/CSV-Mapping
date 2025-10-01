@@ -21,7 +21,7 @@ class AIQueueProcessor:
     def __init__(self):
         self.is_processing = False
         self.current_batch = []
-        self.max_concurrent = 3  # Process max 3 products at once
+        self.max_concurrent = 10  # Process max 10 products at once (increased from 3)
         
     async def start_processing(self, project_id: int):
         """Start processing the AI queue for a project."""
@@ -134,20 +134,89 @@ class AIQueueProcessor:
     
     async def _load_data(self, project: Project, session: Session):
         """Load customer and database data."""
-        # This is a simplified version - you'd need to implement the full data loading logic
-        # from the existing AI suggest endpoint
-        pass
+        from ..models import ImportFile, DatabaseCatalog
+        
+        # Get import file
+        imp = session.exec(
+            select(ImportFile).where(ImportFile.project_id == project.id).order_by(ImportFile.created_at.desc())
+        ).first()
+        
+        if not imp:
+            raise Exception("No import file found")
+        
+        # Get database
+        db = session.get(DatabaseCatalog, project.active_database_id)
+        if not db:
+            raise Exception("No active database found")
+        
+        # Load CSV files
+        import pandas as pd
+        from ..services.files import detect_csv_separator
+        
+        # Detect separators
+        imp_separator = detect_csv_separator(Path(settings.IMPORTS_DIR) / imp.filename)
+        db_separator = detect_csv_separator(Path(settings.DATABASES_DIR) / db.filename)
+        
+        # Read customer data
+        customer_data = pd.read_csv(
+            Path(settings.IMPORTS_DIR) / imp.filename, 
+            dtype=str, 
+            keep_default_na=False, 
+            sep=imp_separator
+        )
+        
+        # Read database data
+        database_data = pd.read_csv(
+            Path(settings.DATABASES_DIR) / db.filename, 
+            dtype=str, 
+            keep_default_na=False, 
+            sep=db_separator
+        )
+        
+        return customer_data, database_data
     
     async def _find_database_matches(self, customer_row: dict, database_data, customer_row_index: int):
         """Find the best database matches for a customer row."""
-        # This is a simplified version - you'd need to implement the full matching logic
-        pass
+        # Use the same logic as the existing AI suggest endpoint
+        from ..services.mapping import auto_map_headers
+        
+        # Auto-map headers
+        db_mapping = auto_map_headers(database_data.columns)
+        
+        # Score products
+        database_data["__sim"] = database_data[db_mapping["product"]].apply(
+            lambda x: score_fields(customer_row.get("Product_name", ""), x)
+        )
+        
+        # Get top matches
+        top_matches = database_data.sort_values("__sim", ascending=False).head(20).drop(columns=["__sim"])
+        
+        return [dict(row) for _, row in top_matches.iterrows()]
     
     async def _generate_ai_suggestions(self, customer_row: dict, database_matches: List[dict], 
                                      customer_row_index: int, project_id: int):
         """Generate AI suggestions for a customer row."""
-        # This is a simplified version - you'd need to implement the full AI logic
-        pass
+        from ..routers.ai import build_ai_prompt
+        from ..services.mapping import auto_map_headers
+        
+        # Use the same AI logic as the existing endpoint
+        try:
+            prompt = build_ai_prompt(customer_row, database_matches, {}, 3)
+            ai_suggestions = suggest_with_openai(prompt, max_items=3)
+            
+            return ai_suggestions
+        except Exception as e:
+            log.error(f"AI suggestion failed for row {customer_row_index}: {e}")
+            # Fallback to heuristic suggestions
+            suggestions = []
+            for i, match in enumerate(database_matches[:3]):
+                confidence = max(0.5, (i + 1) / 4)
+                suggestions.append({
+                    "database_fields_json": match,
+                    "confidence": confidence,
+                    "rationale": f"Heuristic match #{i+1} with {confidence:.0%} confidence"
+                })
+            return suggestions
 
 
 # Global processor instance
