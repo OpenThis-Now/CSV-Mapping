@@ -148,12 +148,6 @@ export default function Databases({ activeProjectId, onDatabaseChange }: { activ
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Databases</h1>
-        <button 
-          onClick={refresh}
-          className="px-3 py-1 text-sm bg-blue-100 text-blue-700 border border-blue-300 rounded hover:bg-blue-200"
-        >
-          Refresh
-        </button>
       </div>
       <UploadArea onFile={onFile} />
       {uploading && <div className="text-sm opacity-70">Uploading...</div>}
