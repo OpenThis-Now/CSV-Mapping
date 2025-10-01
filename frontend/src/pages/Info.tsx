@@ -1,20 +1,57 @@
 import { useState } from 'react';
+import { Download } from 'lucide-react';
 
 export default function InfoPage() {
-  const [activeTab, setActiveTab] = useState<'input' | 'database'>('input');
+  const [tab, setTab] = useState("input");
 
-  const inputTemplate = `Product_name;Supplier_name;Article_number;Market;Language;Description
-THINNER 215;Carboline;05570910001D;Canada;English;Industrial paint thinner
-MAPEFLOOR FILLER;MAPEI INC.;245633;Canada;English;Floor filler compound
-BAR-RUST 235 BLACK;AkzoNobel;HB9903;Canada;English;Rust protection paint`;
+  const inputRequired = [
+    "Product_name - Product name",
+    "Supplier_name - Supplier name",
+    "Article_number - Art.no",
+  ];
+  const inputOptional = [
+    "Market - Market/Region",
+    "Language - Language",
+    "Description - Description",
+    "SDS-URL - URL to PDF safety data sheet",
+  ];
+  const inputTemplate = `Product_name;Supplier_name;Article_number;Market;Language;Description;SDS-URL
+THINNER 215;Carboline;05570910001D;Canada;English;Industrial paint thinner;https://example.com/sds/thinner215.pdf
+MAPEFLOOR FILLER;MAPEI INC.;245633;Canada;English;Floor filler compound;https://example.com/sds/mapefloor.pdf
+BAR-RUST 235 BLACK;AkzoNobel;HB9903;Canada;English;Rust protection paint;https://example.com/sds/bar-rust.pdf`;
 
-  const databaseTemplate = `Product_name;Supplier_name;Article_number;Unique_ID;Location_ID;Market;Language;MSDSkey;Revision_date;Expire_date
+  const dbRequired = [
+    "Product_name - Product name",
+    "Supplier_name - Supplier name",
+    "Article_number - Art.no",
+    "Market - Market/Region",
+    "Language - Language",
+  ];
+  const dbOptional = [
+    "Unique_ID - Unique identifier",
+    "Location_ID - Location ID",
+    "MSDSkey - Safety data sheet",
+    "Revision_date - Revision date",
+    "Expire_date - Expiration date",
+    "Description - Description",
+  ];
+  const dbTemplate = `Product_name;Supplier_name;Article_number;Unique_ID;Location_ID;Market;Language;MSDSkey;Revision_date;Expire_date
 THINNER 215;Carboline;05570910001D;12345;12345;Canada;English;26139007;2024-01-15;2025-12-31
 MAPEFLOOR FILLER NA;MAPEI INC.;245633;12347;12345;Canada;English;26146274;2024-02-01;2026-01-31
 BAR-RUST 235 BLACK PART A;AkzoNobel;HB9903;12348;12345;Canada;English;26146498;2024-01-20;2025-06-30`;
 
-  const downloadCSV = (content: string, filename: string) => {
-    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+  const tips = [
+    "Use semicolon (;) as separator, not comma (,)",
+    "Save as UTF-8 for Nordic characters (å, ä, ö, æ, ø, þ, ð)",
+    "First row should contain column names",
+    "Empty cells are allowed for optional fields",
+    "Date format: YYYY-MM-DD (e.g. 2024-01-15)",
+    "SDS-URL: Must be direct links to PDF files (http:// or https://)",
+    "AI Enhancement: Works best with well-formatted SDS documents",
+  ];
+
+  const onDownload = (csv: string, filename: string) => {
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
@@ -25,144 +62,181 @@ BAR-RUST 235 BLACK PART A;AkzoNobel;HB9903;12348;12345;Canada;English;26146498;2
     document.body.removeChild(link);
   };
 
+  // Helper functions
+  function cx(...classes: Array<string | false | undefined>) {
+    return classes.filter(Boolean).join(" ");
+  }
+
+  function PrimaryButton({ onClick, ariaLabel, children, className = "", disabled = false }: any) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={ariaLabel}
+        disabled={disabled}
+        className={cx(
+          "inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-white shadow-sm",
+          "hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2",
+          "disabled:opacity-50 disabled:cursor-not-allowed",
+          className
+        )}
+      >
+        <Download className="h-4 w-4" aria-hidden />
+        {children}
+      </button>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-2xl shadow p-6">
-        <h1 className="text-3xl font-bold mb-6">📋 Information & CSV Templates</h1>
-        
-        {/* Tab Navigation */}
-        <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg mb-6">
-          <button
-            onClick={() => setActiveTab('input')}
-            className={`px-4 py-2 rounded-md font-medium transition-colors ${
-              activeTab === 'input'
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-600 hover:text-gray-800'
-            }`}
-          >
-            📥 Input CSV
-          </button>
-          <button
-            onClick={() => setActiveTab('database')}
-            className={`px-4 py-2 rounded-md font-medium transition-colors ${
-              activeTab === 'database'
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-600 hover:text-gray-800'
-            }`}
-          >
-            🗄️ Database CSV
-          </button>
+    <div className="min-h-screen bg-white">
+      <main className="mx-auto max-w-5xl px-4 py-8 md:py-10">
+        <section className="mb-4 md:mb-6">
+          <h1 className="text-[28px] md:text-[32px] font-bold tracking-[-0.01em] text-slate-900">Information & CSV Templates</h1>
+        </section>
+
+        <div className="mb-4" role="tablist" aria-label="CSV tabs">
+          <div className="inline-flex gap-1 rounded-2xl border border-slate-200 bg-slate-50 p-1">
+            {[
+              { key: "input", label: "Input CSV" },
+              { key: "database", label: "Database CSV" },
+            ].map((t) => (
+              <button
+                key={t.key}
+                role="tab"
+                aria-selected={tab === t.key}
+                className={cx(
+                  "rounded-xl px-3 py-1.5 text-sm font-medium",
+                  tab === t.key ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200" : "text-slate-700 hover:text-slate-900"
+                )}
+                onClick={() => setTab(t.key)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Input CSV Tab */}
-        {activeTab === 'input' && (
-          <div className="space-y-6">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h2 className="text-xl font-semibold text-blue-900 mb-3">📥 Input CSV Files</h2>
-              <p className="text-blue-800 mb-4">
-                These fields are used to import customer data that will be matched against the database.
-              </p>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        {tab === "input" ? (
+          <>
+            <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5 md:p-6 shadow-sm">
+              <h2 className="text-base md:text-lg font-semibold text-slate-900">Input CSV Files</h2>
+              <p className="mt-1 text-slate-700">These fields are used to import customer data that will be matched against the database.</p>
+              <div className="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div>
-                  <h3 className="font-semibold text-blue-900 mb-2">✅ Required fields:</h3>
-                  <ul className="text-sm text-blue-800 space-y-1">
-                    <li>• <code>Product_name</code> - Product name</li>
-                    <li>• <code>Supplier_name</code> - Supplier name</li>
-                    <li>• <code>Article_number</code> - Art.no</li>
+                  <p className="text-sm font-semibold text-slate-900">Required fields</p>
+                  <ul className="mt-2 list-disc pl-5 space-y-1 text-sm text-slate-700">
+                    {inputRequired.map((x) => (
+                      <li key={x}><span className="font-mono text-slate-800">{x.split(" - ")[0]}</span> - {x.split(" - ")[1]}</li>
+                    ))}
                   </ul>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-blue-900 mb-2">🔧 Optional fields:</h3>
-                  <ul className="text-sm text-blue-800 space-y-1">
-                    <li>• <code>Market</code> - Market/Region</li>
-                    <li>• <code>Language</code> - Language</li>
-                    <li>• <code>Description</code> - Description</li>
+                  <p className="text-sm font-semibold text-slate-900">Optional fields</p>
+                  <ul className="mt-2 list-disc pl-5 space-y-1 text-sm text-slate-700">
+                    {inputOptional.map((x) => (
+                      <li key={x}><span className="font-mono text-slate-800">{x.split(" - ")[0]}</span> - {x.split(" - ")[1]}</li>
+                    ))}
                   </ul>
                 </div>
               </div>
-            </div>
+            </section>
 
-            <div className="bg-gray-50 rounded-lg p-4">
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="font-semibold">Input CSV Template</h3>
-                <button
-                  onClick={() => downloadCSV(inputTemplate, 'input_template.csv')}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  📥 Download Template
-                </button>
+            <section className="mt-6" aria-label="Input CSV Template">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-slate-900">Input CSV Template</h3>
+                <PrimaryButton ariaLabel="Download Input Template" onClick={() => onDownload(inputTemplate, 'input_template.csv')}>Download Template</PrimaryButton>
               </div>
-              <pre className="bg-white border rounded p-3 text-sm overflow-x-auto">
-                <code>{inputTemplate}</code>
-              </pre>
-            </div>
-          </div>
+              <div className="mt-3 rounded-xl border border-slate-200 bg-white shadow-sm">
+                <pre className="overflow-x-auto whitespace-pre-wrap p-4 text-sm text-slate-800 font-mono">{inputTemplate}</pre>
+              </div>
+            </section>
+
+            <section className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5 md:p-6 shadow-sm">
+              <h3 className="text-base font-semibold text-slate-900">AI‑powered SDS‑URL enhancement</h3>
+              <p className="mt-1 text-slate-700">When SDS‑URL links are included, the system can extract and enhance product information using AI.</p>
+              <div className="mt-4 grid grid-cols-1 gap-6 md:grid-cols-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">What gets enhanced</p>
+                  <ul className="mt-2 list-disc pl-5 space-y-1 text-sm text-slate-700">
+                    {["Product_name - From PDF content","Supplier_name - From PDF content","Article_number - From PDF content","Market - Detected market/region","Language - Detected document language"].map((x)=> (
+                      <li key={x}><span className="font-mono text-slate-800">{x.split(" - ")[0]}</span> - {x.split(" - ")[1]}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">What stays the same</p>
+                  <ul className="mt-2 list-disc pl-5 space-y-1 text-sm text-slate-700">
+                    {["All unique IDs and identifiers","Custom fields and descriptions","Existing data not found in PDF","Original CSV structure"].map((x)=> (
+                      <li key={x}>{x}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">How to use</p>
+                  <ul className="mt-2 list-disc pl-5 space-y-1 text-sm text-slate-700">
+                    {["Add SDS-URL column with PDF links to your CSV","Upload the CSV file as usual","Click \"Re-write with URL link data\" button","AI processes PDFs and enhances your data","Download the enhanced CSV with updated information"].map((x)=> (
+                      <li key={x}>{x}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </section>
+
+            <section className="mt-6" aria-label="Important tips">
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 md:p-5 shadow-sm">
+                <h4 className="text-sm font-semibold text-slate-900">Important tips</h4>
+                <ul className="mt-2 list-disc pl-5 space-y-1 text-sm text-slate-800">
+                  {tips.map((t) => (<li key={t}>{t}</li>))}
+                </ul>
+              </div>
+            </section>
+          </>
+        ) : (
+          <>
+            <section className="rounded-2xl border border-green-200 bg-green-50 p-5 md:p-6 shadow-sm">
+              <h2 className="text-base md:text-lg font-semibold text-slate-900">Database CSV Files</h2>
+              <p className="mt-1 text-slate-700">These fields are used to create product databases that customer data is matched against.</p>
+              <div className="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">Required fields</p>
+                  <ul className="mt-2 list-disc pl-5 space-y-1 text-sm text-slate-700">
+                    {dbRequired.map((x) => (
+                      <li key={x}><span className="font-mono text-slate-800">{x.split(" - ")[0]}</span> - {x.split(" - ")[1]}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">Optional fields</p>
+                  <ul className="mt-2 list-disc pl-5 space-y-1 text-sm text-slate-700">
+                    {dbOptional.map((x) => (
+                      <li key={x}><span className="font-mono text-slate-800">{x.split(" - ")[0]}</span> - {x.split(" - ")[1]}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </section>
+
+            <section className="mt-6" aria-label="Database CSV Template">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-slate-900">Database CSV Template</h3>
+                <PrimaryButton ariaLabel="Download Database Template" onClick={() => onDownload(dbTemplate, 'database_template.csv')}>Download Template</PrimaryButton>
+              </div>
+              <div className="mt-3 rounded-xl border border-slate-200 bg-white shadow-sm">
+                <pre className="overflow-x-auto whitespace-pre-wrap p-4 text-sm text-slate-800 font-mono">{dbTemplate}</pre>
+              </div>
+            </section>
+
+            <section className="mt-6" aria-label="Important tips">
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 md:p-5 shadow-sm">
+                <h4 className="text-sm font-semibold text-slate-900">Important tips</h4>
+                <ul className="mt-2 list-disc pl-5 space-y-1 text-sm text-slate-800">
+                  {tips.map((t) => (<li key={t}>{t}</li>))}
+                </ul>
+              </div>
+            </section>
+          </>
         )}
-
-        {/* Database CSV Tab */}
-        {activeTab === 'database' && (
-          <div className="space-y-6">
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <h2 className="text-xl font-semibold text-green-900 mb-3">🗄️ Database CSV Files</h2>
-              <p className="text-green-800 mb-4">
-                These fields are used to create product databases that customer data is matched against.
-              </p>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <h3 className="font-semibold text-green-900 mb-2">✅ Required fields:</h3>
-                  <ul className="text-sm text-green-800 space-y-1">
-                    <li>• <code>Product_name</code> - Product name</li>
-                    <li>• <code>Supplier_name</code> - Supplier name</li>
-                    <li>• <code>Article_number</code> - Art.no</li>
-                    <li>• <code>Market</code> - Market/Region</li>
-                    <li>• <code>Language</code> - Language</li>
-                  </ul>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-green-900 mb-2">🔧 Optional fields:</h3>
-                  <ul className="text-sm text-green-800 space-y-1">
-                    <li>• <code>Unique_ID</code> - Unique identifier</li>
-                    <li>• <code>Location_ID</code> - Location ID</li>
-                    <li>• <code>MSDSkey</code> - Safety data sheet</li>
-                    <li>• <code>Revision_date</code> - Revision date</li>
-                    <li>• <code>Expire_date</code> - Expiration date</li>
-                    <li>• <code>Description</code> - Description</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gray-50 rounded-lg p-4">
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="font-semibold">Database CSV Template</h3>
-                <button
-                  onClick={() => downloadCSV(databaseTemplate, 'database_template.csv')}
-                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  📥 Download Template
-                </button>
-              </div>
-              <pre className="bg-white border rounded p-3 text-sm overflow-x-auto">
-                <code>{databaseTemplate}</code>
-              </pre>
-            </div>
-          </div>
-        )}
-
-        {/* General Information */}
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-6">
-          <h3 className="font-semibold text-yellow-900 mb-2">⚠️ Important tips:</h3>
-          <ul className="text-sm text-yellow-800 space-y-1">
-            <li>• <strong>Use semicolon (;)</strong> as separator, not comma (,)</li>
-            <li>• <strong>Save as UTF-8</strong> for Nordic characters (å, ä, ö, æ, ø, þ, ð)</li>
-            <li>• <strong>First row</strong> should contain column names</li>
-            <li>• <strong>Empty cells</strong> are allowed for optional fields</li>
-            <li>• <strong>Date format:</strong> YYYY-MM-DD (e.g. 2024-01-15)</li>
-          </ul>
-        </div>
-      </div>
+      </main>
     </div>
   );
 }

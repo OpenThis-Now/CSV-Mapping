@@ -15,6 +15,7 @@ interface AIContextType {
   clearSuggestions: () => void;
   approveSuggestion: (suggestion: AiSuggestionItem, projectId: number) => Promise<void>;
   rejectSuggestion: (suggestion: AiSuggestionItem, projectId: number) => Promise<void>;
+  loadExistingSuggestions: (projectId: number) => Promise<void>;
 }
 
 const AIContext = createContext<AIContextType | undefined>(undefined);
@@ -26,6 +27,16 @@ export function AIProvider({ children }: { children: ReactNode }) {
   const { showToast } = useToast();
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  const loadExistingSuggestions = async (projectId: number) => {
+    try {
+      const { default: api } = await import('@/lib/api');
+      const response = await api.get(`/projects/${projectId}/ai/suggestions`);
+      setSuggestions(response.data);
+    } catch (error) {
+      console.error("Failed to load existing AI suggestions:", error);
+    }
+  };
+
   const startAnalysis = async (projectId: number, selectedIndices: number[]) => {
     // Warn if too many rows selected
     if (selectedIndices.length > 10) {
@@ -34,7 +45,7 @@ export function AIProvider({ children }: { children: ReactNode }) {
     
     setIsAnalyzing(true);
     setThinkingStep(0);
-    setSuggestions([]);
+    // Don't clear existing suggestions - they will be merged with new ones
     
     // Simulate thinking steps
     const thinkingSteps = [
@@ -70,7 +81,15 @@ export function AIProvider({ children }: { children: ReactNode }) {
         max_suggestions: 3 
       });
       console.log("AI suggestions received:", res.data);
-      setSuggestions(res.data);
+      
+      // Merge new suggestions with existing ones, replacing any existing suggestions for the same customer_row_index
+      setSuggestions(prev => {
+        const newSuggestions = res.data;
+        const existingSuggestions = prev.filter(s => 
+          !newSuggestions.some(ns => ns.customer_row_index === s.customer_row_index)
+        );
+        return [...existingSuggestions, ...newSuggestions];
+      });
     } catch (error) {
       console.error("AI suggest failed:", error);
       showToast("AI analysis failed. Try analyzing fewer products at once (max 10) or check your internet connection.", 'error');
@@ -182,7 +201,8 @@ export function AIProvider({ children }: { children: ReactNode }) {
       stopAnalysis,
       clearSuggestions,
       approveSuggestion,
-      rejectSuggestion
+      rejectSuggestion,
+      loadExistingSuggestions
     }}>
       {children}
     </AIContext.Provider>

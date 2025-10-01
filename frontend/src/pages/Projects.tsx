@@ -245,7 +245,7 @@ export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: n
                       </button>
                     </div>
                   )}
-                  <div className="text-xs text-gray-500 mb-3">Status: {p.status} · Active DB: {getDatabaseName(p.active_database_id)}</div>
+                  <div className="text-xs text-gray-500 mb-3">Status: {p.status} · Active DB: {getDatabaseName(p.active_database_id ?? null)}</div>
                   
                   {counts.total > 0 ? (
                     <div className="space-y-4">

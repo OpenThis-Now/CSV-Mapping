@@ -38,7 +38,7 @@ def export_csv(project_id: int, type: str = "approved", session: Session = Depen
     
     # Filter results based on export type
     if type == "approved":
-        results = session.exec(select(MatchResult).where(MatchResult.match_run_id == run.id, MatchResult.decision == "approved")).all()
+        results = session.exec(select(MatchResult).where(MatchResult.match_run_id == run.id, MatchResult.decision.in_(["approved", "auto_approved", "ai_auto_approved"]))).all()
         if not results:
             raise HTTPException(status_code=400, detail="Inga godkända rader.")
     elif type == "all":
@@ -46,7 +46,7 @@ def export_csv(project_id: int, type: str = "approved", session: Session = Depen
         if not results:
             raise HTTPException(status_code=400, detail="Inga matchningar att exportera.")
     elif type == "rejected":
-        results = session.exec(select(MatchResult).where(MatchResult.match_run_id == run.id, MatchResult.decision == "not_approved")).all()
+        results = session.exec(select(MatchResult).where(MatchResult.match_run_id == run.id, MatchResult.decision.in_(["not_approved", "auto_not_approved"]))).all()
         if not results:
             raise HTTPException(status_code=400, detail="Inga avvisade rader.")
     elif type == "ai_pending":

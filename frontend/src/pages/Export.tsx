@@ -1,5 +1,6 @@
 import api from "@/lib/api";
 import { useState } from "react";
+import { CheckCircle2, XCircle, Clock, Layers, Download } from "lucide-react";
 
 export default function ExportPage({ projectId }: { projectId: number }) {
   const [loading, setLoading] = useState<string | null>(null);
@@ -24,81 +25,142 @@ export default function ExportPage({ projectId }: { projectId: number }) {
 
   const exportOptions = [
     {
-      id: "approved",
+      key: "approved",
       title: "Approved matches",
-      description: "Exports only matches that are approved",
-      icon: "✅",
-      color: "bg-green-50 border-green-200"
+      desc: "Exports only matches that are approved",
+      badge: { label: "Approved", tone: "green" },
+      toneBg: "bg-green-50",
+      iconBg: "bg-green-100",
+      iconColor: "text-green-700",
+      Icon: CheckCircle2,
     },
     {
-      id: "all",
+      key: "all",
       title: "Complete results",
-      description: "Exports all matches with all statuses (approved, not_approved, sent_to_ai, auto_approved)",
-      icon: "📊",
-      color: "bg-blue-50 border-blue-200"
+      desc: "Exports all matches with all statuses",
+      badge: { label: "Complete", tone: "slate" },
+      toneBg: "bg-slate-50",
+      iconBg: "bg-slate-100",
+      iconColor: "text-slate-700",
+      Icon: Layers,
     },
     {
-      id: "rejected",
+      key: "rejected",
       title: "Rejected matches",
-      description: "Exports matches that are marked as not_approved",
-      icon: "❌",
-      color: "bg-red-50 border-red-200"
+      desc: "Exports matches marked as not_approved",
+      badge: { label: "Rejected", tone: "rose" },
+      toneBg: "bg-rose-50",
+      iconBg: "bg-rose-100",
+      iconColor: "text-rose-700",
+      Icon: XCircle,
     },
     {
-      id: "ai_pending",
+      key: "ai_pending",
       title: "AI pending",
-      description: "Exports matches that are sent to AI (sent_to_ai)",
-      icon: "🤖",
-      color: "bg-purple-50 border-purple-200"
-    }
+      desc: "Exports matches sent_to_ai",
+      badge: { label: "AI pending", tone: "violet" },
+      toneBg: "bg-violet-50",
+      iconBg: "bg-violet-100",
+      iconColor: "text-violet-700",
+      Icon: Clock,
+    },
   ];
 
-  return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-2xl shadow p-6">
-        <h1 className="text-3xl font-bold mb-6">📤 Export options</h1>
-        <p className="text-gray-600 mb-6">
-          Choose which type of data you want to export from your project.
-        </p>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {exportOptions.map((option) => (
-            <div key={option.id} className={`border-2 rounded-xl p-4 ${option.color}`}>
-              <div className="flex items-start gap-3">
-                <div className="text-2xl">{option.icon}</div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-lg mb-2">{option.title}</h3>
-                  <p className="text-sm text-gray-600 mb-3">{option.description}</p>
-                  <button
-                    onClick={() => exportCsv(option.id)}
-                    disabled={loading === option.id}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {loading === option.id ? (
-                      <span className="flex items-center gap-2">
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Exporting...
-                      </span>
-                    ) : (
-                      "📥 Download CSV"
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+  // Helper functions
+  function cx(...classes: Array<string | false | undefined>) {
+    return classes.filter(Boolean).join(" ");
+  }
 
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-6">
-          <h3 className="font-semibold text-yellow-900 mb-2">💡 Tips:</h3>
-          <ul className="text-sm text-yellow-800 space-y-1">
-            <li>• <strong>Approved matches</strong> - Use for final results</li>
-            <li>• <strong>Complete results</strong> - Use for complete overview of all matches</li>
-            <li>• <strong>Rejected matches</strong> - Use to see what didn't match</li>
-            <li>• <strong>AI pending</strong> - Use to see products waiting for AI analysis</li>
-          </ul>
-        </div>
+  function Badge({ label, tone = "slate" }: { label: string; tone?: "green" | "rose" | "slate" | "violet" }) {
+    const toneMap: Record<string, string> = {
+      green: "bg-green-50 text-green-700 ring-green-200",
+      rose: "bg-rose-50 text-rose-700 ring-rose-200",
+      slate: "bg-slate-50 text-slate-700 ring-slate-200",
+      violet: "bg-violet-50 text-violet-700 ring-violet-200",
+    };
+    return (
+      <span className={cx("inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1", toneMap[tone])}>
+        {label}
+      </span>
+    );
+  }
+
+  function IconChip({ Icon, bg, color, title }: { Icon: any; bg: string; color: string; title: string }) {
+    return (
+      <div aria-hidden className={cx("flex h-10 w-10 items-center justify-center rounded-xl", bg, color)} title={title}>
+        <Icon className="h-5 w-5" />
       </div>
+    );
+  }
+
+  function PrimaryButton({ onClick, ariaLabel, children, className = "", disabled = false, isLoading = false }: any) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={ariaLabel}
+        disabled={disabled}
+        className={cx(
+          "inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-white shadow-sm",
+          "hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2",
+          "disabled:opacity-50 disabled:cursor-not-allowed",
+          className
+        )}
+      >
+        {isLoading ? (
+          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+        ) : (
+          <Download className="h-4 w-4" aria-hidden />
+        )}
+        {children}
+      </button>
+    );
+  }
+
+  function Card({ item }: { item: any }) {
+    const { Icon, title, toneBg, iconBg, iconColor, key, badge } = item;
+    return (
+      <section className="group rounded-2xl border border-slate-200 bg-white shadow-sm focus-within:ring-2 focus-within:ring-blue-600">
+        <div className={cx("flex items-center gap-4 p-5 md:p-6 rounded-2xl", toneBg)}>
+          <IconChip Icon={Icon} bg={iconBg} color={iconColor} title={title} />
+          <div className="flex min-w-0 flex-1 items-center justify-between">
+            <div className="min-w-0">
+              <h3 className="text-base font-semibold text-slate-900 truncate">{title}</h3>
+              <div className="mt-2"><Badge label={badge.label} tone={badge.tone as any} /></div>
+            </div>
+            <div className="ml-4 shrink-0">
+              <PrimaryButton 
+                ariaLabel={`Download CSV for ${title}`} 
+                onClick={() => exportCsv(key)}
+                disabled={loading === key}
+                isLoading={loading === key}
+              >
+                {loading === key ? "Exporting..." : "Download CSV"}
+              </PrimaryButton>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-white">
+      <main className="mx-auto max-w-7xl px-4 py-8 md:py-10">
+        {/* Snygg, ren sidtitel utan emoji */}
+        <section aria-labelledby="page-title" className="mb-4 md:mb-6">
+          <h1 id="page-title" className="text-[28px] md:text-[32px] font-bold tracking-[-0.01em] text-slate-900">Export options</h1>
+          <p className="mt-1 text-sm md:text-base text-slate-600">Select a dataset to export as CSV.</p>
+        </section>
+
+        <section className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5 md:p-6" aria-label="Export grid">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            {exportOptions.map((item) => (
+              <Card key={item.key} item={item} />
+            ))}
+          </div>
+        </section>
+      </main>
     </div>
   );
 }

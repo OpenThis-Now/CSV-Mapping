@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import UploadArea from "@/components/UploadArea";
 import api, { DatabaseListItem, Project } from "@/lib/api";
 
-export default function Databases({ activeProjectId }: { activeProjectId?: number | null }) {
+export default function Databases({ activeProjectId, onDatabaseChange }: { activeProjectId?: number | null; onDatabaseChange?: () => void }) {
   const [items, setItems] = useState<DatabaseListItem[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectDatabases, setProjectDatabases] = useState<Record<number, number[]>>({});
   const [uploading, setUploading] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<number>(Date.now());
   const [editingDatabase, setEditingDatabase] = useState<number | null>(null);
   const [editName, setEditName] = useState<string>("");
@@ -59,9 +60,15 @@ export default function Databases({ activeProjectId }: { activeProjectId?: numbe
     const fd = new FormData();
     fd.append("file", file);
     setUploading(true);
+    setStatus(null); // Clear previous status
     try {
-      await api.post("/databases", fd);
+      const res = await api.post("/databases", fd);
+      setStatus(`Uploaded ${res.data.row_count} products`);
       await refresh();
+    } catch (error: any) {
+      console.error("Upload failed:", error);
+      const errorMessage = error.response?.data?.detail || error.message || "Upload failed";
+      setStatus(`Error: ${errorMessage}`);
     } finally {
       setUploading(false);
     }
@@ -85,6 +92,11 @@ export default function Databases({ activeProjectId }: { activeProjectId?: numbe
       
       // Refresh everything to get the latest state from backend
       await refresh();
+      
+      // Notify parent component about database change
+      if (onDatabaseChange) {
+        onDatabaseChange();
+      }
     } catch (error) {
       console.error("Failed to toggle database:", error);
     }
@@ -131,19 +143,15 @@ export default function Databases({ activeProjectId }: { activeProjectId?: numbe
     }
   };
 
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Databases</h1>
-        <button 
-          onClick={refresh}
-          className="px-3 py-1 text-sm bg-blue-100 text-blue-700 border border-blue-300 rounded hover:bg-blue-200"
-        >
-          Refresh
-        </button>
       </div>
       <UploadArea onFile={onFile} />
       {uploading && <div className="text-sm opacity-70">Uploading...</div>}
+      {status && <div className="chip">{status}</div>}
       
       <div className="grid gap-3">
         {items.map(db => (
@@ -190,6 +198,9 @@ export default function Databases({ activeProjectId }: { activeProjectId?: numbe
                     </button>
                   </div>
                 )}
+        <div className="text-xs opacity-70">
+          {!db.row_count || db.row_count === 0 ? 'products' : `${db.row_count} products`}
+        </div>
                 <div className="text-xs text-gray-500 mt-1">
                   Uploaded: <span className="font-bold">{new Date(db.created_at).toLocaleDateString('en-US')}</span> {new Date(db.created_at).toLocaleTimeString('en-US')}
                 </div>

@@ -45,18 +45,43 @@ def compute_hash_and_save(dst_dir: Path, file: UploadFile) -> Tuple[str, Path]:
 
 
 def open_text_stream(path: Path):
-    for enc in ("utf-8", "utf-8-sig", "latin-1", "cp1252", "iso-8859-1"):
+    # Try more encodings including Windows-specific ones
+    encodings = [
+        "utf-8", "utf-8-sig", 
+        "latin-1", "cp1252", "iso-8859-1", 
+        "cp1250", "cp1251", "cp1253", "cp1254", "cp1255", "cp1256", "cp1257", "cp1258",
+        "iso-8859-2", "iso-8859-3", "iso-8859-4", "iso-8859-5", "iso-8859-6", "iso-8859-7", "iso-8859-8", "iso-8859-9", "iso-8859-10", "iso-8859-11", "iso-8859-13", "iso-8859-14", "iso-8859-15", "iso-8859-16",
+        "mac-roman", "mac-cyrillic", "mac-greek", "mac-turkish", "mac-icelandic",
+        "ascii"
+    ]
+    
+    for enc in encodings:
         try:
+            # Test if we can read the file with this encoding
+            with open(path, "r", encoding=enc, newline="") as f:
+                f.read(1024)  # Read first 1KB to test
+            # If successful, return a new file handle
             return open(path, "r", encoding=enc, newline="")
         except (UnicodeDecodeError, UnicodeError):
             continue
+    
+    # Final fallback: use utf-8 with error replacement
     return open(path, "r", encoding="utf-8", errors="replace", newline="")
 
 
 def detect_csv_separator(path: Path) -> str:
     """Detect CSV separator by reading first line."""
-    # Try different encodings to read the first line
-    for encoding in ["utf-8", "utf-8-sig", "latin-1", "cp1252", "iso-8859-1"]:
+    # Use the same encoding list as open_text_stream
+    encodings = [
+        "utf-8", "utf-8-sig", 
+        "latin-1", "cp1252", "iso-8859-1", 
+        "cp1250", "cp1251", "cp1253", "cp1254", "cp1255", "cp1256", "cp1257", "cp1258",
+        "iso-8859-2", "iso-8859-3", "iso-8859-4", "iso-8859-5", "iso-8859-6", "iso-8859-7", "iso-8859-8", "iso-8859-9", "iso-8859-10", "iso-8859-11", "iso-8859-13", "iso-8859-14", "iso-8859-15", "iso-8859-16",
+        "mac-roman", "mac-cyrillic", "mac-greek", "mac-turkish", "mac-icelandic",
+        "ascii"
+    ]
+    
+    for encoding in encodings:
         try:
             with open(path, "r", encoding=encoding, newline="") as f:
                 first_line = f.readline().strip()

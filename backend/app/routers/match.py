@@ -51,7 +51,26 @@ def run_matching(project_id: int, req: MatchRequest, session: Session = Depends(
 
     created = 0
     try:
-        for row_index, crow, dbrow, meta in run_match(cust_csv, db_csv, imp.columns_map_json, thr):
+        log.info(f"Starting match run for project {project_id}, import {imp.id}, database {db.id}")
+        log.info(f"Customer CSV: {cust_csv}, exists: {cust_csv.exists()}")
+        log.info(f"Database CSV: {db_csv}, exists: {db_csv.exists()}")
+        log.info(f"Mapping: {imp.columns_map_json}")
+        
+        # Debug: Check if mapping has the required fields
+        required_fields = ["vendor", "product", "sku"]
+        for field in required_fields:
+            if field not in imp.columns_map_json:
+                log.warning(f"Missing mapping for field '{field}' in import {imp.id}")
+            else:
+                log.info(f"Customer field '{field}' mapped to column '{imp.columns_map_json[field]}'")
+        
+        for field in required_fields:
+            if field not in db.columns_map_json:
+                log.warning(f"Missing mapping for field '{field}' in database {db.id}")
+            else:
+                log.info(f"Database field '{field}' mapped to column '{db.columns_map_json[field]}'")
+        
+        for row_index, crow, dbrow, meta in run_match(cust_csv, db_csv, imp.columns_map_json, db.columns_map_json, thr):
             mr = MatchResult(
                 match_run_id=run.id,
                 customer_row_index=row_index,
@@ -66,6 +85,9 @@ def run_matching(project_id: int, req: MatchRequest, session: Session = Depends(
             created += 1
             if created % 1000 == 0:
                 session.commit()
+                log.info(f"Processed {created} rows")
+        
+        log.info(f"Match run completed, created {created} results")
         run.status = "finished"
         run.finished_at = datetime.utcnow()
         session.add(run)
@@ -123,21 +145,61 @@ def list_results(project_id: int, session: Session = Depends(get_session)) -> li
                 ).order_by(AiSuggestion.created_at.desc())
             ).first()
         
+        # Get mappings from the latest run's import and database
+        customer_mapping = {}
+        db_mapping = {}
+        if run:
+            # Get import file mapping
+            import_file = session.exec(
+                select(ImportFile).where(ImportFile.project_id == project_id).order_by(ImportFile.created_at.desc())
+            ).first()
+            if import_file:
+                customer_mapping = import_file.columns_map_json or {}
+            
+            # Get database mapping
+            project = session.get(Project, project_id)
+            if project and project.active_database_id:
+                database = session.get(DatabaseCatalog, project.active_database_id)
+                if database:
+                    db_mapping = database.columns_map_json or {}
+        
+        # Use mappings to get the correct field names, with fallbacks for compatibility
         cust_preview = {
-            "Product": r.customer_fields_json.get("Product_name") or "",
-            "Supplier": r.customer_fields_json.get("Supplier_name") or "",
-            "Art.no": r.customer_fields_json.get("Article_number") or "",
-            "Market": r.customer_fields_json.get("Market") or "",
-            "Language": r.customer_fields_json.get("Language") or "",
+            "Product": (r.customer_fields_json.get(customer_mapping.get("product", "product")) or 
+                       r.customer_fields_json.get("Product_name") or 
+                       r.customer_fields_json.get("product") or 
+                       r.customer_fields_json.get("product_name") or ""),
+            "Supplier": (r.customer_fields_json.get(customer_mapping.get("vendor", "vendor")) or 
+                        r.customer_fields_json.get("Supplier_name") or 
+                        r.customer_fields_json.get("vendor") or 
+                        r.customer_fields_json.get("company_name") or ""),
+            "Art.no": (r.customer_fields_json.get(customer_mapping.get("sku", "sku")) or 
+                      r.customer_fields_json.get("Article_number") or 
+                      r.customer_fields_json.get("sku") or 
+                      r.customer_fields_json.get("article_number") or ""),
+            "Market": (r.customer_fields_json.get(customer_mapping.get("market", "market")) or 
+                      r.customer_fields_json.get("Market") or 
+                      r.customer_fields_json.get("market") or 
+                      r.customer_fields_json.get("authored_market") or ""),
+            "Legislation": (r.customer_fields_json.get("Legislation") or 
+                           r.customer_fields_json.get("legislation") or ""),
+            "Language": (r.customer_fields_json.get(customer_mapping.get("language", "language")) or 
+                        r.customer_fields_json.get("Language") or 
+                        r.customer_fields_json.get("language") or ""),
         }
         db_preview = None
         if r.db_fields_json:
             db_preview = {
-                "Product": r.db_fields_json.get("Product_name") or "",
-                "Supplier": r.db_fields_json.get("Supplier_name") or "",
-                "Art.no": r.db_fields_json.get("Article_number") or "",
-                "Market": r.db_fields_json.get("Market") or "",
-                "Language": r.db_fields_json.get("Language") or "",
+                "Product": (r.db_fields_json.get(db_mapping.get("product", "Product_name")) or 
+                          r.db_fields_json.get("Product_name") or ""),
+                "Supplier": (r.db_fields_json.get(db_mapping.get("vendor", "Supplier_name")) or 
+                            r.db_fields_json.get("Supplier_name") or ""),
+                "Art.no": (r.db_fields_json.get(db_mapping.get("sku", "Article_number")) or 
+                          r.db_fields_json.get("Article_number") or ""),
+                "Market": (r.db_fields_json.get(db_mapping.get("market", "Market")) or 
+                          r.db_fields_json.get("Market") or ""),
+                "Language": (r.db_fields_json.get(db_mapping.get("language", "Language")) or 
+                            r.db_fields_json.get("Language") or ""),
             }
         items.append(MatchResultItem(
             id=r.id,

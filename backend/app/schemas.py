@@ -10,6 +10,7 @@ class DatabaseCreateResponse(BaseModel):
     id: int
     name: str
     filename: str
+    row_count: int
     columns_map_json: dict[str, str]
 
 
@@ -98,3 +99,7 @@ class AiSuggestionItem(BaseModel):
     confidence: float
     rationale: str
     source: str
+
+
+class CombineImportsRequest(BaseModel):
+    import_ids: list[int] = Field(default_factory=list)
