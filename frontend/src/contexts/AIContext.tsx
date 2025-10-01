@@ -226,6 +226,10 @@ export function AIProvider({ children }: { children: ReactNode }) {
       
       showToast(`Successfully queued ${response.data.queued_count} products for AI analysis!`, 'success');
       
+      // Set analyzing immediately when auto queue starts
+      setIsAnalyzing(true);
+      setIsQueueProcessing(true);
+      
       // Start polling for queue status
       startQueuePolling(projectId);
       

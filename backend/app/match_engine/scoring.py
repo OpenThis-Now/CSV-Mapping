@@ -180,7 +180,7 @@ def score_pair(customer_row: dict[str, Any], db_row: dict[str, Any], customer_ma
 
     decision = "pending"
     if overall < 30:
-        decision = "auto_not_approved"
+        decision = "auto_rejected"
         reason.append("Score too low (< 30)")
     elif overall >= thr.overall_accept and vendor_score >= thr.vendor_min and product_score >= thr.product_min:
         # Check for chemical differences before auto-approving
