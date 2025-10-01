@@ -9,6 +9,7 @@ import ExportPage from "./pages/Export";
 import InfoPage from "./pages/Info";
 import { AIProvider, useAI } from "./contexts/AIContext";
 import { ToastProvider } from "./contexts/ToastContext";
+import api from "./lib/api";
 
 type View = "databases" | "projects" | "import" | "merge" | "match" | "ai" | "export" | "info";
 
@@ -16,9 +17,55 @@ function AppContent() {
   const [view, setView] = useState<View>("projects");
   const [projectId, setProjectId] = useState<number | null>(null);
   const [projectName, setProjectName] = useState<string | null>(null);
+  const [hasDatabase, setHasDatabase] = useState<boolean>(false);
+  const [hasImports, setHasImports] = useState<boolean>(false);
+  const [hasSelectedImport, setHasSelectedImport] = useState<boolean>(false);
   const { isAnalyzing, thinkingStep } = useAI();
 
-  useEffect(() => {}, []);
+  // Function to check project status
+  const checkProjectStatus = async (projectId: number) => {
+    try {
+      // Check if project has an active database
+      const projectRes = await api.get(`/projects/list`);
+      const project = projectRes.data.find((p: any) => p.id === projectId);
+      const hasActiveDatabase = project?.active_database_id !== null && project?.active_database_id !== undefined;
+      setHasDatabase(hasActiveDatabase);
+
+      if (hasActiveDatabase) {
+        // Check if project has imports
+        const importsRes = await api.get(`/projects/${projectId}/import`);
+        const hasImportFiles = importsRes.data && importsRes.data.length > 0;
+        setHasImports(hasImportFiles);
+
+        if (hasImportFiles) {
+          // Check if project has a selected import
+          const hasActiveImport = project?.active_import_id !== null && project?.active_import_id !== undefined;
+          setHasSelectedImport(hasActiveImport);
+        } else {
+          setHasSelectedImport(false);
+        }
+      } else {
+        setHasImports(false);
+        setHasSelectedImport(false);
+      }
+    } catch (error) {
+      console.error("Failed to check project status:", error);
+      setHasDatabase(false);
+      setHasImports(false);
+      setHasSelectedImport(false);
+    }
+  };
+
+  // Check project status when projectId changes
+  useEffect(() => {
+    if (projectId) {
+      checkProjectStatus(projectId);
+    } else {
+      setHasDatabase(false);
+      setHasImports(false);
+      setHasSelectedImport(false);
+    }
+  }, [projectId]);
 
   return (
     <div className="min-h-screen">
@@ -39,37 +86,37 @@ function AppContent() {
               Databases
             </button>
             <button 
-              className={`chip ${view === "import" ? "bg-blue-100 border-blue-300 text-blue-800" : ""} ${!projectId ? "opacity-50 cursor-not-allowed" : ""}`}
+              className={`chip ${view === "import" ? "bg-blue-100 border-blue-300 text-blue-800" : ""} ${!projectId || !hasDatabase ? "opacity-50 cursor-not-allowed" : ""}`}
               onClick={() => setView("import")} 
-              disabled={!projectId}
+              disabled={!projectId || !hasDatabase}
             >
               Customer Import
             </button>
             <button 
-              className={`chip ${view === "merge" ? "bg-blue-100 border-blue-300 text-blue-800" : ""} ${!projectId ? "opacity-50 cursor-not-allowed" : ""}`}
+              className={`chip ${view === "merge" ? "bg-blue-100 border-blue-300 text-blue-800" : ""} ${!projectId || !hasDatabase || !hasImports ? "opacity-50 cursor-not-allowed" : ""}`}
               onClick={() => setView("merge")} 
-              disabled={!projectId}
+              disabled={!projectId || !hasDatabase || !hasImports}
             >
               Merge
             </button>
             <button 
-              className={`chip ${view === "match" ? "bg-blue-100 border-blue-300 text-blue-800" : ""} ${!projectId ? "opacity-50 cursor-not-allowed" : ""}`}
+              className={`chip ${view === "match" ? "bg-blue-100 border-blue-300 text-blue-800" : ""} ${!projectId || !hasDatabase || !hasImports || !hasSelectedImport ? "opacity-50 cursor-not-allowed" : ""}`}
               onClick={() => setView("match")} 
-              disabled={!projectId}
+              disabled={!projectId || !hasDatabase || !hasImports || !hasSelectedImport}
             >
               Matching
             </button>
             <button 
-              className={`chip ${view === "ai" ? "bg-blue-100 border-blue-300 text-blue-800" : ""} ${!projectId ? "opacity-50 cursor-not-allowed" : ""}`}
+              className={`chip ${view === "ai" ? "bg-blue-100 border-blue-300 text-blue-800" : ""} ${!projectId || !hasDatabase || !hasImports || !hasSelectedImport ? "opacity-50 cursor-not-allowed" : ""}`}
               onClick={() => setView("ai")} 
-              disabled={!projectId}
+              disabled={!projectId || !hasDatabase || !hasImports || !hasSelectedImport}
             >
               AI Deep Analysis
             </button>
             <button 
-              className={`chip ${view === "export" ? "bg-blue-100 border-blue-300 text-blue-800" : ""} ${!projectId ? "opacity-50 cursor-not-allowed" : ""}`}
+              className={`chip ${view === "export" ? "bg-blue-100 border-blue-300 text-blue-800" : ""} ${!projectId || !hasDatabase || !hasImports || !hasSelectedImport ? "opacity-50 cursor-not-allowed" : ""}`}
               onClick={() => setView("export")} 
-              disabled={!projectId}
+              disabled={!projectId || !hasDatabase || !hasImports || !hasSelectedImport}
             >
               Export
             </button>
@@ -109,8 +156,8 @@ function AppContent() {
           setProjectId(id || null); 
           setProjectName(name || null); 
         }} selectedProjectId={projectId} />}
-        {view === "databases" && <Databases activeProjectId={projectId} />}
-        {view === "import" && projectId && <ImportPage projectId={projectId} />}
+        {view === "databases" && <Databases activeProjectId={projectId} onDatabaseChange={() => projectId && checkProjectStatus(projectId)} />}
+        {view === "import" && projectId && <ImportPage projectId={projectId} onImportChange={() => checkProjectStatus(projectId)} />}
         {view === "merge" && projectId && <PDFImportPage projectId={projectId} />}
         {view === "match" && projectId && <MatchPage projectId={projectId} />}
         {view === "ai" && projectId && <AIDeep projectId={projectId} />}

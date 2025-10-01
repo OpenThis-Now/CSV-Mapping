@@ -21,7 +21,7 @@ type Project = {
   active_import_id?: number | null;
 };
 
-export default function ImportPage({ projectId }: { projectId: number }) {
+export default function ImportPage({ projectId, onImportChange }: { projectId: number; onImportChange?: () => void }) {
   const [status, setStatus] = useState<string | null>(null);
   const [last, setLast] = useState<any | null>(null);
   const [imports, setImports] = useState<ImportFile[]>([]);
@@ -66,6 +66,11 @@ export default function ImportPage({ projectId }: { projectId: number }) {
       setStatus(`Uploaded ${res.data.row_count} products`);
       await refreshImports();
       await refreshProject();
+      
+      // Notify parent component about import change
+      if (onImportChange) {
+        onImportChange();
+      }
     } finally {
       setUploading(false);
     }
@@ -89,6 +94,11 @@ export default function ImportPage({ projectId }: { projectId: number }) {
       
       await refreshImports();
       await refreshProject();
+      
+      // Notify parent component about import change
+      if (onImportChange) {
+        onImportChange();
+      }
     } catch (error: any) {
       console.error("PDF upload failed:", error);
       const errorMessage = error.response?.data?.detail || "PDF processing failed";
@@ -114,6 +124,11 @@ export default function ImportPage({ projectId }: { projectId: number }) {
       console.log("Import.tsx: PATCH response:", response.data);
       
       await refreshProject();
+      
+      // Notify parent component about import change
+      if (onImportChange) {
+        onImportChange();
+      }
     } catch (error) {
       console.error("Failed to toggle import:", error);
     }
@@ -128,6 +143,11 @@ export default function ImportPage({ projectId }: { projectId: number }) {
       await api.delete(`/projects/${projectId}/import/${importId}`);
       await refreshImports();
       await refreshProject();
+      
+      // Notify parent component about import change
+      if (onImportChange) {
+        onImportChange();
+      }
     } catch (error) {
       console.error("Failed to delete import:", error);
       alert("Could not delete import file. Please try again.");
@@ -150,6 +170,11 @@ export default function ImportPage({ projectId }: { projectId: number }) {
       setStatus(`Enhanced import file created with ${res.data.row_count} rows`);
       await refreshImports();
       await refreshProject();
+      
+      // Notify parent component about import change
+      if (onImportChange) {
+        onImportChange();
+      }
     } catch (error: any) {
       console.error("URL enhancement failed:", error);
       const errorMessage = error.response?.data?.detail || "URL enhancement failed";

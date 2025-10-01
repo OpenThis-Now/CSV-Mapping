@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import UploadArea from "@/components/UploadArea";
 import api, { DatabaseListItem, Project } from "@/lib/api";
 
-export default function Databases({ activeProjectId }: { activeProjectId?: number | null }) {
+export default function Databases({ activeProjectId, onDatabaseChange }: { activeProjectId?: number | null; onDatabaseChange?: () => void }) {
   const [items, setItems] = useState<DatabaseListItem[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectDatabases, setProjectDatabases] = useState<Record<number, number[]>>({});
@@ -92,6 +92,11 @@ export default function Databases({ activeProjectId }: { activeProjectId?: numbe
       
       // Refresh everything to get the latest state from backend
       await refresh();
+      
+      // Notify parent component about database change
+      if (onDatabaseChange) {
+        onDatabaseChange();
+      }
     } catch (error) {
       console.error("Failed to toggle database:", error);
     }
