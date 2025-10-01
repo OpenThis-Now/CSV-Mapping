@@ -49,26 +49,15 @@ def score_pair(customer_row: dict[str, Any], db_row: dict[str, Any], customer_ma
     db_market = db_row.get(db_mapping.get("market", "Market"), "").strip()
     db_language = db_row.get(db_mapping.get("language", "Language"), "").strip()
 
-    # If market or language don't match, reject the match completely
+    # Track market and language mismatches for scoring and comments
+    market_mismatch = False
+    language_mismatch = False
+    
     if customer_market and db_market and customer_market.lower() != db_market.lower():
-        return {
-            "vendor_score": 0,
-            "product_score": 0,
-            "overall": 0,
-            "exact": False,
-            "reason": f"Market mismatch: {customer_market} vs {db_market}",
-            "decision": "not_approved",
-        }
+        market_mismatch = True
     
     if customer_language and db_language and customer_language.lower() != db_language.lower():
-        return {
-            "vendor_score": 0,
-            "product_score": 0,
-            "overall": 0,
-            "exact": False,
-            "reason": f"Language mismatch: {customer_language} vs {db_language}",
-            "decision": "not_approved",
-        }
+        language_mismatch = True
 
     # Only score fields that have customer data
     vendor_score = score_fields(cv, dv) if cv.strip() else 0
@@ -80,12 +69,20 @@ def score_pair(customer_row: dict[str, Any], db_row: dict[str, Any], customer_ma
         overall = min(100, overall + thr.sku_exact_boost)
 
     overall -= numeric_penalty(cp, dp, thr.numeric_mismatch_penalty)
+    
+    # Cap score at 50% for market mismatches
+    if market_mismatch:
+        overall = min(50, overall)
 
     exact = vendor_score >= 95 and product_score >= 95 or sku_exact(cs, ds)
 
     reason = []
     if sku_exact(cs, ds):
         reason.append("Exact SKU match")
+    if market_mismatch:
+        reason.append("Other market")
+    if language_mismatch:
+        reason.append("Language mismatch")
     if not cv.strip():
         reason.append("Missing vendor data")
     elif vendor_score < thr.vendor_min:
