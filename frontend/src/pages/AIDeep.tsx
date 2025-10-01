@@ -7,7 +7,22 @@ export default function AIDeep({ projectId }: { projectId: number }) {
   const [results, setResults] = useState<MatchResultItem[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const { isAnalyzing, thinkingStep, suggestions, startAnalysis, stopAnalysis, approveSuggestion, rejectSuggestion, loadExistingSuggestions } = useAI();
+  const { 
+    isAnalyzing, 
+    thinkingStep, 
+    suggestions, 
+    queueStatus, 
+    isQueueProcessing,
+    startAnalysis, 
+    stopAnalysis, 
+    approveSuggestion, 
+    rejectSuggestion, 
+    loadExistingSuggestions,
+    startAutoQueue,
+    getQueueStatus,
+    startQueuePolling,
+    stopQueuePolling
+  } = useAI();
 
   const refresh = async () => {
     try {
@@ -23,7 +38,20 @@ export default function AIDeep({ projectId }: { projectId: number }) {
   useEffect(() => { 
     refresh(); 
     loadExistingSuggestions(projectId);
+    getQueueStatus(projectId);
   }, [projectId]);
+
+  // Auto-refresh suggestions when queue processing
+  useEffect(() => {
+    if (isQueueProcessing) {
+      const interval = setInterval(() => {
+        loadExistingSuggestions(projectId);
+        getQueueStatus(projectId);
+      }, 3000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [isQueueProcessing, projectId]);
 
   const sendAI = async () => {
     // Only send items that are marked as "sent_to_ai"
@@ -54,7 +82,21 @@ export default function AIDeep({ projectId }: { projectId: number }) {
     <div className="space-y-4">
       <div className="flex items-center gap-3">
         <h1 className="text-xl font-semibold">AI Deep Analysis</h1>
-        <div className="ml-auto">
+        <div className="ml-auto flex gap-2">
+          <button 
+            className="btn bg-green-600 hover:bg-green-700" 
+            onClick={() => startAutoQueue(projectId)}
+            disabled={isQueueProcessing}
+          >
+            {isQueueProcessing ? (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <span>Processing Queue...</span>
+              </div>
+            ) : (
+              "Auto-Queue (70-95 score)"
+            )}
+          </button>
           <button 
             className={`btn ${isAnalyzing ? 'opacity-50 cursor-not-allowed' : ''}`} 
             onClick={sendAI} 
@@ -71,6 +113,52 @@ export default function AIDeep({ projectId }: { projectId: number }) {
           </button>
         </div>
       </div>
+
+      {/* AI Queue Status */}
+      {queueStatus && (
+        <div className="card bg-blue-50 border-blue-200">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-blue-900">AI Queue Status</h3>
+            {isQueueProcessing && (
+              <div className="flex items-center gap-2 text-blue-700">
+                <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+                <span className="text-sm">Processing...</span>
+              </div>
+            )}
+          </div>
+          <div className="grid grid-cols-4 gap-4 text-sm">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">{queueStatus.queued}</div>
+              <div className="text-blue-700">Queued</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-yellow-600">{queueStatus.processing}</div>
+              <div className="text-yellow-700">Processing</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600">{queueStatus.completed}</div>
+              <div className="text-green-700">Completed</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-gray-600">{queueStatus.total}</div>
+              <div className="text-gray-700">Total</div>
+            </div>
+          </div>
+          {queueStatus.total > 0 && (
+            <div className="mt-3">
+              <div className="w-full bg-blue-200 rounded-full h-2">
+                <div 
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-500"
+                  style={{ width: `${(queueStatus.completed / queueStatus.total) * 100}%` }}
+                ></div>
+              </div>
+              <div className="text-xs text-blue-600 mt-1">
+                {Math.round((queueStatus.completed / queueStatus.total) * 100)}% completed
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="card">
         <div className="font-medium mb-2">Select rows (only products sent to AI)</div>

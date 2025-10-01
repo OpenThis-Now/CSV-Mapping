@@ -13,6 +13,8 @@ from ..schemas import AiSuggestRequest, AiSuggestionItem
 from ..openai_client import suggest_with_openai
 from ..services.mapping import auto_map_headers
 from ..match_engine.scoring import score_fields
+from ..services.ai_queue_processor import process_ai_queue
+import asyncio
 
 router = APIRouter()
 
@@ -268,3 +270,88 @@ def get_ai_suggestions(project_id: int, session: Session = Depends(get_session))
         )
         for s in suggestions
     ]
+
+
+@router.post("/projects/{project_id}/ai/auto-queue")
+def auto_queue_ai_analysis(project_id: int, session: Session = Depends(get_session)):
+    """Automatically queue products with scores between 70-95 for AI analysis."""
+    p = session.get(Project, project_id)
+    if not p:
+        raise HTTPException(status_code=404, detail="Project not found.")
+    
+    # Get the latest match run
+    latest_run = session.exec(
+        select(MatchRun).where(MatchRun.project_id == project_id).order_by(MatchRun.started_at.desc())
+    ).first()
+    
+    if not latest_run:
+        raise HTTPException(status_code=400, detail="No match run found. Run matching first.")
+    
+    # Find results with scores between 70-95 that are not already sent to AI
+    results_to_queue = session.exec(
+        select(MatchResult).where(
+            MatchResult.match_run_id == latest_run.id,
+            MatchResult.overall_score >= 70,
+            MatchResult.overall_score <= 95,
+            MatchResult.decision.in_(["pending", "auto_approved", "not_approved"])
+        )
+    ).all()
+    
+    if not results_to_queue:
+        return {"message": "No products found in the 70-95 score range to queue for AI analysis.", "queued_count": 0}
+    
+    # Update these results to "sent_to_ai" status
+    queued_count = 0
+    for result in results_to_queue:
+        result.decision = "sent_to_ai"
+        result.ai_status = "queued"
+        session.add(result)
+        queued_count += 1
+    
+    session.commit()
+    
+    # Start background processing
+    asyncio.create_task(process_ai_queue(project_id))
+    
+    return {
+        "message": f"Successfully queued {queued_count} products for AI analysis.",
+        "queued_count": queued_count,
+        "score_range": "70-95",
+        "processing_started": True
+    }
+
+
+@router.get("/projects/{project_id}/ai/queue-status")
+def get_ai_queue_status(project_id: int, session: Session = Depends(get_session)):
+    """Get the current status of the AI queue."""
+    # Count products in different AI states
+    queued_count = session.exec(
+        select(MatchResult).where(
+            MatchResult.project_id == project_id,
+            MatchResult.decision == "sent_to_ai",
+            MatchResult.ai_status == "queued"
+        )
+    ).count()
+    
+    processing_count = session.exec(
+        select(MatchResult).where(
+            MatchResult.project_id == project_id,
+            MatchResult.decision == "sent_to_ai",
+            MatchResult.ai_status == "processing"
+        )
+    ).count()
+    
+    completed_count = session.exec(
+        select(MatchResult).where(
+            MatchResult.project_id == project_id,
+            MatchResult.decision == "sent_to_ai",
+            MatchResult.ai_status.in_(["completed", "auto_approved"])
+        )
+    ).count()
+    
+    return {
+        "queued": queued_count,
+        "processing": processing_count,
+        "completed": completed_count,
+        "total": queued_count + processing_count + completed_count
+    }
