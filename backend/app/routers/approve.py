@@ -76,7 +76,7 @@ def reject_results(project_id: int, req: ApproveRequest, session: Session = Depe
     count = 0
     for r in results:
         if r.id in set(req.ids) or r.customer_row_index in set(req.customer_row_indices):
-            r.decision = "not_approved"
+            r.decision = "rejected"
             session.add(r)
             count += 1
     session.commit()
@@ -88,7 +88,7 @@ def send_to_ai(project_id: int, req: ApproveRequest, session: Session = Depends(
     """Mark results as sent to AI"""
     if not req.ids and not req.customer_row_indices:
         raise HTTPException(status_code=400, detail="Inga resultat angivna.")
-    q = select(MatchResult).where(MatchResult.decision.in_(["pending", "auto_approved", "approved", "not_approved", "ai_auto_approved"]))
+    q = select(MatchResult).where(MatchResult.decision.in_(["pending", "auto_approved", "approved", "rejected", "ai_auto_approved"]))
     results = session.exec(q).all()
     count = 0
     for r in results:

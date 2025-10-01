@@ -205,13 +205,13 @@ export function AIProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Reject the match result - this sets it to "not_approved"
+      // Reject the match result - this sets it to "rejected"
       await api.post(`/projects/${projectId}/reject`, { ids: [matchResult.id] });
       
       // Remove this product from the AI suggestions
       setSuggestions(prev => prev.filter(s => s.customer_row_index !== suggestion.customer_row_index));
       
-      showToast("Product rejected and marked as 'not_approved'!", 'success');
+      showToast("Product rejected and marked as 'rejected'!", 'success');
     } catch (error) {
       console.error("Failed to reject suggestion:", error);
       showToast("Could not reject match. Please try again.", 'error');

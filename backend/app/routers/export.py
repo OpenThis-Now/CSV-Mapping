@@ -46,7 +46,7 @@ def export_csv(project_id: int, type: str = "approved", session: Session = Depen
         if not results:
             raise HTTPException(status_code=400, detail="Inga matchningar att exportera.")
     elif type == "rejected":
-        results = session.exec(select(MatchResult).where(MatchResult.match_run_id == run.id, MatchResult.decision.in_(["not_approved", "auto_rejected"]))).all()
+        results = session.exec(select(MatchResult).where(MatchResult.match_run_id == run.id, MatchResult.decision.in_(["rejected", "auto_rejected"]))).all()
         if not results:
             raise HTTPException(status_code=400, detail="Inga avvisade rader.")
     elif type == "ai_pending":

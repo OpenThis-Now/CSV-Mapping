@@ -321,7 +321,7 @@ def auto_queue_ai_analysis(project_id: int, session: Session = Depends(get_sessi
             MatchResult.match_run_id == latest_run.id,
             MatchResult.overall_score >= 70,
             MatchResult.overall_score <= 95,
-            MatchResult.decision.in_(["pending", "auto_approved", "not_approved"])
+            MatchResult.decision.in_(["pending", "auto_approved", "rejected"])
         )
     ).all()
     

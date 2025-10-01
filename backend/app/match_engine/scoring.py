@@ -124,7 +124,7 @@ def score_pair(customer_row: dict[str, Any], db_row: dict[str, Any], customer_ma
             "overall": 0,
             "exact": False,
             "reason": "No customer data available for matching",
-            "decision": "not_approved",
+            "decision": "rejected",
         }
 
     # Check market and language compatibility
