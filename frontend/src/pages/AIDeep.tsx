@@ -97,21 +97,6 @@ export default function AIDeep({ projectId }: { projectId: number }) {
             }}
           />
           
-          {/* Pause/Resume Button */}
-          {(isQueueProcessing || isQueuePaused) && (
-            <div className="flex justify-center">
-              <button
-                className={`px-6 py-3 rounded-2xl font-medium text-white shadow-sm transition-colors ${
-                  isQueuePaused 
-                    ? 'bg-green-600 hover:bg-green-700' 
-                    : 'bg-orange-600 hover:bg-orange-700'
-                }`}
-                onClick={() => isQueuePaused ? resumeQueue(projectId) : pauseQueue(projectId)}
-              >
-                {isQueuePaused ? 'Resume AI matching' : 'Pause AI matching'}
-              </button>
-            </div>
-          )}
         </div>
       )}
 

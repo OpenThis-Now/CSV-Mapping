@@ -71,13 +71,16 @@ def build_ai_prompt(customer_row, db_sample, mapping, k: int) -> str:
         Return ONLY a JSON array with exactly {k} objects. Each object MUST include:
         - "database_fields_json": the unmodified database row (as a JSON object)
         - "confidence": number 0..1
-        - "rationale": Detailed explanation that MUST include:
-           * Match summary: Exact/Strong/Partial/Weak match
+        - "rationale": A natural, flowing explanation in paragraph form that includes:
+           * Match strength assessment (Exact/Strong/Partial/Weak match)
            * Evidence analysis: product name, supplier, article number matches and any typo corrections
            * Market/language differences and impact (explicit flags: "OTHER MARKET: …"; "LANGUAGE MISMATCH: …")
            * Variant considerations
            * Whether better alternatives likely exist in this candidate set
            * Specific fields that need review (e.g., "Article number", "Product name & Article number")
+           
+           Write as a natural paragraph, not as structured JSON fields. Example format:
+           "Strong match. The product name matches exactly, and the supplier is a recognized alias of [supplier]. The article number '[article]' has a minor typo correction from '[original]' ([change]), but the identifiers are consistent. Both market and language are identical. No variant issues are present. Better alternatives are unlikely as this is the closest match."
 
         — Calibration examples (for the model; do not output) —
         Example 1 — should be 1.0:

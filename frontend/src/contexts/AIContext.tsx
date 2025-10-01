@@ -247,7 +247,7 @@ export function AIProvider({ children }: { children: ReactNode }) {
       setIsQueueProcessing(isProcessing);
       
       // Also set isAnalyzing when AI queue is processing
-      if (isProcessing && !isAnalyzing) {
+      if (isProcessing) {
         setIsAnalyzing(true);
       } else if (!isProcessing && isAnalyzing && !suggestions.length) {
         // Only stop analyzing if no manual analysis is running
