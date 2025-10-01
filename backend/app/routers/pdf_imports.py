@@ -73,6 +73,11 @@ def upload_pdf_files(project_id: int, files: List[UploadFile] = File(...), sessi
             row_count=count,
         )
         session.add(imp)
+        
+        # Sätt den nya importfilen som aktiv för projektet
+        p.active_import_id = imp.id
+        session.add(p)
+        
         session.commit()
         session.refresh(imp)
         
