@@ -169,58 +169,61 @@ export default function ImportPage({ projectId }: { projectId: number }) {
         </div>
       </div>
 
-      {/* CSV Upload Section */}
-      <div className="space-y-4">
-        <div>
-          <h2 className="text-lg font-semibold mb-2">Upload CSV File</h2>
-          <p className="text-sm text-gray-600 mb-4">
-            Upload a CSV file with customer product data for matching.
-          </p>
-        </div>
-        
-        <UploadArea onFile={onFile} accept=".csv" />
-        
-        {uploading && (
-          <div className="flex items-center gap-2 text-blue-600">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-            Uploading CSV file...
+      {/* Upload Sections - Side by Side */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* CSV Upload Section */}
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold mb-2">Upload CSV File</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Upload a CSV file with customer product data for matching.
+            </p>
           </div>
-        )}
-      </div>
+          
+          <UploadArea onFile={onFile} accept=".csv" />
+          
+          {uploading && (
+            <div className="flex items-center gap-2 text-blue-600">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+              Uploading CSV file...
+            </div>
+          )}
+        </div>
 
-      {/* PDF Upload Section */}
-      <div className="space-y-4">
-        <div>
-          <h2 className="text-lg font-semibold mb-2">Upload PDF Files</h2>
-          <p className="text-sm text-gray-600 mb-4">
-            Upload multiple PDF files (SDS documents) for AI-powered product information extraction.
-            The system will read the first 3 pages of each PDF and extract product names, article numbers, and supplier information.
-          </p>
+        {/* PDF Upload Section */}
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold mb-2">Upload PDF Files</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Upload multiple PDF files (SDS documents) for AI-powered product information extraction.
+              The system will read the first 3 pages of each PDF and extract product names, article numbers, and supplier information.
+            </p>
+          </div>
+          
+          <UploadArea 
+            onFiles={onPDFFiles}
+            accept=".pdf"
+            multiple={true}
+          />
+          
+          {selectedFiles.length > 0 && (
+            <div className="mt-4">
+              <h3 className="text-sm font-medium mb-2">Selected files:</h3>
+              <ul className="text-sm text-gray-600">
+                {selectedFiles.map((file, index) => (
+                  <li key={index}>• {file.name}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          {pdfUploading && (
+            <div className="flex items-center gap-2 text-blue-600">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+              Processing PDF files with AI...
+            </div>
+          )}
         </div>
-        
-        <UploadArea 
-          onFiles={onPDFFiles}
-          accept=".pdf"
-          multiple={true}
-        />
-        
-        {selectedFiles.length > 0 && (
-          <div className="mt-4">
-            <h3 className="text-sm font-medium mb-2">Selected files:</h3>
-            <ul className="text-sm text-gray-600">
-              {selectedFiles.map((file, index) => (
-                <li key={index}>• {file.name}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-        
-        {pdfUploading && (
-          <div className="flex items-center gap-2 text-blue-600">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-            Processing PDF files with AI...
-          </div>
-        )}
       </div>
 
       {status && (
