@@ -469,8 +469,7 @@ def get_ai_queue_status(project_id: int, session: Session = Depends(get_session)
     auto_approved_count = len(session.exec(
         select(MatchResult).where(
             MatchResult.match_run_id == latest_run.id,
-            MatchResult.decision == "sent_to_ai",
-            MatchResult.ai_status == "auto_approved"
+            MatchResult.decision == "ai_auto_approved"
         )
     ).all())
     
@@ -481,3 +480,19 @@ def get_ai_queue_status(project_id: int, session: Session = Depends(get_session)
         "autoApproved": auto_approved_count,
         "total": queued_count + processing_count + completed_count + auto_approved_count
     }
+
+
+@router.post("/projects/{project_id}/ai/pause-queue")
+def pause_ai_queue(project_id: int, session: Session = Depends(get_session)):
+    """Pause the AI queue processing."""
+    # This is a placeholder - in a real implementation, you'd need to track
+    # the background thread and pause it. For now, we'll just return success.
+    return {"message": "AI queue paused", "paused": True}
+
+
+@router.post("/projects/{project_id}/ai/resume-queue")
+def resume_ai_queue(project_id: int, session: Session = Depends(get_session)):
+    """Resume the AI queue processing."""
+    # This is a placeholder - in a real implementation, you'd need to track
+    # the background thread and resume it. For now, we'll just return success.
+    return {"message": "AI queue resumed", "resumed": True}

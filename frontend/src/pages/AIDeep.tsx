@@ -14,6 +14,7 @@ export default function AIDeep({ projectId }: { projectId: number }) {
     suggestions, 
     queueStatus, 
     isQueueProcessing,
+    isQueuePaused,
     startAnalysis, 
     stopAnalysis, 
     approveSuggestion, 
@@ -22,7 +23,9 @@ export default function AIDeep({ projectId }: { projectId: number }) {
     startAutoQueue,
     getQueueStatus,
     startQueuePolling,
-    stopQueuePolling
+    stopQueuePolling,
+    pauseQueue,
+    resumeQueue
   } = useAI();
 
   const refresh = async () => {
@@ -84,14 +87,32 @@ export default function AIDeep({ projectId }: { projectId: number }) {
 
       {/* AI Queue Status */}
       {queueStatus && (
-        <AIQueueStatus 
-          stats={{
-            queued: queueStatus.queued,
-            processing: queueStatus.processing,
-            ready: queueStatus.ready,
-            autoApproved: queueStatus.autoApproved
-          }}
-        />
+        <div className="space-y-4">
+          <AIQueueStatus 
+            stats={{
+              queued: queueStatus.queued,
+              processing: queueStatus.processing,
+              ready: queueStatus.ready,
+              autoApproved: queueStatus.autoApproved
+            }}
+          />
+          
+          {/* Pause/Resume Button */}
+          {(isQueueProcessing || isQueuePaused) && (
+            <div className="flex justify-center">
+              <button
+                className={`px-6 py-3 rounded-2xl font-medium text-white shadow-sm transition-colors ${
+                  isQueuePaused 
+                    ? 'bg-green-600 hover:bg-green-700' 
+                    : 'bg-orange-600 hover:bg-orange-700'
+                }`}
+                onClick={() => isQueuePaused ? resumeQueue(projectId) : pauseQueue(projectId)}
+              >
+                {isQueuePaused ? 'Resume AI matching' : 'Pause AI matching'}
+              </button>
+            </div>
+          )}
+        </div>
       )}
 
 

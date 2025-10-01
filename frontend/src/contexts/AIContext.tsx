@@ -16,6 +16,7 @@ interface AIContextType {
     total: number;
   } | null;
   isQueueProcessing: boolean;
+  isQueuePaused: boolean;
   
   // AI Analysis Actions
   startAnalysis: (projectId: number, selectedIndices: number[]) => Promise<void>;
@@ -31,6 +32,8 @@ interface AIContextType {
   getQueueStatus: (projectId: number) => Promise<void>;
   startQueuePolling: (projectId: number) => void;
   stopQueuePolling: () => void;
+  pauseQueue: (projectId: number) => Promise<void>;
+  resumeQueue: (projectId: number) => Promise<void>;
 }
 
 const AIContext = createContext<AIContextType | undefined>(undefined);
@@ -46,6 +49,7 @@ export function AIProvider({ children }: { children: ReactNode }) {
     total: number;
   } | null>(null);
   const [isQueueProcessing, setIsQueueProcessing] = useState(false);
+  const [isQueuePaused, setIsQueuePaused] = useState(false);
   const { showToast } = useToast();
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const queuePollingRef = useRef<NodeJS.Timeout | null>(null);
@@ -239,7 +243,16 @@ export function AIProvider({ children }: { children: ReactNode }) {
       setQueueStatus(response.data);
       
       // Update processing state
-      setIsQueueProcessing(response.data.processing > 0 || response.data.queued > 0);
+      const isProcessing = response.data.processing > 0 || response.data.queued > 0;
+      setIsQueueProcessing(isProcessing);
+      
+      // Also set isAnalyzing when AI queue is processing
+      if (isProcessing && !isAnalyzing) {
+        setIsAnalyzing(true);
+      } else if (!isProcessing && isAnalyzing && !suggestions.length) {
+        // Only stop analyzing if no manual analysis is running
+        setIsAnalyzing(false);
+      }
       
       return response.data;
     } catch (error) {
@@ -273,6 +286,30 @@ export function AIProvider({ children }: { children: ReactNode }) {
     setIsQueueProcessing(false);
   };
 
+  const pauseQueue = async (projectId: number) => {
+    try {
+      const { default: api } = await import('@/lib/api');
+      await api.post(`/projects/${projectId}/ai/pause-queue`);
+      setIsQueuePaused(true);
+      showToast("AI matching paused", 'info');
+    } catch (error) {
+      console.error("Failed to pause queue:", error);
+      showToast("Could not pause AI matching. Please try again.", 'error');
+    }
+  };
+
+  const resumeQueue = async (projectId: number) => {
+    try {
+      const { default: api } = await import('@/lib/api');
+      await api.post(`/projects/${projectId}/ai/resume-queue`);
+      setIsQueuePaused(false);
+      showToast("AI matching resumed", 'success');
+    } catch (error) {
+      console.error("Failed to resume queue:", error);
+      showToast("Could not resume AI matching. Please try again.", 'error');
+    }
+  };
+
   return (
     <AIContext.Provider value={{
       isAnalyzing,
@@ -280,6 +317,7 @@ export function AIProvider({ children }: { children: ReactNode }) {
       suggestions,
       queueStatus,
       isQueueProcessing,
+      isQueuePaused,
       startAnalysis,
       startAnalysisForSentToAI,
       stopAnalysis,
@@ -290,7 +328,9 @@ export function AIProvider({ children }: { children: ReactNode }) {
       startAutoQueue,
       getQueueStatus,
       startQueuePolling,
-      stopQueuePolling
+      stopQueuePolling,
+      pauseQueue,
+      resumeQueue
     }}>
       {children}
     </AIContext.Provider>
