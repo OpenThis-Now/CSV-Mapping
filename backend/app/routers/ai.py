@@ -77,25 +77,35 @@ def build_ai_prompt(customer_row, db_sample, mapping, k: int) -> str:
            * Market/language differences and impact (explicit flags: "OTHER MARKET: …"; "LANGUAGE MISMATCH: …")
            * Variant considerations
            * Whether better alternatives likely exist in this candidate set
-           * Specific fields that need review (e.g., "Article number", "Product name & Article number")
            
-           Write as a natural paragraph, not as structured JSON fields. Example format:
-           "Strong match. The product name matches exactly, and the supplier is a recognized alias of [supplier]. The article number '[article]' has a minor typo correction from '[original]' ([change]), but the identifiers are consistent. Both market and language are identical. No variant issues are present. Better alternatives are unlikely as this is the closest match."
+           CRITICAL REQUIREMENT: Your rationale MUST end with exactly this format:
+           "FIELDS_TO_REVIEW: [comma-separated field names]"
            
-           IMPORTANT: At the end of your rationale, always include a clear section for fields that need review. Use this exact format:
-           "FIELDS_TO_REVIEW: [field names separated by commas]"
+           Field names to use: "Product name", "Article number", "Supplier", "Market", "Language"
            
-           Examples:
-           - "FIELDS_TO_REVIEW: Article number"
-           - "FIELDS_TO_REVIEW: Article number, Product name"
-           - "FIELDS_TO_REVIEW: Supplier, Article number"
-           - "FIELDS_TO_REVIEW: None" (if no fields need review)
+           Examples of correct endings:
+           - "FIELDS_TO_REVIEW: Article number" (if article number has issues)
+           - "FIELDS_TO_REVIEW: Product name, Article number" (if both have issues)
+           - "FIELDS_TO_REVIEW: Supplier" (if supplier is different)
+           - "FIELDS_TO_REVIEW: None" (only if it's a perfect match)
+           
+           NEVER end without FIELDS_TO_REVIEW section. This is mandatory.
 
         — Calibration examples (for the model; do not output) —
         Example 1 — should be 1.0:
         Input: name "HEAT-FLEX 1200 PLUS (Part B) Hardener", supplier "Sherwinn Williams", art.no "B59V01200", market "Canada", language "English".
         Candidate: name identical, supplier "The Sherwin-Williams Company", art.no "B59V1200", market "Canada", language "English".
         Reasoning: article number equal after canonicalization (extra '0' removed); supplier alias; identical variant "Part B"; same market/language → **Exact canonical match; confidence 1.0**.
+        
+        Example 2 — should include FIELDS_TO_REVIEW:
+        Input: name "THINNER 215", supplier "Carboline", art.no "05570910001D", market "Canada", language "English".
+        Candidate: name "THINNER 25", supplier "Carboline Global Inc", art.no "0525S1NL", market "Canada", language "English".
+        Expected rationale ending: "FIELDS_TO_REVIEW: Product name, Article number"
+        
+        Example 3 — perfect match:
+        Input: name "PAINT 100", supplier "Company A", art.no "P100", market "USA", language "English".
+        Candidate: name "PAINT 100", supplier "Company A", art.no "P100", market "USA", language "English".
+        Expected rationale ending: "FIELDS_TO_REVIEW: None"
 
         Customer row to match:
         {json.dumps(customer_row, ensure_ascii=False)}
