@@ -253,15 +253,16 @@ export function AIProvider({ children }: { children: ReactNode }) {
       clearInterval(queuePollingRef.current);
     }
     
-    // Start new polling every 3 seconds
+    // Start new polling every 1 second for real-time updates
     queuePollingRef.current = setInterval(async () => {
       await getQueueStatus(projectId);
+      await loadExistingSuggestions(projectId); // Refresh suggestions in real-time
       
       // If no more items in queue, stop polling
       if (queueStatus && queueStatus.queued === 0 && queueStatus.processing === 0) {
         stopQueuePolling();
       }
-    }, 3000);
+    }, 1000);
   };
 
   const stopQueuePolling = () => {

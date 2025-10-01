@@ -47,9 +47,10 @@ export default function MatchPage({ projectId }: { projectId: number }) {
             setTimeout(pollProgress, 1000);
           } else {
             setProgress(100);
-            setStatus("Matching complete!");
+            setStatus("Matching complete! AI analysis starting automatically for products with score 70-95...");
             await refresh();
             setRunning(false);
+            showToast("Matchning klar! AI-analys startar automatiskt för produkter med score 70-95.", 'success');
           }
         } catch (error) {
           console.error("Progress polling error:", error);
@@ -99,14 +100,7 @@ export default function MatchPage({ projectId }: { projectId: number }) {
       return;
     }
     
-    // Check current AI queue size
-    const currentResults = await api.get(`/projects/${projectId}/results`);
-    const aiQueue = currentResults.data.filter((r: any) => r.decision === "sent_to_ai");
-    
-    if (aiQueue.length + selectedIds.length > 25) {
-      showToast(`AI queue is full! Max 25 products allowed. You're trying to add ${selectedIds.length} products, but there are already ${aiQueue.length} products in the queue.`, 'error');
-      return;
-    }
+    // No limit on AI queue size - removed 25 product restriction
     
     await api.post(`/projects/${projectId}/send-to-ai`, { ids: selectedIds });
     await refresh();

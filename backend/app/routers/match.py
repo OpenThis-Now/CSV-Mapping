@@ -12,6 +12,7 @@ from ..db import get_session
 from ..models import DatabaseCatalog, ImportFile, MatchResult, MatchRun, Project, AiSuggestion
 from ..schemas import MatchRequest, MatchRunResponse, MatchResultItem
 from ..match_engine import run_match, Thresholds
+from .ai import auto_queue_ai_analysis
 
 router = APIRouter()
 log = logging.getLogger("app.match")
@@ -92,6 +93,13 @@ def run_matching(project_id: int, req: MatchRequest, session: Session = Depends(
         run.finished_at = datetime.utcnow()
         session.add(run)
         session.commit()
+        
+        # Automatically queue products with scores 70-95 for AI analysis
+        try:
+            log.info(f"Starting automatic AI queue for project {project_id}")
+            auto_queue_ai_analysis(project_id, session)
+        except Exception as e:
+            log.error(f"Failed to start automatic AI queue: {e}")
     except Exception as e:
         log.exception(f"Match run failed: {str(e)}")
         run.status = "failed"

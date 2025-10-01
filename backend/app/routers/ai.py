@@ -323,61 +323,70 @@ def auto_queue_ai_analysis(project_id: int, session: Session = Depends(get_sessi
         import time
         
         def run_ai_queue():
-            """Process AI queue using existing AI suggest endpoint"""
+            """Process AI queue in batches of 10 products"""
+            import time
+            
             try:
-                # Get queued products
-                queued_products = session.exec(
-                    select(MatchResult).where(
-                        MatchResult.project_id == project_id,
-                        MatchResult.decision == "sent_to_ai",
-                        MatchResult.ai_status == "queued"
-                    ).limit(10)  # Process up to 10 at a time
-                ).all()
-                
-                if not queued_products:
-                    log.info(f"No queued products to process for project {project_id}")
-                    return
-                
-                log.info(f"Processing {len(queued_products)} products for project {project_id}")
-                
-                # Mark as processing
-                for product in queued_products:
-                    product.ai_status = "processing"
-                    session.add(product)
-                session.commit()
-                
-                # Process each product using existing AI suggest logic
-                for product in queued_products:
-                    try:
-                        log.info(f"Processing product {product.customer_row_index}")
-                        
-                        # Use existing AI suggest endpoint logic
-                        from .ai import ai_suggest
-                        from ..schemas import AiSuggestRequest
-                        
-                        # Create request for this single product
-                        req = AiSuggestRequest(
-                            customer_row_indices=[product.customer_row_index],
-                            max_suggestions=3
-                        )
-                        
-                        # Call the existing AI suggest function
-                        suggestions = ai_suggest(project_id, req, session)
-                        
-                        log.info(f"Generated {len(suggestions)} suggestions for product {product.customer_row_index}")
-                        
-                        # Mark as completed
-                        product.ai_status = "completed"
+                # Process in batches until no more queued products
+                while True:
+                    # Get next batch of queued products
+                    queued_products = session.exec(
+                        select(MatchResult).where(
+                            MatchResult.project_id == project_id,
+                            MatchResult.decision == "sent_to_ai",
+                            MatchResult.ai_status == "queued"
+                        ).limit(10)  # Process 10 at a time
+                    ).all()
+                    
+                    if not queued_products:
+                        log.info(f"No more queued products to process for project {project_id}")
+                        break
+                    
+                    log.info(f"Processing batch of {len(queued_products)} products for project {project_id}")
+                    
+                    # Mark as processing
+                    for product in queued_products:
+                        product.ai_status = "processing"
                         session.add(product)
-                        session.commit()
-                        
-                    except Exception as e:
-                        log.error(f"Error processing product {product.customer_row_index}: {e}")
-                        product.ai_status = "failed"
-                        session.add(product)
-                        session.commit()
+                    session.commit()
+                    
+                    # Process each product in the batch
+                    for product in queued_products:
+                        try:
+                            log.info(f"Processing product {product.customer_row_index}")
+                            
+                            # Use existing AI suggest endpoint logic
+                            from .ai import ai_suggest
+                            from ..schemas import AiSuggestRequest
+                            
+                            # Create request for this single product
+                            req = AiSuggestRequest(
+                                customer_row_indices=[product.customer_row_index],
+                                max_suggestions=3
+                            )
+                            
+                            # Call the existing AI suggest function
+                            suggestions = ai_suggest(project_id, req, session)
+                            
+                            log.info(f"Generated {len(suggestions)} suggestions for product {product.customer_row_index}")
+                            
+                            # Mark as completed
+                            product.ai_status = "completed"
+                            session.add(product)
+                            session.commit()
+                            
+                        except Exception as e:
+                            log.error(f"Error processing product {product.customer_row_index}: {e}")
+                            product.ai_status = "failed"
+                            session.add(product)
+                            session.commit()
+                    
+                    log.info(f"Completed batch processing for project {project_id}")
+                    
+                    # Small delay before next batch
+                    time.sleep(1)
                 
-                log.info(f"Completed AI processing for project {project_id}")
+                log.info(f"All AI processing completed for project {project_id}")
                 
             except Exception as e:
                 log.error(f"Error in AI queue processing: {e}")
