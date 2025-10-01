@@ -317,20 +317,76 @@ def auto_queue_ai_analysis(project_id: int, session: Session = Depends(get_sessi
     
     session.commit()
     
-    # Start background processing
+    # Start background processing immediately using the existing AI suggest endpoint
     try:
-        # Run the AI queue processing in a separate thread to avoid blocking
         import threading
+        import time
+        
         def run_ai_queue():
-            import asyncio
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(process_ai_queue(project_id))
-            loop.close()
+            """Process AI queue using existing AI suggest endpoint"""
+            try:
+                # Get queued products
+                queued_products = session.exec(
+                    select(MatchResult).where(
+                        MatchResult.project_id == project_id,
+                        MatchResult.decision == "sent_to_ai",
+                        MatchResult.ai_status == "queued"
+                    ).limit(10)  # Process up to 10 at a time
+                ).all()
+                
+                if not queued_products:
+                    log.info(f"No queued products to process for project {project_id}")
+                    return
+                
+                log.info(f"Processing {len(queued_products)} products for project {project_id}")
+                
+                # Mark as processing
+                for product in queued_products:
+                    product.ai_status = "processing"
+                    session.add(product)
+                session.commit()
+                
+                # Process each product using existing AI suggest logic
+                for product in queued_products:
+                    try:
+                        log.info(f"Processing product {product.customer_row_index}")
+                        
+                        # Use existing AI suggest endpoint logic
+                        from .ai import ai_suggest
+                        from ..schemas import AiSuggestRequest
+                        
+                        # Create request for this single product
+                        req = AiSuggestRequest(
+                            customer_row_indices=[product.customer_row_index],
+                            max_suggestions=3
+                        )
+                        
+                        # Call the existing AI suggest function
+                        suggestions = ai_suggest(project_id, req, session)
+                        
+                        log.info(f"Generated {len(suggestions)} suggestions for product {product.customer_row_index}")
+                        
+                        # Mark as completed
+                        product.ai_status = "completed"
+                        session.add(product)
+                        session.commit()
+                        
+                    except Exception as e:
+                        log.error(f"Error processing product {product.customer_row_index}: {e}")
+                        product.ai_status = "failed"
+                        session.add(product)
+                        session.commit()
+                
+                log.info(f"Completed AI processing for project {project_id}")
+                
+            except Exception as e:
+                log.error(f"Error in AI queue processing: {e}")
         
         thread = threading.Thread(target=run_ai_queue)
         thread.daemon = True
         thread.start()
+        
+        log.info(f"Started AI queue processing thread for project {project_id}")
     except Exception as e:
         log.error(f"Failed to start AI queue processing: {e}")
     

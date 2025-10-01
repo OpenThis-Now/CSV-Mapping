@@ -42,42 +42,59 @@ class AIQueueProcessor:
     
     async def _process_queue(self, project_id: int):
         """Process the AI queue for a project."""
-        session = next(get_session())
+        import asyncio
         
-        try:
-            # Get queued products
-            queued_products = session.exec(
-                select(MatchResult).where(
-                    MatchResult.project_id == project_id,
-                    MatchResult.decision == "sent_to_ai",
-                    MatchResult.ai_status == "queued"
-                ).limit(self.max_concurrent)
-            ).all()
+        # Keep processing until no more queued products
+        while True:
+            session = next(get_session())
             
-            if not queued_products:
-                log.info(f"No queued products found for project {project_id}")
-                return
-            
-            log.info(f"Processing {len(queued_products)} products for project {project_id}")
-            
-            # Mark as processing
-            for product in queued_products:
-                product.ai_status = "processing"
-                session.add(product)
-            session.commit()
-            
-            # Process each product
-            for product in queued_products:
-                try:
-                    await self._process_single_product(product, session)
-                except Exception as e:
-                    log.error(f"Error processing product {product.customer_row_index}: {e}")
-                    product.ai_status = "failed"
+            try:
+                # Get queued products
+                queued_products = session.exec(
+                    select(MatchResult).where(
+                        MatchResult.project_id == project_id,
+                        MatchResult.decision == "sent_to_ai",
+                        MatchResult.ai_status == "queued"
+                    ).limit(self.max_concurrent)
+                ).all()
+                
+                if not queued_products:
+                    log.info(f"No more queued products found for project {project_id}")
+                    break
+                
+                log.info(f"Processing {len(queued_products)} products for project {project_id}")
+                
+                # Mark as processing
+                for product in queued_products:
+                    product.ai_status = "processing"
                     session.add(product)
-                    session.commit()
+                session.commit()
+                
+                # Process products in parallel using asyncio.gather
+                tasks = []
+                for product in queued_products:
+                    task = asyncio.create_task(self._process_single_product(product, session))
+                    tasks.append(task)
+                
+                # Wait for all tasks to complete
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                
+                # Log results
+                for i, result in enumerate(results):
+                    if isinstance(result, Exception):
+                        log.error(f"Error processing product {queued_products[i].customer_row_index}: {result}")
+                        queued_products[i].ai_status = "failed"
+                        session.add(queued_products[i])
+                    else:
+                        log.info(f"Successfully processed product {queued_products[i].customer_row_index}")
+                
+                session.commit()
+                
+            finally:
+                session.close()
             
-        finally:
-            session.close()
+            # Small delay before checking for more products
+            await asyncio.sleep(1)
     
     async def _process_single_product(self, product: MatchResult, session: Session):
         """Process a single product through AI analysis."""
