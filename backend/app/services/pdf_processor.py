@@ -336,14 +336,14 @@ def simple_text_extraction(text: str, filename: str) -> Dict[str, Any]:
         market, legislation = separate_market_and_legislation(authored_market)
         authored_market = market  # Använd bara marknaden
     
-    # Detect language from content
-    if re.search(r'(?:Faraangivelser|Riskfraser|Produktnamn|Leverantör|Företag|Sverige|Swedish)', text, re.IGNORECASE):
+    # Detect language from content - förbättrad språkdetektering
+    if re.search(r'(?:Faraangivelser|Riskfraser|Produktnamn|Leverantör|Företag|Sverige|Swedish|svenska|Svenska)', text, re.IGNORECASE):
         language = "Swedish"
-    elif re.search(r'(?:Faraoangivelser|Gefahrhinweise|H-Sätze)', text, re.IGNORECASE):
+    elif re.search(r'(?:Faraoangivelser|Gefahrhinweise|H-Sätze|deutsch|Deutsch)', text, re.IGNORECASE):
         language = "German"
-    elif re.search(r'(?:Déclarations de danger|Phrases de risque)', text, re.IGNORECASE):
+    elif re.search(r'(?:Déclarations de danger|Phrases de risque|français|Français)', text, re.IGNORECASE):
         language = "French"
-    elif re.search(r'(?:Hazard statements|Danger statements)', text, re.IGNORECASE):
+    elif re.search(r'(?:Hazard statements|Danger statements|english|English)', text, re.IGNORECASE):
         language = "English"
     
     # If no specific language detected, default to English
@@ -418,9 +418,13 @@ def adjust_market_by_language(market: str, language: str) -> str:
         "Lithuanian": "Lithuania",
     }
     
-    # Om marknaden är EU och språket matchar ett EU-land, ändra till det specifika landet
-    if market.upper() == "EU" and language in language_to_country:
+    # Om marknaden innehåller EU eller är EU och språket matchar ett EU-land, ändra till det specifika landet
+    if ("EU" in market.upper() or market.upper() == "EU") and language in language_to_country:
         return language_to_country[language]
+    
+    # Om marknaden är otydlig (t.ex. "us Chemicals Code of Practice") men språket är Swedish, ändra till Sweden
+    if language == "Swedish" and any(indicator in market.lower() for indicator in ["chemical", "code", "practice", "regulation", "clp", "reach"]):
+        return "Sweden"
     
     return market
 
