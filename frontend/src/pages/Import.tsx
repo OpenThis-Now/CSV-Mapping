@@ -172,18 +172,34 @@ export default function ImportPage({ projectId }: { projectId: number }) {
       {/* Upload Sections - Side by Side */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* CSV Upload Section */}
-        <div className="space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold mb-2">Upload CSV File</h2>
-            <p className="text-sm text-gray-600 mb-4">
-              Upload a CSV file with customer product data for matching.
-            </p>
+        <div className="rounded-2xl p-6 border bg-white border-slate-200">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="rounded-xl bg-blue-600/10 p-2">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                className="h-6 w-6 text-blue-600"
+                fill="none"
+                stroke="currentColor"
+              >
+                <rect x="3" y="5" width="18" height="14" rx="2" ry="2" strokeWidth="1.5" />
+                <path d="M3 10h18M8 5v14M16 5v14" strokeWidth="1.5" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold">Upload CSV</h3>
+            <span className="ml-auto text-xs rounded bg-slate-100 px-2 py-0.5">.csv</span>
           </div>
           
-          <UploadArea onFile={onFile} accept=".csv" />
+          <p className="text-sm text-gray-600 mb-4">
+            Upload a CSV file with customer product data for matching.
+          </p>
+
+          <div className="text-center p-6 border-2 border-dashed border-slate-200 rounded-xl hover:border-blue-300 transition-colors">
+            <UploadArea onFile={onFile} accept=".csv" />
+          </div>
           
           {uploading && (
-            <div className="flex items-center gap-2 text-blue-600">
+            <div className="flex items-center justify-center gap-2 text-blue-600 mt-4">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
               Uploading CSV file...
             </div>
@@ -191,35 +207,53 @@ export default function ImportPage({ projectId }: { projectId: number }) {
         </div>
 
         {/* PDF Upload Section */}
-        <div className="space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold mb-2">Upload PDF Files</h2>
-            <p className="text-sm text-gray-600 mb-4">
-              Upload multiple PDF files (SDS documents) for AI-powered product information extraction.
-              The system will read the first 3 pages of each PDF and extract product names, article numbers, and supplier information.
-            </p>
+        <div className="rounded-2xl p-6 border bg-white border-slate-200">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="rounded-xl bg-rose-600/10 p-2">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                className="h-6 w-6 text-rose-600"
+                fill="none"
+                stroke="currentColor"
+              >
+                <path d="M8 4h5.5L20 10.5V20a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" strokeWidth="1.5" />
+                <path d="M13.5 4V10.5H20" strokeWidth="1.5" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold">Upload PDF</h3>
+            <span className="ml-auto text-xs rounded bg-slate-100 px-2 py-0.5">.pdf</span>
           </div>
           
-          <UploadArea 
-            onFiles={onPDFFiles}
-            accept=".pdf"
-            multiple={true}
-          />
+          <p className="text-sm text-gray-600 mb-4">
+            Upload multiple PDF files (SDS documents) for AI-powered product information extraction.
+          </p>
+
+          <div className="text-center p-6 border-2 border-dashed border-slate-200 rounded-xl hover:border-rose-300 transition-colors">
+            <UploadArea 
+              onFiles={onPDFFiles}
+              accept=".pdf"
+              multiple={true}
+            />
+          </div>
           
           {selectedFiles.length > 0 && (
             <div className="mt-4">
               <h3 className="text-sm font-medium mb-2">Selected files:</h3>
               <ul className="text-sm text-gray-600">
                 {selectedFiles.map((file, index) => (
-                  <li key={index}>• {file.name}</li>
+                  <li key={index} className="flex items-center gap-2">
+                    <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
+                    {file.name}
+                  </li>
                 ))}
               </ul>
             </div>
           )}
           
           {pdfUploading && (
-            <div className="flex items-center gap-2 text-blue-600">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+            <div className="flex items-center justify-center gap-2 text-rose-600 mt-4">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-rose-600"></div>
               Processing PDF files with AI...
             </div>
           )}
