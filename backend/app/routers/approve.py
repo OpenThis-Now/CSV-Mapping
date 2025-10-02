@@ -76,7 +76,12 @@ def reject_results(project_id: int, req: ApproveRequest, session: Session = Depe
     count = 0
     for r in results:
         if r.id in set(req.ids) or r.customer_row_index in set(req.customer_row_indices):
+            # Store original decision before changing it
+            old_decision = r.decision
             r.decision = "rejected"
+            # If this was an AI-related decision, set ai_status too
+            if old_decision in ["sent_to_ai", "ai_auto_approved"] or r.ai_status is not None:
+                r.ai_status = "rejected"
             session.add(r)
             count += 1
     session.commit()

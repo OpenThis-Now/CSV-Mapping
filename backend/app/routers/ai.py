@@ -286,10 +286,16 @@ def get_ai_suggestions(project_id: int, session: Session = Depends(get_session))
         return []
     
     # Get customer row indices that have already been decided
+    # This includes all AI-related decisions: manual approval/rejection, auto-approval
     completed_row_indices = session.exec(
         select(MatchResult.customer_row_index)
         .where(MatchResult.match_run_id == latest_run.id)
-        .where(MatchResult.ai_status.in_(["approved", "rejected", "auto_approved"]))
+        .where(
+            # Either has AI status set (manual decisions)
+            MatchResult.ai_status.in_(["approved", "rejected", "auto_approved"]) |
+            # Or is AI auto-approved
+            (MatchResult.decision == "ai_auto_approved")
+        )
     ).all()
     
     # Get suggestions that are NOT for completed rows
@@ -325,16 +331,56 @@ def get_completed_ai_reviews(project_id: int, session: Session = Depends(get_ses
     if not latest_run:
         return []
     
-    # Get match results that have been decided and had AI suggestions
+    # Get match results that have been decided and had AI involvement
+    # This includes:
+    # 1. AI manually approved: ai_status = "approved" 
+    # 2. AI auto-approved: decision = "ai_auto_approved", ai_status = "auto_approved"
+    # 3. AI rejected: decision = "rejected" AND there are AI suggestions for this row
+    
+    # First get all AI suggestion row indices for this project
+    ai_suggestion_rows = session.exec(
+        select(AiSuggestion.customer_row_index)
+        .where(AiSuggestion.project_id == project_id)
+        .distinct()
+    ).all()
+    
+    # Get completed results that either have ai_status set OR are rejected/approved and had AI suggestions
     completed_results = session.exec(
         select(MatchResult)
         .where(MatchResult.match_run_id == latest_run.id)
-        .where(MatchResult.ai_status.in_(["approved", "rejected", "auto_approved"]))
+        .where(
+            # Either has AI status set
+            MatchResult.ai_status.in_(["approved", "rejected", "auto_approved"]) |
+            # Or is ai_auto_approved
+            (MatchResult.decision == "ai_auto_approved") |
+            # Or is rejected/approved and had AI suggestions
+            (
+                MatchResult.decision.in_(["rejected", "approved"]) &
+                MatchResult.customer_row_index.in_(ai_suggestion_rows)
+            )
+        )
         .order_by(MatchResult.customer_row_index)
     ).all()
     
     completed_reviews = []
     for result in completed_results:
+        # Determine the AI decision status
+        if result.ai_status:
+            # Has explicit AI status (approved, rejected, auto_approved)
+            decision = result.ai_status
+        elif result.decision == "ai_auto_approved":
+            # AI auto-approved
+            decision = "auto_approved"
+        elif result.decision == "rejected" and result.customer_row_index in ai_suggestion_rows:
+            # Rejected after AI suggestions were made
+            decision = "rejected"
+        elif result.decision == "approved" and result.customer_row_index in ai_suggestion_rows:
+            # Approved after AI suggestions were made (but no ai_status set)
+            decision = "approved"
+        else:
+            # Fallback
+            decision = result.decision
+        
         # Get the approved AI suggestion if it exists
         ai_suggestion = None
         if result.approved_ai_suggestion_id:
@@ -342,7 +388,7 @@ def get_completed_ai_reviews(project_id: int, session: Session = Depends(get_ses
         
         completed_reviews.append({
             "customer_row_index": result.customer_row_index,
-            "decision": result.ai_status,
+            "decision": decision,
             "customer_fields": result.customer_fields_json,
             "ai_summary": result.ai_summary,
             "approved_suggestion": {
