@@ -67,8 +67,8 @@ function TripleCell({ title, vendor, sku, market, legislation, language }: { tit
 function TableView({ results, selectedIds, onSelectionChange }: { results: MatchResultItem[]; selectedIds: number[]; onSelectionChange: (ids: number[]) => void }) {
   // Sort results according to priority:
   // 1. Lowest score first (highest priority)
-  // 2. Auto approved second
-  // 3. Rejected third
+  // 2. Rejected second
+  // 3. Auto approved third
   // 4. Approved last (lowest priority)
   const sortedResults = [...results].sort((a, b) => {
     // First sort by decision priority
@@ -76,9 +76,9 @@ function TableView({ results, selectedIds, onSelectionChange }: { results: Match
       switch (decision) {
         case "approved": return 5; // Lowest priority
         case "ai_auto_approved": return 4; // Fourth priority
-        case "rejected": return 3; // Third priority
-        case "auto_rejected": return 3; // Third priority (same as rejected)
-        case "auto_approved": return 2; // Second priority
+        case "rejected": return 2; // Second priority
+        case "auto_rejected": return 2; // Second priority (same as rejected)
+        case "auto_approved": return 3; // Third priority
         default: return 1; // Highest priority (pending, sent_to_ai)
       }
     };
@@ -187,8 +187,8 @@ function TableView({ results, selectedIds, onSelectionChange }: { results: Match
 function CardView({ results, selectedIds, onSelectionChange }: { results: MatchResultItem[]; selectedIds: number[]; onSelectionChange: (ids: number[]) => void }) {
   // Sort results according to priority:
   // 1. Lowest score first (highest priority)
-  // 2. Auto approved second
-  // 3. Rejected third
+  // 2. Rejected second
+  // 3. Auto approved third
   // 4. Approved last (lowest priority)
   const sortedResults = [...results].sort((a, b) => {
     // First sort by decision priority
@@ -196,9 +196,9 @@ function CardView({ results, selectedIds, onSelectionChange }: { results: MatchR
       switch (decision) {
         case "approved": return 5; // Lowest priority
         case "ai_auto_approved": return 4; // Fourth priority
-        case "rejected": return 3; // Third priority
-        case "auto_rejected": return 3; // Third priority (same as rejected)
-        case "auto_approved": return 2; // Second priority
+        case "rejected": return 2; // Second priority
+        case "auto_rejected": return 2; // Second priority (same as rejected)
+        case "auto_approved": return 3; // Third priority
         default: return 1; // Highest priority (pending, sent_to_ai)
       }
     };
