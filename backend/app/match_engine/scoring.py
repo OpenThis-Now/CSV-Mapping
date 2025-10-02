@@ -168,6 +168,9 @@ def score_pair(customer_row: dict[str, Any], db_row: dict[str, Any], customer_ma
 
     if sku_exact(cs, ds):
         overall = min(100, overall + thr.sku_exact_boost)
+    elif cs.strip() and ds.strip():
+        # Apply penalty for SKU mismatch when both SKUs are present
+        overall -= 15  # Penalty for different SKUs
 
     overall -= numeric_penalty(cp, dp, thr.numeric_mismatch_penalty)
     
@@ -182,6 +185,8 @@ def score_pair(customer_row: dict[str, Any], db_row: dict[str, Any], customer_ma
     reason = []
     if sku_exact(cs, ds):
         reason.append("Exact SKU match")
+    elif cs.strip() and ds.strip():
+        reason.append("Different SKUs")
     if market_mismatch:
         reason.append("Other market")
     if language_mismatch:
