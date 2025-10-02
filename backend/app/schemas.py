@@ -11,7 +11,7 @@ class DatabaseCreateResponse(BaseModel):
     name: str
     filename: str
     row_count: int
-    columns_map_json: dict[str, str]
+    columns_map_json: dict[str, str | None]
 
 
 class DatabaseListItem(BaseModel):
@@ -44,7 +44,7 @@ class ImportUploadResponse(BaseModel):
     import_file_id: int
     filename: str
     row_count: int
-    columns_map_json: dict[str, str]
+    columns_map_json: dict[str, str | None]
 
 
 class Thresholds(BaseModel):
