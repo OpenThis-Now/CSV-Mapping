@@ -592,7 +592,7 @@ def auto_queue_ai_analysis(project_id: int, session: Session = Depends(get_sessi
                                 MatchResult.match_run_id == latest_run.id,
                                 MatchResult.decision == "sent_to_ai",
                                 MatchResult.ai_status == "queued"
-                            ).limit(5)  # Process 5 at a time for better reliability
+                            ).limit(10)  # Process 10 at a time for better speed
                         ).all()
                         
                         if not queued_products:
@@ -628,7 +628,7 @@ def auto_queue_ai_analysis(project_id: int, session: Session = Depends(get_sessi
                                 batch_session.commit()
                     
                     # Small delay between batches
-                    time.sleep(2)
+                    time.sleep(0.5)
                 
                 log.info(f"All AI processing completed for project {project_id}")
                 
