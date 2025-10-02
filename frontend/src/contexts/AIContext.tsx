@@ -7,13 +7,14 @@ interface AIContextType {
   isAnalyzing: boolean;
   thinkingStep: number;
   suggestions: AiSuggestionItem[];
+  completedReviews: any[];
   
   // AI Queue State
   queueStatus: {
     queued: number;
     processing: number;
-    completed: number;
-    total: number;
+    ready: number;
+    autoApproved: number;
   } | null;
   isQueueProcessing: boolean;
   isQueuePaused: boolean;
@@ -26,6 +27,7 @@ interface AIContextType {
   approveSuggestion: (suggestion: AiSuggestionItem, projectId: number) => Promise<void>;
   rejectSuggestion: (suggestion: AiSuggestionItem, projectId: number) => Promise<void>;
   loadExistingSuggestions: (projectId: number) => Promise<void>;
+  loadCompletedReviews: (projectId: number) => Promise<void>;
   
   // AI Queue Actions
   startAutoQueue: (projectId: number) => Promise<void>;
@@ -43,11 +45,12 @@ export function AIProvider({ children }: { children: ReactNode }) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [thinkingStep, setThinkingStep] = useState(0);
   const [suggestions, setSuggestions] = useState<AiSuggestionItem[]>([]);
+  const [completedReviews, setCompletedReviews] = useState<any[]>([]);
   const [queueStatus, setQueueStatus] = useState<{
     queued: number;
     processing: number;
-    completed: number;
-    total: number;
+    ready: number;
+    autoApproved: number;
   } | null>(null);
   const [isQueueProcessing, setIsQueueProcessing] = useState(false);
   const [isQueuePaused, setIsQueuePaused] = useState(false);
@@ -62,6 +65,16 @@ export function AIProvider({ children }: { children: ReactNode }) {
       setSuggestions(response.data);
     } catch (error) {
       console.error("Failed to load existing AI suggestions:", error);
+    }
+  };
+
+  const loadCompletedReviews = async (projectId: number) => {
+    try {
+      const { default: api } = await import('@/lib/api');
+      const response = await api.get(`/projects/${projectId}/ai/completed-reviews`);
+      setCompletedReviews(response.data);
+    } catch (error) {
+      console.error("Failed to load completed AI reviews:", error);
     }
   };
 
@@ -186,6 +199,9 @@ export function AIProvider({ children }: { children: ReactNode }) {
       // Remove this product from the AI suggestions
       setSuggestions(prev => prev.filter(s => s.customer_row_index !== suggestion.customer_row_index));
       
+      // Reload completed reviews
+      await loadCompletedReviews(projectId);
+      
       showToast("Product approved and match saved!", 'success');
     } catch (error) {
       console.error("Failed to approve suggestion:", error);
@@ -211,6 +227,9 @@ export function AIProvider({ children }: { children: ReactNode }) {
       
       // Remove this product from the AI suggestions
       setSuggestions(prev => prev.filter(s => s.customer_row_index !== suggestion.customer_row_index));
+      
+      // Reload completed reviews
+      await loadCompletedReviews(projectId);
       
       showToast("Product rejected and marked as 'rejected'!", 'success');
     } catch (error) {
@@ -345,6 +364,7 @@ export function AIProvider({ children }: { children: ReactNode }) {
       isAnalyzing,
       thinkingStep,
       suggestions,
+      completedReviews,
       queueStatus,
       isQueueProcessing,
       isQueuePaused,
@@ -355,6 +375,7 @@ export function AIProvider({ children }: { children: ReactNode }) {
       approveSuggestion,
       rejectSuggestion,
       loadExistingSuggestions,
+      loadCompletedReviews,
       startAutoQueue,
       getQueueStatus,
       startQueuePolling,

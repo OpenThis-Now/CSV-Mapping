@@ -8,17 +8,19 @@ export default function InfoPage() {
     "Product_name - Product name",
     "Supplier_name - Supplier name",
     "Article_number - Art.no",
-  ];
-  const inputOptional = [
     "Market - Market/Region",
     "Language - Language",
+  ];
+  const inputOptional = [
+    "Location_ID - Location ID",
+    "Product_ID - Product ID",
     "Description - Description",
     "SDS-URL - URL to PDF safety data sheet",
   ];
-  const inputTemplate = `Product_name;Supplier_name;Article_number;Market;Language;Description;SDS-URL
-THINNER 215;Carboline;05570910001D;Canada;English;Industrial paint thinner;https://example.com/sds/thinner215.pdf
-MAPEFLOOR FILLER;MAPEI INC.;245633;Canada;English;Floor filler compound;https://example.com/sds/mapefloor.pdf
-BAR-RUST 235 BLACK;AkzoNobel;HB9903;Canada;English;Rust protection paint;https://example.com/sds/bar-rust.pdf`;
+  const inputTemplate = `Product_name;Supplier_name;Article_number;Market;Language;Location_ID;Product_ID;Description;SDS-URL
+THINNER 215;Carboline;05570910001D;Canada;English;LOC001;PROD001;Industrial paint thinner;https://example.com/sds/thinner215.pdf
+MAPEFLOOR FILLER;MAPEI INC.;245633;Canada;English;LOC002;PROD002;Floor filler compound;https://example.com/sds/mapefloor.pdf
+BAR-RUST 235 BLACK;AkzoNobel;HB9903;Canada;English;LOC003;PROD003;Rust protection paint;https://example.com/sds/bar-rust.pdf`;
 
   const dbRequired = [
     "Product_name - Product name",
@@ -28,17 +30,17 @@ BAR-RUST 235 BLACK;AkzoNobel;HB9903;Canada;English;Rust protection paint;https:/
     "Language - Language",
   ];
   const dbOptional = [
-    "Unique_ID - Unique identifier",
+    "Unique_ID - Company ID",
     "Location_ID - Location ID",
     "MSDSkey - Safety data sheet",
-    "Revision_date - Revision date",
-    "Expire_date - Expiration date",
+    "Revision_date - Revision",
+    "Expire_date - Expired",
     "Description - Description",
   ];
-  const dbTemplate = `Product_name;Supplier_name;Article_number;Unique_ID;Location_ID;Market;Language;MSDSkey;Revision_date;Expire_date
-THINNER 215;Carboline;05570910001D;12345;12345;Canada;English;26139007;2024-01-15;2025-12-31
-MAPEFLOOR FILLER NA;MAPEI INC.;245633;12347;12345;Canada;English;26146274;2024-02-01;2026-01-31
-BAR-RUST 235 BLACK PART A;AkzoNobel;HB9903;12348;12345;Canada;English;26146498;2024-01-20;2025-06-30`;
+  const dbTemplate = `Product_name;Supplier_name;Article_number;Market;Language;Unique_ID;Location_ID;MSDSkey;Revision_date;Expire_date;Description
+THINNER 215;Carboline;05570910001D;Canada;English;12345;LOC001;26139007;2024-01-15;2025-12-31;Industrial paint thinner
+MAPEFLOOR FILLER NA;MAPEI INC.;245633;Canada;English;12347;LOC002;26146274;2024-02-01;2026-01-31;Floor filler compound
+BAR-RUST 235 BLACK PART A;AkzoNobel;HB9903;Canada;English;12348;LOC003;26146498;2024-01-20;2025-06-30;Rust protection paint`;
 
   const tips = [
     "Use semicolon (;) as separator, not comma (,)",

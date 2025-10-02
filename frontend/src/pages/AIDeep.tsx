@@ -12,6 +12,7 @@ export default function AIDeep({ projectId }: { projectId: number }) {
     isAnalyzing, 
     thinkingStep, 
     suggestions, 
+    completedReviews,
     queueStatus, 
     isQueueProcessing,
     isQueuePaused,
@@ -20,6 +21,7 @@ export default function AIDeep({ projectId }: { projectId: number }) {
     approveSuggestion, 
     rejectSuggestion, 
     loadExistingSuggestions,
+    loadCompletedReviews,
     startAutoQueue,
     getQueueStatus,
     startQueuePolling,
@@ -42,6 +44,7 @@ export default function AIDeep({ projectId }: { projectId: number }) {
   useEffect(() => { 
     refresh(); 
     loadExistingSuggestions(projectId);
+    loadCompletedReviews(projectId);
     getQueueStatus(projectId);
   }, [projectId]);
 
@@ -50,6 +53,7 @@ export default function AIDeep({ projectId }: { projectId: number }) {
     if (isQueueProcessing) {
       const interval = setInterval(() => {
         loadExistingSuggestions(projectId);
+        loadCompletedReviews(projectId);
         getQueueStatus(projectId);
       }, 3000);
       
@@ -86,14 +90,14 @@ export default function AIDeep({ projectId }: { projectId: number }) {
     <div className="space-y-4">
 
       {/* AI Queue Status */}
-      {queueStatus && (
+      {queueStatus && (queueStatus.queued > 0 || queueStatus.processing > 0 || queueStatus.ready > 0 || queueStatus.autoApproved > 0) && (
         <div className="space-y-4">
           <AIQueueStatus 
             stats={{
               queued: queueStatus.queued,
               processing: queueStatus.processing,
-              ready: queueStatus.ready,
-              autoApproved: queueStatus.autoApproved
+              ready: queueStatus.ready || 0,
+              autoApproved: queueStatus.autoApproved || 0
             }}
           />
           
@@ -102,9 +106,12 @@ export default function AIDeep({ projectId }: { projectId: number }) {
 
 
 
+      {/* Ready for Review Section */}
       {!!suggestions.length && (
-        <div className="space-y-6">
-          {(() => {
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold text-gray-800">Ready for Review</h2>
+          <div className="space-y-6">
+            {(() => {
             // Group suggestions by customer_row_index
             const groupedSuggestions = suggestions.reduce((acc, suggestion) => {
               if (!acc[suggestion.customer_row_index]) {
@@ -293,7 +300,119 @@ export default function AIDeep({ projectId }: { projectId: number }) {
                 </div>
               );
             });
-          })()}
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* Reviewed Section */}
+      {!!completedReviews.length && (
+        <div className="mt-8 space-y-4">
+          <h2 className="text-xl font-semibold text-gray-800">Reviewed</h2>
+          <div className="space-y-3">
+            {completedReviews.map((review, index) => {
+              const productName = review.customer_fields?.["Product"] || 
+                                 review.customer_fields?.["Product_name"] || 
+                                 review.customer_fields?.["product"] || 
+                                 review.customer_fields?.["Produkt"] ||
+                                 "Unknown product";
+              
+              const isExpanded = expanded.has(`completed-${review.customer_row_index}`);
+              const toggleKey = `completed-${review.customer_row_index}`;
+              
+              // Status styling
+              const statusStyles = {
+                approved: "bg-green-50 border-green-200 text-green-800",
+                rejected: "bg-red-50 border-red-200 text-red-800", 
+                auto_approved: "bg-blue-50 border-blue-200 text-blue-800"
+              };
+              
+              const statusLabels = {
+                approved: "Approved",
+                rejected: "Rejected",
+                auto_approved: "Auto-approved"
+              };
+
+              return (
+                <div key={review.customer_row_index} className={`rounded-lg border-2 p-4 ${statusStyles[review.decision as keyof typeof statusStyles] || 'bg-gray-50 border-gray-200'}`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="text-sm opacity-75">
+                        Review for: <span className="font-medium">"{productName}"</span>
+                      </div>
+                      <div className="px-2 py-1 text-xs font-medium rounded-full bg-white/50">
+                        {statusLabels[review.decision as keyof typeof statusLabels] || review.decision}
+                      </div>
+                    </div>
+                    <button 
+                      className="p-1 hover:bg-white/20 rounded transition-colors"
+                      onClick={() => {
+                        const newExpanded = new Set(expanded);
+                        if (newExpanded.has(toggleKey)) {
+                          newExpanded.delete(toggleKey);
+                        } else {
+                          newExpanded.add(toggleKey);
+                        }
+                        setExpanded(newExpanded);
+                      }}
+                    >
+                      {isExpanded ? (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                        </svg>
+                      ) : (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                  
+                  {isExpanded && (
+                    <div className="mt-3 pt-3 border-t border-white/30 text-sm">
+                      {review.approved_suggestion && (
+                        <div className="space-y-2">
+                          <div className="font-medium">Selected Match:</div>
+                          <div className="bg-white/30 p-3 rounded">
+                            <div className="font-semibold">
+                              {review.approved_suggestion.database_fields_json?.["Product_name"]}
+                            </div>
+                            {review.approved_suggestion.confidence && (
+                              <div className="text-xs opacity-75">
+                                Confidence: {Math.round(review.approved_suggestion.confidence * 100)}%
+                              </div>
+                            )}
+                            {review.approved_suggestion.database_fields_json && (
+                              <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                                <div>
+                                  <span className="font-medium">Supplier:</span> {review.approved_suggestion.database_fields_json["Supplier_name"]}
+                                </div>
+                                <div>
+                                  <span className="font-medium">Art.no:</span> {review.approved_suggestion.database_fields_json["Article_number"]}
+                                </div>
+                                <div>
+                                  <span className="font-medium">Market:</span> {review.approved_suggestion.database_fields_json["Market"]}
+                                </div>
+                                <div>
+                                  <span className="font-medium">Language:</span> {review.approved_suggestion.database_fields_json["Language"]}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {review.ai_summary && (
+                        <div className="mt-2">
+                          <div className="font-medium">Summary:</div>
+                          <div className="text-xs opacity-75 mt-1">{review.ai_summary}</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

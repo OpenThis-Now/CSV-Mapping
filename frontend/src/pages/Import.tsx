@@ -1,6 +1,7 @@
 import UploadArea from "@/components/UploadArea";
+import URLEnhancementStatus from "@/components/URLEnhancementStatus";
 import api from "@/lib/api";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useToast } from "@/contexts/ToastContext";
 
 type ImportFile = {
@@ -30,7 +31,9 @@ export default function ImportPage({ projectId, onImportChange }: { projectId: n
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [pdfUploading, setPdfUploading] = useState(false);
   const [urlEnhancing, setUrlEnhancing] = useState<number | null>(null);
+  const [urlEnhancementStatus, setUrlEnhancementStatus] = useState<any>(null);
   const { showToast } = useToast();
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   const refreshImports = async () => {
     try {
@@ -51,10 +54,59 @@ export default function ImportPage({ projectId, onImportChange }: { projectId: n
     }
   };
 
+  const checkUrlEnhancementStatus = async () => {
+    try {
+      const res = await api.get(`/projects/${projectId}/url-enhancement/status`);
+      if (res.data.has_active_enhancement) {
+        setUrlEnhancementStatus(res.data);
+        setUrlEnhancing(res.data.enhancement_run_id);
+      } else {
+        setUrlEnhancementStatus(null);
+        setUrlEnhancing(null);
+        if (pollingRef.current) {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+        }
+      }
+    } catch (error) {
+      console.error("Failed to check URL enhancement status:", error);
+    }
+  };
+
+  const startPolling = () => {
+    if (pollingRef.current) return; // Already polling
+    
+    pollingRef.current = setInterval(() => {
+      checkUrlEnhancementStatus();
+    }, 2000); // Poll every 2 seconds
+  };
+
+  const stopPolling = () => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+  };
+
   useEffect(() => {
     refreshImports();
     refreshProject();
+    checkUrlEnhancementStatus(); // Check for ongoing enhancements
   }, [projectId]);
+
+  useEffect(() => {
+    // Clean up polling on unmount
+    return () => stopPolling();
+  }, []);
+
+  useEffect(() => {
+    // Start/stop polling based on enhancement status
+    if (urlEnhancementStatus?.has_active_enhancement) {
+      startPolling();
+    } else {
+      stopPolling();
+    }
+  }, [urlEnhancementStatus]);
 
   const onFile = async (file: File) => {
     const fd = new FormData();
@@ -159,29 +211,35 @@ export default function ImportPage({ projectId, onImportChange }: { projectId: n
       return;
     }
     
-    setUrlEnhancing(importId);
     try {
       // First set this import as active
       await api.patch(`/projects/${projectId}`, { active_import_id: importId });
       
-      // Then enhance with URLs
+      // Then start enhancement process
       const res = await api.post(`/projects/${projectId}/enhance-with-urls`);
-      showToast(`Successfully enhanced import file with SDS data`, 'success');
-      setStatus(`Enhanced import file created with ${res.data.row_count} rows`);
-      await refreshImports();
-      await refreshProject();
+      showToast(`URL enhancement started for ${res.data.total_urls} URLs`, 'success');
+      setStatus(`URL enhancement started for ${res.data.total_urls} URLs`);
       
-      // Notify parent component about import change
-      if (onImportChange) {
-        onImportChange();
-      }
+      // Set enhancement status and start polling
+      setUrlEnhancing(res.data.enhancement_run_id);
+      setUrlEnhancementStatus({
+        has_active_enhancement: true,
+        enhancement_run_id: res.data.enhancement_run_id,
+        status: "running",
+        stats: {
+          totalUrls: res.data.total_urls,
+          queued: res.data.total_urls,
+          processing: 0,
+          completed: 0,
+          errors: 0
+        }
+      });
+      
     } catch (error: any) {
       console.error("URL enhancement failed:", error);
       const errorMessage = error.response?.data?.detail || "URL enhancement failed";
       showToast(`URL enhancement failed: ${errorMessage}`, 'error');
       setStatus(`URL enhancement failed: ${errorMessage}`);
-    } finally {
-      setUrlEnhancing(null);
     }
   };
 
@@ -190,6 +248,11 @@ export default function ImportPage({ projectId, onImportChange }: { projectId: n
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Customer Import</h1>
       </div>
+
+      {/* URL Enhancement Progress */}
+      {urlEnhancementStatus?.has_active_enhancement && (
+        <URLEnhancementStatus stats={urlEnhancementStatus.stats} />
+      )}
 
       {/* Upload Sections - Side by Side */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

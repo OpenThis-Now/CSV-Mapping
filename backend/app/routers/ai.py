@@ -41,11 +41,29 @@ def _process_single_product_ai(project_id: int, customer_row_index: int, session
     imp_separator = detect_csv_separator(Path(settings.IMPORTS_DIR) / imp.filename)
     db_separator = detect_csv_separator(Path(settings.DATABASES_DIR) / db.filename)
     
-    # Read customer data
-    cust_df = pd.read_csv(Path(settings.IMPORTS_DIR) / imp.filename, dtype=str, keep_default_na=False, sep=imp_separator)
+    # Read customer data with encoding handling
+    cust_df = None
+    for encoding in ["utf-8", "utf-8-sig", "latin-1", "cp1252", "iso-8859-1"]:
+        try:
+            cust_df = pd.read_csv(Path(settings.IMPORTS_DIR) / imp.filename, dtype=str, keep_default_na=False, sep=imp_separator, encoding=encoding)
+            break
+        except (UnicodeDecodeError, UnicodeError):
+            continue
     
-    # Read database data
-    db_df = pd.read_csv(Path(settings.DATABASES_DIR) / db.filename, dtype=str, keep_default_na=False, sep=db_separator)
+    if cust_df is None:
+        cust_df = pd.read_csv(Path(settings.IMPORTS_DIR) / imp.filename, dtype=str, keep_default_na=False, sep=imp_separator, encoding='utf-8', errors='replace')
+    
+    # Read database data with encoding handling
+    db_df = None
+    for encoding in ["utf-8", "utf-8-sig", "latin-1", "cp1252", "iso-8859-1"]:
+        try:
+            db_df = pd.read_csv(Path(settings.DATABASES_DIR) / db.filename, dtype=str, keep_default_na=False, sep=db_separator, encoding=encoding)
+            break
+        except (UnicodeDecodeError, UnicodeError):
+            continue
+    
+    if db_df is None:
+        db_df = pd.read_csv(Path(settings.DATABASES_DIR) / db.filename, dtype=str, keep_default_na=False, sep=db_separator, encoding='utf-8', errors='replace')
     
     # Get customer row
     if customer_row_index >= len(cust_df):
