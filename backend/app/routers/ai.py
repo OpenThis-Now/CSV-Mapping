@@ -19,6 +19,105 @@ import asyncio
 router = APIRouter()
 
 
+def _process_single_product_ai(project_id: int, customer_row_index: int, session: Session) -> list[AiSuggestionItem]:
+    """Process AI suggestions for a single product without circular imports."""
+    import pandas as pd
+    from ..services.files import detect_csv_separator
+    
+    # Get project data
+    p = session.get(Project, project_id)
+    if not p:
+        raise Exception(f"Project {project_id} not found")
+    
+    imp = session.exec(select(ImportFile).where(ImportFile.project_id == project_id).order_by(ImportFile.created_at.desc())).first()
+    if not imp:
+        raise Exception("No import file found")
+    
+    db = session.get(DatabaseCatalog, p.active_database_id) if p.active_database_id else None
+    if not db:
+        raise Exception("No active database found")
+    
+    # Load CSV data
+    imp_separator = detect_csv_separator(Path(settings.IMPORTS_DIR) / imp.filename)
+    db_separator = detect_csv_separator(Path(settings.DATABASES_DIR) / db.filename)
+    
+    # Read customer data
+    cust_df = pd.read_csv(Path(settings.IMPORTS_DIR) / imp.filename, dtype=str, keep_default_na=False, sep=imp_separator)
+    
+    # Read database data
+    db_df = pd.read_csv(Path(settings.DATABASES_DIR) / db.filename, dtype=str, keep_default_na=False, sep=db_separator)
+    
+    # Get customer row
+    if customer_row_index >= len(cust_df):
+        raise Exception(f"Customer row index {customer_row_index} out of range")
+    
+    crow = dict(cust_df.iloc[customer_row_index])
+    
+    # Use mappings
+    customer_mapping = imp.columns_map_json or auto_map_headers(cust_df.columns)
+    db_mapping = db.columns_map_json or auto_map_headers(db_df.columns)
+    
+    # Find similar products in database
+    db_df["__sim"] = db_df[db_mapping["product"]].apply(lambda x: score_fields(crow.get(customer_mapping["product"], ""), x))
+    short = db_df.sort_values("__sim", ascending=False).head(20).drop(columns=["__sim"])
+    db_sample = [dict(r) for _, r in short.iterrows()]
+    
+    # Generate AI suggestions
+    try:
+        prompt = build_ai_prompt(crow, db_sample, customer_mapping, 3)
+        ai_list = suggest_with_openai(prompt, max_items=3)
+        
+        # Save suggestions to database
+        out = []
+        for rank, item in enumerate(ai_list):
+            s = AiSuggestion(
+                project_id=project_id,
+                customer_row_index=customer_row_index,
+                rank=rank + 1,
+                database_fields_json=item["database_fields_json"],
+                confidence=item["confidence"],
+                rationale=item["rationale"],
+                source="ai"
+            )
+            session.add(s)
+            
+            # Auto-approve if confidence is high enough
+            if s.confidence >= 0.95:
+                # Update the match result
+                match_result = session.exec(
+                    select(MatchResult).where(
+                        MatchResult.customer_row_index == customer_row_index,
+                        MatchResult.decision == "sent_to_ai"
+                    ).order_by(MatchResult.id.desc())
+                ).first()
+                
+                if match_result:
+                    match_result.decision = "ai_auto_approved"
+                    match_result.db_fields_json = item["database_fields_json"]
+                    match_result.ai_status = "auto_approved"
+                    match_result.ai_summary = f"AI auto-approved with {s.confidence:.0%} confidence: {s.rationale}"
+                    session.add(match_result)
+            
+            out.append(AiSuggestionItem(
+                id=0,  # Will be set after commit
+                customer_row_index=s.customer_row_index,
+                rank=s.rank,
+                database_fields_json=s.database_fields_json,
+                confidence=s.confidence,
+                rationale=s.rationale,
+                source=s.source,
+            ))
+        
+        session.commit()
+        return out
+        
+    except Exception as e:
+        import logging
+        log = logging.getLogger("app.ai")
+        log.error(f"AI processing failed for row {customer_row_index}: {e}")
+        return []
+
+
 def build_ai_prompt(customer_row, db_sample, mapping, k: int) -> str:
     import textwrap
     return textwrap.dedent(f"""
@@ -446,32 +545,21 @@ def auto_queue_ai_analysis(project_id: int, session: Session = Depends(get_sessi
     
     session.commit()
     
-    # Start background processing immediately using the existing AI suggest endpoint
+    # Start background processing immediately with simplified approach
     try:
         import threading
         import time
         
         def run_ai_queue():
-            """Process AI queue in batches of 10 products with pause/resume support"""
-            import time
-            from ..db import get_session
-            from ..services.ai_queue_manager import ai_queue_manager
-            
-            # Register this thread
-            ai_queue_manager.register_thread(project_id, threading.current_thread())
+            """Process AI queue in batches with automatic continuation"""
+            log.info(f"Starting AI queue processing for project {project_id}")
             
             try:
-                # Process in batches until no more queued products
+                # Process until no more queued products
                 while True:
-                    # Check if paused before each batch
-                    if not ai_queue_manager.wait_if_paused(project_id):
-                        break
-                    
                     # Create new session for each batch
-                    batch_session = next(get_session())
-                    
-                    try:
-                        # Get next batch of queued products for the latest match run
+                    with next(get_session()) as batch_session:
+                        # Get latest match run
                         latest_run = batch_session.exec(
                             select(MatchRun).where(MatchRun.project_id == project_id).order_by(MatchRun.started_at.desc())
                         ).first()
@@ -480,12 +568,13 @@ def auto_queue_ai_analysis(project_id: int, session: Session = Depends(get_sessi
                             log.info(f"No match run found for project {project_id}")
                             break
                         
+                        # Get next batch of queued products
                         queued_products = batch_session.exec(
                             select(MatchResult).where(
                                 MatchResult.match_run_id == latest_run.id,
                                 MatchResult.decision == "sent_to_ai",
                                 MatchResult.ai_status == "queued"
-                            ).limit(10)  # Process 10 at a time
+                            ).limit(5)  # Process 5 at a time for better reliability
                         ).all()
                         
                         if not queued_products:
@@ -494,39 +583,18 @@ def auto_queue_ai_analysis(project_id: int, session: Session = Depends(get_sessi
                         
                         log.info(f"Processing batch of {len(queued_products)} products for project {project_id}")
                         
-                        # Mark as processing
-                        for product in queued_products:
-                            product.ai_status = "processing"
-                            batch_session.add(product)
-                        batch_session.commit()
-                        
                         # Process each product in the batch
                         for product in queued_products:
-                            # Check if paused before each product
-                            if not ai_queue_manager.wait_if_paused(project_id):
-                                # Mark remaining products as queued again
-                                for remaining in queued_products:
-                                    if remaining.ai_status == "processing":
-                                        remaining.ai_status = "queued"
-                                        batch_session.add(remaining)
-                                batch_session.commit()
-                                return
-                            
                             try:
+                                # Mark as processing
+                                product.ai_status = "processing"
+                                batch_session.add(product)
+                                batch_session.commit()
+                                
                                 log.info(f"Processing product {product.customer_row_index}")
                                 
-                                # Use existing AI suggest endpoint logic
-                                from .ai import ai_suggest
-                                from ..schemas import AiSuggestRequest
-                                
-                                # Create request for this single product
-                                req = AiSuggestRequest(
-                                    customer_row_indices=[product.customer_row_index],
-                                    max_suggestions=3
-                                )
-                                
-                                # Call the existing AI suggest function
-                                suggestions = ai_suggest(project_id, req, batch_session)
+                                # Process AI suggestions
+                                suggestions = _process_single_product_ai(project_id, product.customer_row_index, batch_session)
                                 
                                 log.info(f"Generated {len(suggestions)} suggestions for product {product.customer_row_index}")
                                 
@@ -540,22 +608,14 @@ def auto_queue_ai_analysis(project_id: int, session: Session = Depends(get_sessi
                                 product.ai_status = "failed"
                                 batch_session.add(product)
                                 batch_session.commit()
-                        
-                        log.info(f"Completed batch processing for project {project_id}")
-                        
-                    finally:
-                        batch_session.close()
                     
-                    # Small delay before next batch
-                    time.sleep(1)
+                    # Small delay between batches
+                    time.sleep(2)
                 
                 log.info(f"All AI processing completed for project {project_id}")
                 
             except Exception as e:
                 log.error(f"Error in AI queue processing: {e}")
-            finally:
-                # Unregister this thread
-                ai_queue_manager.unregister_thread(project_id)
         
         thread = threading.Thread(target=run_ai_queue)
         thread.daemon = True
