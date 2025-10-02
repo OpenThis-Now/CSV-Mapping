@@ -531,10 +531,14 @@ def get_completed_ai_reviews(project_id: int, session: Session = Depends(get_ses
 
 
 @router.post("/projects/{project_id}/ai/auto-queue")
-def auto_queue_ai_analysis(project_id: int, session: Session = Depends(get_session)):
+def auto_queue_ai_analysis(project_id: int, session: Session = None):
     """Automatically queue products with scores between 70-95 for AI analysis."""
     import logging
     log = logging.getLogger("app.ai")
+    
+    # Create session if not provided
+    if session is None:
+        session = next(get_session())
     
     p = session.get(Project, project_id)
     if not p:
@@ -562,8 +566,21 @@ def auto_queue_ai_analysis(project_id: int, session: Session = Depends(get_sessi
     
     log.info(f"Found {len(results_to_queue)} products in 70-95 score range")
     
-    if not results_to_queue:
+    # Check if there are any manually sent products that need processing
+    manually_sent_products = session.exec(
+        select(MatchResult).where(
+            MatchResult.match_run_id == latest_run.id,
+            MatchResult.decision == "sent_to_ai",
+            MatchResult.ai_status == "queued"
+        )
+    ).all()
+    
+    if not results_to_queue and not manually_sent_products:
         return {"message": "No products found in the 70-95 score range to queue for AI analysis.", "queued_count": 0}
+    
+    # If no auto-queued products but manually sent products exist, still start processing
+    if not results_to_queue and manually_sent_products:
+        log.info(f"Found {len(manually_sent_products)} manually sent products to process")
     
     # Update these results to "sent_to_ai" status
     queued_count = 0
@@ -576,6 +593,7 @@ def auto_queue_ai_analysis(project_id: int, session: Session = Depends(get_sessi
     session.commit()
     
     # Start background processing immediately with simplified approach
+    # This will process both auto-queued and manually sent products
     try:
         import threading
         import time
@@ -583,6 +601,7 @@ def auto_queue_ai_analysis(project_id: int, session: Session = Depends(get_sessi
         def run_ai_queue():
             """Process AI queue in batches with automatic continuation"""
             log.info(f"Starting AI queue processing for project {project_id}")
+            log.info(f"Auto-queued: {queued_count}, Manually sent: {len(manually_sent_products) if 'manually_sent_products' in locals() else 0}")
             
             try:
                 # Process until no more queued products
@@ -598,7 +617,7 @@ def auto_queue_ai_analysis(project_id: int, session: Session = Depends(get_sessi
                             log.info(f"No match run found for project {project_id}")
                             break
                         
-                        # Get next batch of queued products
+                        # Get next batch of queued products (including manually sent ones)
                         queued_products = batch_session.exec(
                             select(MatchResult).where(
                                 MatchResult.match_run_id == latest_run.id,
