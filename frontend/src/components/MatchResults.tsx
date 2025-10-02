@@ -345,10 +345,6 @@ export default function MatchResults({ results, selectedIds, onSelectionChange, 
 
       {localView === "table" ? <TableView results={filteredResults} selectedIds={selectedIds} onSelectionChange={onSelectionChange} /> : <CardView results={filteredResults} selectedIds={selectedIds} onSelectionChange={onSelectionChange} />}
 
-      <p className="text-xs text-gray-500">
-        Tip: The scale of the product name is controlled by <code className="rounded bg-gray-100 px-1">text-base font-semibold</code> – 
-        increase to <code className="rounded bg-gray-100 px-1">text-lg</code> if you want to make it even clearer.
-      </p>
     </div>
   );
 }
