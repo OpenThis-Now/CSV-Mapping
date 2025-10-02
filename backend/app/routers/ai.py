@@ -601,14 +601,15 @@ def auto_queue_ai_analysis(project_id: int, session: Session = Depends(get_sessi
                         
                         log.info(f"Processing batch of {len(queued_products)} products for project {project_id}")
                         
-                        # Process each product in the batch
+                        # First, mark all products in batch as processing
+                        for product in queued_products:
+                            product.ai_status = "processing"
+                            batch_session.add(product)
+                        batch_session.commit()
+                        
+                        # Then process each product in the batch
                         for product in queued_products:
                             try:
-                                # Mark as processing
-                                product.ai_status = "processing"
-                                batch_session.add(product)
-                                batch_session.commit()
-                                
                                 log.info(f"Processing product {product.customer_row_index}")
                                 
                                 # Process AI suggestions
