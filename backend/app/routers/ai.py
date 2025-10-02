@@ -19,7 +19,7 @@ import asyncio
 router = APIRouter()
 
 
-def _process_single_product_ai(project_id: int, customer_row_index: int, session: Session) -> list[AiSuggestionItem]:
+def _process_single_product_ai(project_id: int, customer_row_index: int, session: Session, api_key_index: int = 0) -> list[AiSuggestionItem]:
     """Process AI suggestions for a single product without circular imports."""
     import pandas as pd
     from ..services.files import detect_csv_separator
@@ -83,7 +83,7 @@ def _process_single_product_ai(project_id: int, customer_row_index: int, session
     # Generate AI suggestions
     try:
         prompt = build_ai_prompt(crow, db_sample, customer_mapping, 3)
-        ai_list = suggest_with_openai(prompt, max_items=3)
+        ai_list = suggest_with_openai(prompt, max_items=3, api_key_index=api_key_index)
         
         # Save suggestions to database
         out = []
@@ -322,7 +322,7 @@ def ai_suggest(project_id: int, req: AiSuggestRequest, session: Session = Depend
         used = "ai"
         try:
             prompt = build_ai_prompt(crow, db_sample, customer_mapping, req.max_suggestions)
-            ai_list = suggest_with_openai(prompt, max_items=req.max_suggestions)
+            ai_list = suggest_with_openai(prompt, max_items=req.max_suggestions, api_key_index=0)
         except Exception:
             used = "heuristic"
             # Create better explanations for heuristic matches
@@ -619,26 +619,55 @@ def auto_queue_ai_analysis(project_id: int, session: Session = Depends(get_sessi
                             batch_session.add(product)
                         batch_session.commit()
                         
-                        # Then process each product in the batch
-                        for product in queued_products:
+                        # Process products in parallel using threading
+                        import concurrent.futures
+                        import threading
+                        
+                        def process_single_product(product):
+                            """Process a single product with its own session"""
                             try:
                                 log.info(f"Processing product {product.customer_row_index}")
                                 
-                                # Process AI suggestions
-                                suggestions = _process_single_product_ai(project_id, product.customer_row_index, batch_session)
-                                
-                                log.info(f"Generated {len(suggestions)} suggestions for product {product.customer_row_index}")
-                                
-                                # Mark as completed
-                                product.ai_status = "completed"
-                                batch_session.add(product)
-                                batch_session.commit()
-                                
+                                # Create new session for this thread
+                                with next(get_session()) as thread_session:
+                                    # Get fresh product data
+                                    fresh_product = thread_session.get(MatchResult, product.id)
+                                    if not fresh_product:
+                                        return
+                                    
+                                    # Process AI suggestions with API key rotation
+                                    api_key_index = product.customer_row_index % 5  # Rotate through 5 API keys
+                                    suggestions = _process_single_product_ai(project_id, product.customer_row_index, thread_session, api_key_index)
+                                    
+                                    log.info(f"Generated {len(suggestions)} suggestions for product {product.customer_row_index}")
+                                    
+                                    # Mark as completed
+                                    fresh_product.ai_status = "completed"
+                                    thread_session.add(fresh_product)
+                                    thread_session.commit()
+                                    
                             except Exception as e:
                                 log.error(f"Error processing product {product.customer_row_index}: {e}")
-                                product.ai_status = "failed"
-                                batch_session.add(product)
-                                batch_session.commit()
+                                # Mark as failed
+                                with next(get_session()) as thread_session:
+                                    fresh_product = thread_session.get(MatchResult, product.id)
+                                    if fresh_product:
+                                        fresh_product.ai_status = "failed"
+                                        thread_session.add(fresh_product)
+                                        thread_session.commit()
+                        
+                        # Use ThreadPoolExecutor for parallel processing
+                        max_workers = min(len(queued_products), 5)  # Max 5 parallel workers
+                        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                            # Submit all products for parallel processing
+                            futures = [executor.submit(process_single_product, product) for product in queued_products]
+                            
+                            # Wait for all to complete
+                            for future in concurrent.futures.as_completed(futures):
+                                try:
+                                    future.result()  # This will raise any exceptions
+                                except Exception as e:
+                                    log.error(f"Thread execution error: {e}")
                     
                     # Small delay between batches
                     time.sleep(0.5)

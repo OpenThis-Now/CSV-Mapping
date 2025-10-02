@@ -39,6 +39,10 @@ class Settings(BaseSettings):
 
     # AI
     OPENAI_API_KEY: str | None = Field(default=None)
+    OPENAI_API_KEY_2: str | None = Field(default=None)
+    OPENAI_API_KEY_3: str | None = Field(default=None)
+    OPENAI_API_KEY_4: str | None = Field(default=None)
+    OPENAI_API_KEY_5: str | None = Field(default=None)
     AI_MODEL: str = Field(default="gpt-4o-mini")
 
     # Matching thresholds (defaults; can be overridden per run)

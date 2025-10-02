@@ -13,11 +13,23 @@ except Exception:
 log = logging.getLogger("app.openai")
 
 
-def suggest_with_openai(prompt: str, max_items: int = 3) -> list[dict[str, Any]]:
-    if not settings.OPENAI_API_KEY or OpenAI is None:
+def suggest_with_openai(prompt: str, max_items: int = 3, api_key_index: int = 0) -> list[dict[str, Any]]:
+    # Support multiple API keys for parallel processing
+    api_keys = [
+        settings.OPENAI_API_KEY,
+        getattr(settings, 'OPENAI_API_KEY_2', None),
+        getattr(settings, 'OPENAI_API_KEY_3', None),
+        getattr(settings, 'OPENAI_API_KEY_4', None),
+        getattr(settings, 'OPENAI_API_KEY_5', None),
+    ]
+    
+    # Filter out None keys and cycle through available keys
+    available_keys = [key for key in api_keys if key]
+    if not available_keys:
         raise RuntimeError("OPENAI_DISABLED")
-
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)  # type: ignore
+    
+    selected_key = available_keys[api_key_index % len(available_keys)]
+    client = OpenAI(api_key=selected_key)  # type: ignore
     model = settings.AI_MODEL
     resp = client.chat.completions.create(
         model=model,
