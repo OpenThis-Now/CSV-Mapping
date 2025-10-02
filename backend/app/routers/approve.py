@@ -99,7 +99,19 @@ def send_to_ai(project_id: int, req: ApproveRequest, session: Session = Depends(
     for r in results:
         if r.id in set(req.ids) or r.customer_row_index in set(req.customer_row_indices):
             r.decision = "sent_to_ai"
+            r.ai_status = "queued"  # Add to AI queue
             session.add(r)
             count += 1
     session.commit()
+    
+    # Start AI processing for manually sent products
+    if count > 0:
+        from .ai import auto_queue_ai_analysis
+        try:
+            auto_queue_ai_analysis(project_id, session)
+        except Exception as e:
+            # Log error but don't fail the request
+            import logging
+            logging.getLogger("app.ai").error(f"Failed to start AI queue for manual products: {e}")
+    
     return {"updated": count}

@@ -482,13 +482,13 @@ def get_completed_ai_reviews(project_id: int, session: Session = Depends(get_ses
     completed_reviews = []
     for result in completed_results:
         # Determine the AI decision status
-        if result.ai_status:
-            # Has explicit AI status (approved, rejected, auto_approved)
-            decision = result.ai_status
-        elif result.decision == "ai_auto_approved":
-            # AI auto-approved
+        if result.ai_status == "auto_approved" or result.decision == "ai_auto_approved":
+            # AI auto-approved (both automatic and manual flows should show same status)
             decision = "auto_approved"
-        elif result.decision == "rejected" and result.customer_row_index in ai_suggestion_rows:
+        elif result.ai_status == "approved":
+            # Manually approved after AI suggestions
+            decision = "approved"
+        elif result.ai_status == "rejected" or (result.decision == "rejected" and result.customer_row_index in ai_suggestion_rows):
             # Rejected after AI suggestions were made
             decision = "rejected"
         elif result.decision == "approved" and result.customer_row_index in ai_suggestion_rows:
@@ -671,11 +671,12 @@ def get_ai_queue_status(project_id: int, session: Session = Depends(get_session)
         }
     
     # Count products in different AI states for this match run
+    # Include both explicitly queued and newly sent to AI (without ai_status yet)
     queued_count = len(session.exec(
         select(MatchResult).where(
             MatchResult.match_run_id == latest_run.id,
             MatchResult.decision == "sent_to_ai",
-            MatchResult.ai_status == "queued"
+            (MatchResult.ai_status == "queued") | (MatchResult.ai_status.is_(None))
         )
     ).all())
     

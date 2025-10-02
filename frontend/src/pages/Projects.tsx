@@ -188,12 +188,6 @@ export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: n
           const counts = formatStatusCounts(projectStats[p.id]);
           const pctCompleted = counts.total > 0 ? ((counts.matched + counts.notAvailable) / counts.total) * 100 : 0;
           
-          const Stat = ({ label, value }: { label: string; value: number }) => (
-            <div className="flex flex-col">
-              <span className="text-2xl font-semibold leading-none tracking-tight">{value}</span>
-              <span className="text-xs text-gray-600">{label}</span>
-            </div>
-          );
 
           const Pill = ({ children }: { children: React.ReactNode }) => (
             <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">
@@ -255,12 +249,6 @@ export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: n
                         <Pill>{counts.total} total</Pill>
                       </div>
 
-                      {/* KPI row */}
-                      <div className="grid grid-cols-3 gap-4">
-                        <Stat label="Matched" value={counts.matched} />
-                        <Stat label="Action required" value={counts.actionRequired} />
-                        <Stat label="Rejected" value={counts.notAvailable} />
-                      </div>
 
                       {/* Progress bar */}
                       <div className="space-y-2">
