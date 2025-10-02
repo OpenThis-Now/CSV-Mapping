@@ -276,9 +276,28 @@ def ai_suggest(project_id: int, req: AiSuggestRequest, session: Session = Depend
 
 @router.get("/projects/{project_id}/ai/suggestions", response_model=list[AiSuggestionItem])
 def get_ai_suggestions(project_id: int, session: Session = Depends(get_session)) -> list[AiSuggestionItem]:
-    """Get all AI suggestions for a project."""
+    """Get AI suggestions that are still pending review."""
+    # Get the latest match run for this project
+    latest_run = session.exec(
+        select(MatchRun).where(MatchRun.project_id == project_id).order_by(MatchRun.started_at.desc())
+    ).first()
+    
+    if not latest_run:
+        return []
+    
+    # Get customer row indices that have already been decided
+    completed_row_indices = session.exec(
+        select(MatchResult.customer_row_index)
+        .where(MatchResult.match_run_id == latest_run.id)
+        .where(MatchResult.ai_status.in_(["approved", "rejected", "auto_approved"]))
+    ).all()
+    
+    # Get suggestions that are NOT for completed rows
     suggestions = session.exec(
-        select(AiSuggestion).where(AiSuggestion.project_id == project_id).order_by(AiSuggestion.customer_row_index, AiSuggestion.rank)
+        select(AiSuggestion)
+        .where(AiSuggestion.project_id == project_id)
+        .where(~AiSuggestion.customer_row_index.in_(completed_row_indices))
+        .order_by(AiSuggestion.customer_row_index, AiSuggestion.rank)
     ).all()
     
     return [
@@ -293,6 +312,47 @@ def get_ai_suggestions(project_id: int, session: Session = Depends(get_session))
         )
         for s in suggestions
     ]
+
+
+@router.get("/projects/{project_id}/ai/completed-reviews")
+def get_completed_ai_reviews(project_id: int, session: Session = Depends(get_session)):
+    """Get AI suggestions that have been approved or rejected."""
+    # Get the latest match run for this project
+    latest_run = session.exec(
+        select(MatchRun).where(MatchRun.project_id == project_id).order_by(MatchRun.started_at.desc())
+    ).first()
+    
+    if not latest_run:
+        return []
+    
+    # Get match results that have been decided and had AI suggestions
+    completed_results = session.exec(
+        select(MatchResult)
+        .where(MatchResult.match_run_id == latest_run.id)
+        .where(MatchResult.ai_status.in_(["approved", "rejected", "auto_approved"]))
+        .order_by(MatchResult.customer_row_index)
+    ).all()
+    
+    completed_reviews = []
+    for result in completed_results:
+        # Get the approved AI suggestion if it exists
+        ai_suggestion = None
+        if result.approved_ai_suggestion_id:
+            ai_suggestion = session.get(AiSuggestion, result.approved_ai_suggestion_id)
+        
+        completed_reviews.append({
+            "customer_row_index": result.customer_row_index,
+            "decision": result.ai_status,
+            "customer_fields": result.customer_fields_json,
+            "ai_summary": result.ai_summary,
+            "approved_suggestion": {
+                "database_fields_json": ai_suggestion.database_fields_json if ai_suggestion else None,
+                "confidence": ai_suggestion.confidence if ai_suggestion else None,
+                "rationale": ai_suggestion.rationale if ai_suggestion else None
+            } if ai_suggestion else None
+        })
+    
+    return completed_reviews
 
 
 @router.post("/projects/{project_id}/ai/auto-queue")

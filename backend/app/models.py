@@ -88,3 +88,17 @@ class AiSuggestion(SQLModel, table=True):
     rationale: str = Field(sa_column=Column(Text))
     source: str = Field(default="ai")
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class URLEnhancementRun(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    project_id: int = Field(foreign_key="project.id", index=True)
+    import_file_id: int = Field(foreign_key="importfile.id", index=True)
+    total_urls: int = 0
+    processed_urls: int = 0
+    successful_urls: int = 0
+    failed_urls: int = 0
+    status: str = Field(default="running", index=True)  # running, completed, failed
+    started_at: datetime = Field(default_factory=datetime.utcnow)
+    finished_at: Optional[datetime] = None
+    error_message: Optional[str] = Field(default=None, sa_column=Column(Text))

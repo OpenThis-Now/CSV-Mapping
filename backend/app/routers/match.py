@@ -58,7 +58,7 @@ def run_matching(project_id: int, req: MatchRequest, session: Session = Depends(
         log.info(f"Mapping: {imp.columns_map_json}")
         
         # Debug: Check if mapping has the required fields
-        required_fields = ["vendor", "product", "sku"]
+        required_fields = ["vendor", "product", "sku", "market", "language"]
         for field in required_fields:
             if field not in imp.columns_map_json:
                 log.warning(f"Missing mapping for field '{field}' in import {imp.id}")
