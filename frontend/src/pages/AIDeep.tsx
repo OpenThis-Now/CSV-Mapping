@@ -370,41 +370,52 @@ export default function AIDeep({ projectId }: { projectId: number }) {
                   
                   {isExpanded && (
                     <div className="mt-3 pt-3 border-t border-white/30 text-sm">
-                      {review.approved_suggestion && (
-                        <div className="space-y-2">
-                          <div className="font-medium">Selected Match:</div>
-                          <div className="bg-white/30 p-3 rounded">
-                            <div className="font-semibold">
-                              {review.approved_suggestion.database_fields_json?.["Product_name"]}
+                      {/* Input vs Database Comparison */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                          <div className="font-medium mb-2 text-xs uppercase tracking-wide opacity-75">Input Data</div>
+                          <div className="bg-white/20 p-3 rounded text-xs">
+                            <div className="font-semibold mb-1">{productName}</div>
+                            <div className="space-y-1 opacity-75">
+                              <div><span className="font-medium">Supplier:</span> {review.customer_fields?.["Supplier"] || review.customer_fields?.["Supplier_name"] || "-"}</div>
+                              <div><span className="font-medium">Art.no:</span> {review.customer_fields?.["Art.no"] || review.customer_fields?.["Article_number"] || "-"}</div>
+                              <div><span className="font-medium">Market:</span> {review.customer_fields?.["Market"] || "-"}</div>
+                              <div><span className="font-medium">Language:</span> {review.customer_fields?.["Language"] || "-"}</div>
                             </div>
-                            {review.approved_suggestion.confidence && (
-                              <div className="text-xs opacity-75">
-                                Confidence: {Math.round(review.approved_suggestion.confidence * 100)}%
-                              </div>
-                            )}
-                            {review.approved_suggestion.database_fields_json && (
-                              <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-                                <div>
-                                  <span className="font-medium">Supplier:</span> {review.approved_suggestion.database_fields_json["Supplier_name"]}
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <div className="font-medium mb-2 text-xs uppercase tracking-wide opacity-75">Database Match</div>
+                          <div className="bg-white/20 p-3 rounded text-xs">
+                            {review.approved_suggestion ? (
+                              <>
+                                <div className="font-semibold mb-1">
+                                  {review.approved_suggestion.database_fields_json?.["Product_name"]}
                                 </div>
-                                <div>
-                                  <span className="font-medium">Art.no:</span> {review.approved_suggestion.database_fields_json["Article_number"]}
+                                <div className="space-y-1 opacity-75">
+                                  <div><span className="font-medium">Supplier:</span> {review.approved_suggestion.database_fields_json?.["Supplier_name"] || "-"}</div>
+                                  <div><span className="font-medium">Art.no:</span> {review.approved_suggestion.database_fields_json?.["Article_number"] || "-"}</div>
+                                  <div><span className="font-medium">Market:</span> {review.approved_suggestion.database_fields_json?.["Market"] || "-"}</div>
+                                  <div><span className="font-medium">Language:</span> {review.approved_suggestion.database_fields_json?.["Language"] || "-"}</div>
                                 </div>
-                                <div>
-                                  <span className="font-medium">Market:</span> {review.approved_suggestion.database_fields_json["Market"]}
-                                </div>
-                                <div>
-                                  <span className="font-medium">Language:</span> {review.approved_suggestion.database_fields_json["Language"]}
-                                </div>
-                              </div>
+                                {review.approved_suggestion.confidence && (
+                                  <div className="mt-2 text-xs font-medium">
+                                    AI Confidence: {Math.round(review.approved_suggestion.confidence * 100)}%
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <div className="opacity-75">No match selected</div>
                             )}
                           </div>
                         </div>
-                      )}
+                      </div>
+                      
                       {review.ai_summary && (
                         <div className="mt-2">
-                          <div className="font-medium">Summary:</div>
-                          <div className="text-xs opacity-75 mt-1">{review.ai_summary}</div>
+                          <div className="font-medium">AI Summary:</div>
+                          <div className="text-xs opacity-75 mt-1 bg-white/10 p-2 rounded">{review.ai_summary}</div>
                         </div>
                       )}
                     </div>

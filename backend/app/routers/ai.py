@@ -423,6 +423,18 @@ def get_ai_suggestions(project_id: int, session: Session = Depends(get_session))
         .order_by(AiSuggestion.customer_row_index, AiSuggestion.rank)
     ).all()
     
+    # Deduplicate suggestions by customer_row_index + product_name to avoid showing identical matches
+    seen_combinations = set()
+    deduplicated_suggestions = []
+    
+    for s in suggestions:
+        product_name = s.database_fields_json.get("Product_name", "")
+        combination_key = (s.customer_row_index, product_name)
+        
+        if combination_key not in seen_combinations:
+            seen_combinations.add(combination_key)
+            deduplicated_suggestions.append(s)
+    
     return [
         AiSuggestionItem(
             id=s.id,
@@ -433,7 +445,7 @@ def get_ai_suggestions(project_id: int, session: Session = Depends(get_session))
             rationale=s.rationale,
             source=s.source,
         )
-        for s in suggestions
+        for s in deduplicated_suggestions
     ]
 
 
