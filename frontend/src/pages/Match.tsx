@@ -15,7 +15,7 @@ export default function MatchPage({ projectId }: { projectId: number }) {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(25);
-  const { startAnalysis, startAutoQueue } = useAI();
+  const { startAutoQueue } = useAI();
   const { showToast } = useToast();
 
   const run = async () => {
@@ -106,17 +106,10 @@ export default function MatchPage({ projectId }: { projectId: number }) {
     
     await api.post(`/projects/${projectId}/send-to-ai`, { ids: selectedIds });
     await refresh();
-    
-    // Get the customer row indices for the selected products
-    const selectedResults = results.filter(r => selectedIds.includes(r.id));
-    const selectedRowIndices = selectedResults.map(r => r.customer_row_index);
-    
     setSelectedIds([]);
     
-    // Start AI analysis only for the newly sent products (not all sent_to_ai products)
-    if (selectedRowIndices.length > 0) {
-      await startAnalysis(projectId, selectedRowIndices);
-    }
+    // Backend auto_queue_ai_analysis() will handle the AI processing automatically
+    // No need to call startAnalysis() here as it would duplicate the AI processing
   };
 
   useEffect(() => { refresh(); }, []);
