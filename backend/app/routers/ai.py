@@ -647,8 +647,8 @@ def get_ai_queue_status(project_id: int, session: Session = Depends(get_session)
         return {
             "queued": 0,
             "processing": 0,
-            "completed": 0,
-            "total": 0
+            "ready": 0,
+            "autoApproved": 0
         }
     
     # Count products in different AI states for this match run
@@ -668,7 +668,7 @@ def get_ai_queue_status(project_id: int, session: Session = Depends(get_session)
         )
     ).all())
     
-    completed_count = len(session.exec(
+    ready_count = len(session.exec(
         select(MatchResult).where(
             MatchResult.match_run_id == latest_run.id,
             MatchResult.decision == "sent_to_ai",
@@ -683,12 +683,22 @@ def get_ai_queue_status(project_id: int, session: Session = Depends(get_session)
         )
     ).all())
     
+    # Only show AI queue status if there are actually AI-related products
+    total_ai_products = queued_count + processing_count + ready_count + auto_approved_count
+    
+    if total_ai_products == 0:
+        return {
+            "queued": 0,
+            "processing": 0,
+            "ready": 0,
+            "autoApproved": 0
+        }
+    
     return {
         "queued": queued_count,
         "processing": processing_count,
-        "ready": completed_count,
-        "autoApproved": auto_approved_count,
-        "total": queued_count + processing_count + completed_count + auto_approved_count
+        "ready": ready_count,
+        "autoApproved": auto_approved_count
     }
 
 
