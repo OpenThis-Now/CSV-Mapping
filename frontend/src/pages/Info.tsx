@@ -12,14 +12,15 @@ export default function InfoPage() {
     "Language - Language",
   ];
   const inputOptional = [
+    "Location_ID - Location ID",
     "Product_ID - Product ID",
     "Description - Description",
     "SDS-URL - URL to PDF safety data sheet",
   ];
-  const inputTemplate = `Product_name;Supplier_name;Article_number;Market;Language;Product_ID;Description;SDS-URL
-THINNER 215;Carboline;05570910001D;Canada;English;PROD001;Industrial paint thinner;https://example.com/sds/thinner215.pdf
-MAPEFLOOR FILLER;MAPEI INC.;245633;Canada;English;PROD002;Floor filler compound;https://example.com/sds/mapefloor.pdf
-BAR-RUST 235 BLACK;AkzoNobel;HB9903;Canada;English;PROD003;Rust protection paint;https://example.com/sds/bar-rust.pdf`;
+  const inputTemplate = `Product_name;Supplier_name;Article_number;Market;Language;Location_ID;Product_ID;Description;SDS-URL
+THINNER 215;Carboline;05570910001D;Canada;English;LOC001;PROD001;Industrial paint thinner;https://example.com/sds/thinner215.pdf
+MAPEFLOOR FILLER;MAPEI INC.;245633;Canada;English;LOC002;PROD002;Floor filler compound;https://example.com/sds/mapefloor.pdf
+BAR-RUST 235 BLACK;AkzoNobel;HB9903;Canada;English;LOC003;PROD003;Rust protection paint;https://example.com/sds/bar-rust.pdf`;
 
   const dbRequired = [
     "Product_name - Product name",
