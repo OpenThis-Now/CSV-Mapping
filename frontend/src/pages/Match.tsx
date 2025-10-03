@@ -154,7 +154,8 @@ export default function MatchPage({ projectId }: { projectId: number }) {
   });
 
   const totalPages = Math.ceil(filteredResults.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
+  const safeCurrentPage = Math.max(1, currentPage);
+  const startIndex = (safeCurrentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedResults = filteredResults.slice(startIndex, endIndex);
   
@@ -163,10 +164,12 @@ export default function MatchPage({ projectId }: { projectId: number }) {
     results: results.length,
     filteredResults: filteredResults.length,
     currentPage,
+    safeCurrentPage,
     itemsPerPage,
     startIndex,
     endIndex,
-    paginatedResults: paginatedResults.length
+    paginatedResults: paginatedResults.length,
+    filteredResultsData: filteredResults
   });
 
   // Reset to page 1 when filter changes
