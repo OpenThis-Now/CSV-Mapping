@@ -39,6 +39,11 @@ export default function MatchPage({ projectId }: { projectId: number }) {
         }
       });
       
+      // Immediately try to refresh results in case matching is very fast
+      setTimeout(async () => {
+        await refresh();
+      }, 1000);
+      
       // Poll för progress
       const pollProgress = async () => {
         try {
@@ -67,6 +72,13 @@ export default function MatchPage({ projectId }: { projectId: number }) {
       
       // Start polling efter en kort delay
       setTimeout(pollProgress, 1000);
+      
+      // Fallback: always refresh after 5 seconds regardless of status
+      setTimeout(async () => {
+        console.log("Fallback refresh after 5 seconds");
+        await refresh();
+        setRunning(false);
+      }, 5000);
       
     } catch (error) {
       console.error("Matchning error:", error);
