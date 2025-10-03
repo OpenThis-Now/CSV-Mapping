@@ -531,14 +531,10 @@ def get_completed_ai_reviews(project_id: int, session: Session = Depends(get_ses
 
 
 @router.post("/projects/{project_id}/ai/auto-queue")
-def auto_queue_ai_analysis(project_id: int, session: Session = None):
+def auto_queue_ai_analysis(project_id: int, session: Session = Depends(get_session)):
     """Automatically queue products with scores between 70-95 for AI analysis."""
     import logging
     log = logging.getLogger("app.ai")
-    
-    # Create session if not provided
-    if session is None:
-        session = next(get_session())
     
     p = session.get(Project, project_id)
     if not p:

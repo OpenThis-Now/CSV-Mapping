@@ -109,7 +109,7 @@ def send_to_ai(project_id: int, req: ApproveRequest, session: Session = Depends(
         from .ai import auto_queue_ai_analysis
         try:
             # Don't pass the existing session - let auto_queue_ai_analysis create its own
-            auto_queue_ai_analysis(project_id)
+            auto_queue_ai_analysis(project_id, session)
         except Exception as e:
             # Log error but don't fail the request
             import logging
