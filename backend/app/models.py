@@ -102,3 +102,26 @@ class URLEnhancementRun(SQLModel, table=True):
     started_at: datetime = Field(default_factory=datetime.utcnow)
     finished_at: Optional[datetime] = None
     error_message: Optional[str] = Field(default=None, sa_column=Column(Text))
+
+
+class RejectedProductData(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    project_id: int = Field(foreign_key="project.id", index=True)
+    match_result_id: int = Field(foreign_key="matchresult.id", index=True)
+    company_id: Optional[str] = Field(default=None, index=True)
+    pdf_filename: Optional[str] = Field(default=None)
+    pdf_source: Optional[str] = Field(default=None)  # existing, uploaded, zip_extracted
+    status: str = Field(default="needs_data", index=True)  # needs_data, complete, sent
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    completed_at: Optional[datetime] = None
+    notes: Optional[str] = Field(default=None, sa_column=Column(Text))
+
+
+class RejectedExport(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    project_id: int = Field(foreign_key="project.id", index=True)
+    export_type: str = Field(index=True)  # csv, zip, complete_data
+    filename: str
+    file_path: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    status: str = Field(default="ready", index=True)  # ready, processing, completed, failed

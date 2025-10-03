@@ -1,0 +1,312 @@
+import React, { useEffect, useState } from "react";
+import api from "@/lib/api";
+import { useToast } from "@/contexts/ToastContext";
+
+interface RejectedProduct {
+  id: number;
+  match_result_id: number;
+  product_name: string;
+  supplier: string;
+  company_id?: string;
+  pdf_filename?: string;
+  pdf_source?: string;
+  status: "needs_data" | "complete" | "sent";
+  created_at: string;
+  completed_at?: string;
+  notes?: string;
+  customer_data: Record<string, any>;
+  reason: string;
+}
+
+interface RejectedProductsProps {
+  projectId: number;
+}
+
+export default function RejectedProducts({ projectId }: RejectedProductsProps) {
+  const [products, setProducts] = useState<RejectedProduct[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingProduct, setEditingProduct] = useState<number | null>(null);
+  const [editData, setEditData] = useState<Partial<RejectedProduct>>({});
+  const [uploadingPdf, setUploadingPdf] = useState<number | null>(null);
+  const [uploadingZip, setUploadingZip] = useState(false);
+  const { showToast } = useToast();
+
+  const loadProducts = async () => {
+    try {
+      const res = await api.get(`/projects/${projectId}/rejected-products`);
+      setProducts(res.data);
+    } catch (error) {
+      console.error("Failed to load rejected products:", error);
+      showToast("Failed to load rejected products", 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadProducts();
+  }, [projectId]);
+
+  const updateProduct = async (productId: number, data: Partial<RejectedProduct>) => {
+    try {
+      await api.put(`/projects/${projectId}/rejected-products/${productId}`, data);
+      showToast("Product updated successfully", 'success');
+      setEditingProduct(null);
+      setEditData({});
+      await loadProducts();
+    } catch (error) {
+      console.error("Failed to update product:", error);
+      showToast("Failed to update product", 'error');
+    }
+  };
+
+  const uploadPdf = async (productId: number, file: File) => {
+    setUploadingPdf(productId);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const res = await api.post(`/projects/${projectId}/rejected-products/${productId}/upload-pdf`, formData);
+      showToast("PDF uploaded successfully", 'success');
+      await loadProducts();
+    } catch (error) {
+      console.error("Failed to upload PDF:", error);
+      showToast("Failed to upload PDF", 'error');
+    } finally {
+      setUploadingPdf(null);
+    }
+  };
+
+  const uploadZip = async (file: File) => {
+    setUploadingZip(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const res = await api.post(`/projects/${projectId}/rejected-products/upload-zip`, formData);
+      showToast(`ZIP uploaded: ${res.data.assigned_count} PDFs auto-assigned`, 'success');
+      await loadProducts();
+    } catch (error) {
+      console.error("Failed to upload ZIP:", error);
+      showToast("Failed to upload ZIP", 'error');
+    } finally {
+      setUploadingZip(false);
+    }
+  };
+
+  const exportCompleted = async () => {
+    try {
+      const res = await api.get(`/projects/${projectId}/rejected-products/export`);
+      showToast(`Export completed: ${res.data.count} products exported`, 'success');
+    } catch (error) {
+      console.error("Failed to export:", error);
+      showToast("Failed to export completed products", 'error');
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const badges = {
+      needs_data: "bg-yellow-100 text-yellow-800 border-yellow-300",
+      complete: "bg-green-100 text-green-800 border-green-300",
+      sent: "bg-blue-100 text-blue-800 border-blue-300"
+    };
+    return badges[status as keyof typeof badges] || "bg-gray-100 text-gray-800 border-gray-300";
+  };
+
+  const getStatusText = (status: string) => {
+    const texts = {
+      needs_data: "Needs Data",
+      complete: "Complete",
+      sent: "Sent"
+    };
+    return texts[status as keyof typeof texts] || status;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (products.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <div className="text-gray-500 mb-4">No rejected products found</div>
+        <div className="text-sm text-gray-400">
+          Rejected products will appear here after running matching
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Rejected Products</h1>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={exportCompleted}
+            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+          >
+            Export Completed
+          </button>
+        </div>
+      </div>
+
+      {/* Bulk PDF Upload */}
+      <div className="bg-white rounded-xl border p-4">
+        <div className="flex items-center gap-4">
+          <div className="flex-1">
+            <h3 className="font-semibold mb-2">Bulk PDF Upload</h3>
+            <p className="text-sm text-gray-600 mb-3">
+              Upload a ZIP file with PDFs. The system will try to auto-assign PDFs to products based on filename matching.
+            </p>
+            <input
+              type="file"
+              accept=".zip"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) uploadZip(file);
+              }}
+              disabled={uploadingZip}
+              className="text-sm"
+            />
+          </div>
+          {uploadingZip && (
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+          )}
+        </div>
+      </div>
+
+      {/* Products List */}
+      <div className="grid gap-4">
+        {products.map((product) => (
+          <div key={product.id} className="bg-white rounded-xl border p-4">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <h3 className="font-semibold text-lg">{product.product_name}</h3>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusBadge(product.status)}`}>
+                    {getStatusText(product.status)}
+                  </span>
+                </div>
+                <div className="text-sm text-gray-600 mb-1">
+                  <strong>Supplier:</strong> {product.supplier}
+                </div>
+                <div className="text-sm text-gray-600 mb-1">
+                  <strong>Reason:</strong> {product.reason}
+                </div>
+                {product.company_id && (
+                  <div className="text-sm text-gray-600 mb-1">
+                    <strong>Company ID:</strong> {product.company_id}
+                  </div>
+                )}
+                {product.pdf_filename && (
+                  <div className="text-sm text-gray-600 mb-1">
+                    <strong>PDF:</strong> {product.pdf_filename}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => {
+                  setEditingProduct(product.id);
+                  setEditData({
+                    company_id: product.company_id,
+                    notes: product.notes,
+                    status: product.status
+                  });
+                }}
+                className="px-3 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200 text-sm"
+              >
+                Edit
+              </button>
+            </div>
+
+            {/* Edit Form */}
+            {editingProduct === product.id && (
+              <div className="border-t pt-4 mt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Company ID
+                    </label>
+                    <input
+                      type="text"
+                      value={editData.company_id || ''}
+                      onChange={(e) => setEditData({...editData, company_id: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter Company ID"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Status
+                    </label>
+                    <select
+                      value={editData.status || 'needs_data'}
+                      onChange={(e) => setEditData({...editData, status: e.target.value as any})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="needs_data">Needs Data</option>
+                      <option value="complete">Complete</option>
+                      <option value="sent">Sent</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Notes
+                  </label>
+                  <textarea
+                    value={editData.notes || ''}
+                    onChange={(e) => setEditData({...editData, notes: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    rows={3}
+                    placeholder="Add notes..."
+                  />
+                </div>
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Upload PDF
+                  </label>
+                  <input
+                    type="file"
+                    accept=".pdf"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) uploadPdf(product.id, file);
+                    }}
+                    disabled={uploadingPdf === product.id}
+                    className="text-sm"
+                  />
+                  {uploadingPdf === product.id && (
+                    <div className="mt-2 text-sm text-blue-600">Uploading...</div>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 mt-4">
+                  <button
+                    onClick={() => updateProduct(product.id, editData)}
+                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+                  >
+                    Save Changes
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditingProduct(null);
+                      setEditData({});
+                    }}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-sm"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

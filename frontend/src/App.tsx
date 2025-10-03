@@ -7,11 +7,12 @@ import MatchPage from "./pages/Match";
 import AIDeep from "./pages/AIDeep";
 import ExportPage from "./pages/Export";
 import InfoPage from "./pages/Info";
+import RejectedProducts from "./pages/RejectedProducts";
 import { AIProvider, useAI } from "./contexts/AIContext";
 import { ToastProvider } from "./contexts/ToastContext";
 import api from "./lib/api";
 
-type View = "databases" | "projects" | "import" | "match" | "ai" | "export" | "info";
+type View = "databases" | "projects" | "import" | "match" | "ai" | "export" | "rejected" | "info";
 
 function AppContent() {
   const [view, setView] = useState<View>("projects");
@@ -122,6 +123,13 @@ function AppContent() {
               Export
             </button>
             <button 
+              className={`chip ${view === "rejected" ? "bg-blue-100 border-blue-300 text-blue-800" : ""} ${!projectId || !hasDatabase || !hasImports || !hasSelectedImport ? "opacity-50 cursor-not-allowed" : ""}`}
+              onClick={() => setView("rejected")} 
+              disabled={!projectId || !hasDatabase || !hasImports || !hasSelectedImport}
+            >
+              Rejected Products
+            </button>
+            <button 
               className={`chip ${view === "info" ? "bg-blue-100 border-blue-300 text-blue-800" : ""}`}
               onClick={() => setView("info")}
             >
@@ -159,6 +167,7 @@ function AppContent() {
         {view === "match" && projectId && <MatchPage projectId={projectId} />}
         {view === "ai" && projectId && <AIDeep projectId={projectId} />}
         {view === "export" && projectId && <ExportPage projectId={projectId} />}
+        {view === "rejected" && projectId && <RejectedProducts projectId={projectId} />}
         {view === "info" && <InfoPage />}
       </main>
     </div>
