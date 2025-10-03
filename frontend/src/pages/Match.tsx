@@ -78,27 +78,29 @@ export default function MatchPage({ projectId }: { projectId: number }) {
 
   const approveSelected = async () => {
     if (selectedIds.length === 0) {
-      showToast("Select at least one row to approve.", 'info');
+      showToast("Välj produkter att godkänna.", 'warning');
       return;
     }
     await api.post(`/projects/${projectId}/approve`, { ids: selectedIds });
-    await refresh();
     setSelectedIds([]);
+    await refresh();
+    showToast(`${selectedIds.length} produkter godkända.`, 'success');
   };
 
   const rejectSelected = async () => {
     if (selectedIds.length === 0) {
-      showToast("Select at least one row to reject.", 'info');
+      showToast("Välj produkter att avvisa.", 'warning');
       return;
     }
     await api.post(`/projects/${projectId}/reject`, { ids: selectedIds });
-    await refresh();
     setSelectedIds([]);
+    await refresh();
+    showToast(`${selectedIds.length} produkter avvisade.`, 'success');
   };
 
   const sendToAI = async () => {
     if (selectedIds.length === 0) {
-      showToast("Select at least one row to send to AI.", 'info');
+      showToast("Välj produkter att skicka till AI.", 'warning');
       return;
     }
     
@@ -117,6 +119,12 @@ export default function MatchPage({ projectId }: { projectId: number }) {
   // Pagination logic
   const filteredResults = results.filter(result => {
     if (statusFilter === "all") return true;
+    
+    // Handle "review_required" as a combination of multiple decision values
+    if (statusFilter === "review_required") {
+      return result.decision === "pending" || result.decision === "sent_to_ai";
+    }
+    
     return result.decision === statusFilter;
   });
 
@@ -183,106 +191,124 @@ export default function MatchPage({ projectId }: { projectId: number }) {
           >
             {running ? "Running..." : "Run matching"}
           </button>
-          <button 
-            className="rounded-2xl bg-green-100 px-4 py-2 text-sm font-medium text-green-700 hover:bg-green-200" 
-            onClick={approveSelected}
-          >
-            Approve selected
-          </button>
-          <button 
-            className="rounded-2xl bg-red-100 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-200" 
-            onClick={rejectSelected}
-          >
-            Reject selected
-          </button>
-          <button 
-            className="rounded-2xl bg-blue-100 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-200" 
-            onClick={sendToAI}
-          >
-            Send selected to AI
-          </button>
         </div>
       </div>
-        
-        {/* Progress Bar */}
-        {running && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm text-gray-600">
-              <span>{status}</span>
-              <span>{progress}%</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-                style={{ width: `${progress}%` }}
-              ></div>
-            </div>
+
+      {running && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-blue-900">{status}</span>
+            <span className="text-sm text-blue-700">{progress}%</span>
           </div>
-        )}
-        
-        <MatchResults 
-          results={paginatedResults} 
-          selectedIds={selectedIds}
-          onSelectionChange={setSelectedIds}
-          view={view}
-          statusFilter={statusFilter}
-        />
-        
-        {/* Pagination Controls */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between bg-white p-4 border rounded-lg">
-            <div className="text-sm text-gray-600">
-              Showing {startIndex + 1}-{Math.min(endIndex, filteredResults.length)} of {filteredResults.length} results
-            </div>
-            
-            <div className="flex items-center gap-2">
+          <div className="w-full bg-blue-200 rounded-full h-2">
+            <div 
+              className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setView("card")}
+            className={`px-3 py-1 text-sm rounded ${
+              view === "card" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-700"
+            }`}
+          >
+            Card
+          </button>
+          <button
+            onClick={() => setView("table")}
+            className={`px-3 py-1 text-sm rounded ${
+              view === "table" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-700"
+            }`}
+          >
+            Table
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-600">
+            Showing {startIndex + 1}-{Math.min(endIndex, filteredResults.length)} of {filteredResults.length} results
+          </span>
+        </div>
+      </div>
+
+      {selectedIds.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-blue-900">
+              {selectedIds.length} produkter valda
+            </span>
+            <div className="flex gap-2">
               <button
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                disabled={currentPage === 1}
-                className="px-3 py-1 text-sm border rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                onClick={approveSelected}
+                className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
               >
-                Previous
+                Godkänn
               </button>
-              
-              <div className="flex items-center gap-1">
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  let pageNum;
-                  if (totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
-                  } else {
-                    pageNum = currentPage - 2 + i;
-                  }
-                  
-                  return (
-                    <button
-                      key={pageNum}
-                      onClick={() => setCurrentPage(pageNum)}
-                      className={`px-3 py-1 text-sm border rounded ${
-                        currentPage === pageNum 
-                          ? 'bg-blue-600 text-white border-blue-600' 
-                          : 'hover:bg-gray-50'
-                      }`}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                })}
-              </div>
-              
               <button
-                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                disabled={currentPage === totalPages}
-                className="px-3 py-1 text-sm border rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                onClick={rejectSelected}
+                className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
               >
-                Next
+                Avvisa
+              </button>
+              <button
+                onClick={sendToAI}
+                className="px-3 py-1 bg-purple-600 text-white text-sm rounded hover:bg-purple-700"
+              >
+                Skicka till AI
               </button>
             </div>
           </div>
-        )}
+        </div>
+      )}
+
+      <MatchResults
+        results={paginatedResults}
+        selectedIds={selectedIds}
+        onSelectionChange={setSelectedIds}
+        view={view}
+      />
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          <button
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+            className="px-3 py-1 text-sm border rounded disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Previous
+          </button>
+          
+          <div className="flex gap-1">
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              const page = i + 1;
+              return (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`px-3 py-1 text-sm border rounded ${
+                    currentPage === page ? "bg-blue-100 text-blue-700" : ""
+                  }`}
+                >
+                  {page}
+                </button>
+              );
+            })}
+          </div>
+          
+          <button
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages}
+            className="px-3 py-1 text-sm border rounded disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }
