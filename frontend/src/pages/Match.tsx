@@ -257,26 +257,7 @@ export default function MatchPage({ projectId }: { projectId: number }) {
         </div>
       )}
 
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setView("card")}
-            className={`px-3 py-1 text-sm rounded ${
-              view === "card" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-700"
-            }`}
-          >
-            Card
-          </button>
-          <button
-            onClick={() => setView("table")}
-            className={`px-3 py-1 text-sm rounded ${
-              view === "table" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-700"
-            }`}
-          >
-            Table
-          </button>
-        </div>
-
+      <div className="flex items-center justify-end">
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-600">
             Showing {startIndex + 1}-{Math.min(endIndex, filteredResults.length)} of {filteredResults.length} results
