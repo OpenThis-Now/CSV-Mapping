@@ -73,10 +73,10 @@ export default function DetailedProgressBar({ total, approved, worklist, rejecte
           ></div>
         )}
         
-        {/* Pending (yellow) */}
+        {/* Pending (light yellow) */}
         {pendingPct > 0 && (
           <div 
-            className="bg-yellow-400 h-2 absolute transition-all duration-300" 
+            className="bg-yellow-200 h-2 absolute transition-all duration-300" 
             style={{ 
               width: `${pendingPct}%`,
               left: `${approvedPct + worklistPct + rejectedPct}%`
