@@ -95,6 +95,15 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
     }
   };
 
+  const downloadFile = (url: string, filename: string) => {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const exportCompleted = async () => {
     try {
       const res = await api.get(`/projects/${projectId}/rejected-products/export-csv`);
@@ -102,6 +111,9 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
         showToast(res.data.message, 'info');
       } else {
         showToast(`CSV export completed: ${res.data.count} products exported`, 'success');
+        // Download the CSV file
+        const downloadUrl = `/api/projects/${projectId}/rejected-products/download/${res.data.filename}`;
+        downloadFile(downloadUrl, res.data.filename);
       }
     } catch (error) {
       console.error("Failed to export:", error);
@@ -116,6 +128,9 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
         showToast(res.data.message, 'info');
       } else {
         showToast(`Worklist export completed: ${res.data.count} products exported (CSV + ZIP)`, 'success');
+        // Download the ZIP file (contains both CSV and PDFs)
+        const downloadUrl = `/api/projects/${projectId}/rejected-products/download/${res.data.zip_filename}`;
+        downloadFile(downloadUrl, res.data.zip_filename);
       }
     } catch (error) {
       console.error("Failed to export worklist:", error);
