@@ -398,7 +398,7 @@ def export_rejected_products_csv(project_id: int, session: Session = Depends(get
     ).all()
     
     if not completed_products:
-        raise HTTPException(status_code=404, detail="Inga completed products att exportera.")
+        return {"message": "Inga completed products att exportera.", "count": 0}
     
     # Create export directory
     export_dir = Path(settings.STORAGE_DIR) / "rejected_exports" / f"project_{project_id}"
@@ -463,7 +463,7 @@ def export_worklist_products(project_id: int, session: Session = Depends(get_ses
     ).all()
     
     if not worklist_products:
-        raise HTTPException(status_code=404, detail="Inga worklist products att exportera.")
+        return {"message": "Inga worklist products att exportera.", "count": 0}
     
     # Create export directory
     export_dir = Path(settings.STORAGE_DIR) / "rejected_exports" / f"project_{project_id}"

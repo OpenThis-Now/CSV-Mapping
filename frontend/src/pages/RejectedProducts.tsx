@@ -98,7 +98,11 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
   const exportCompleted = async () => {
     try {
       const res = await api.get(`/projects/${projectId}/rejected-products/export-csv`);
-      showToast(`CSV export completed: ${res.data.count} products exported`, 'success');
+      if (res.data.count === 0) {
+        showToast(res.data.message, 'info');
+      } else {
+        showToast(`CSV export completed: ${res.data.count} products exported`, 'success');
+      }
     } catch (error) {
       console.error("Failed to export:", error);
       showToast("Failed to export completed products", 'error');
@@ -108,7 +112,11 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
   const exportWorklist = async () => {
     try {
       const res = await api.get(`/projects/${projectId}/rejected-products/export-worklist`);
-      showToast(`Worklist export completed: ${res.data.count} products exported (CSV + ZIP)`, 'success');
+      if (res.data.count === 0) {
+        showToast(res.data.message, 'info');
+      } else {
+        showToast(`Worklist export completed: ${res.data.count} products exported (CSV + ZIP)`, 'success');
+      }
     } catch (error) {
       console.error("Failed to export worklist:", error);
       showToast("Failed to export worklist products", 'error');
