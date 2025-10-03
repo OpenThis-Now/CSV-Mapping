@@ -63,29 +63,36 @@ export default function ImportPage({ projectId, onImportChange }: { projectId: n
         setUrlEnhancementStatus(res.data);
         setUrlEnhancing(res.data.enhancement_run_id);
       } else {
-        // Enhancement completed or failed
-        setUrlEnhancementStatus(null);
-        setUrlEnhancing(null);
-        if (pollingRef.current) {
-          clearInterval(pollingRef.current);
-          pollingRef.current = null;
-        }
-        
-        // Refresh imports to show the new enhanced file
-        await refreshImports();
-        await refreshProject();
-        
-        // Show completion message based on status
-        if (res.data.status === "completed") {
-          showToast("URL enhancement completed successfully!", 'success');
-          setStatus("URL enhancement completed successfully!");
-        } else if (res.data.status === "failed") {
-          showToast("URL enhancement failed. Check logs for details.", 'error');
-          setStatus("URL enhancement failed. Check logs for details.");
+        // Only show completion message if we were previously enhancing
+        if (urlEnhancing !== null) {
+          // Enhancement completed or failed
+          setUrlEnhancementStatus(null);
+          setUrlEnhancing(null);
+          if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+            pollingRef.current = null;
+          }
+          
+          // Refresh imports to show the new enhanced file
+          await refreshImports();
+          await refreshProject();
+          
+          // Show completion message based on status
+          if (res.data.status === "completed") {
+            showToast("URL enhancement completed successfully!", 'success');
+            setStatus("URL enhancement completed successfully!");
+          } else if (res.data.status === "failed") {
+            showToast("URL enhancement failed. Check logs for details.", 'error');
+            setStatus("URL enhancement failed. Check logs for details.");
+          } else {
+            // Unknown status, show generic message
+            showToast("URL enhancement finished.", 'info');
+            setStatus("URL enhancement finished.");
+          }
         } else {
-          // Unknown status, show generic message
-          showToast("URL enhancement finished.", 'info');
-          setStatus("URL enhancement finished.");
+          // No active enhancement and we weren't enhancing before, just clear status
+          setUrlEnhancementStatus(null);
+          setUrlEnhancing(null);
         }
       }
     } catch (error) {

@@ -138,19 +138,27 @@ def _process_urls_in_background(project_id: int, import_id: int, enhancement_run
         session.commit()
         
         log.info(f"URL enhancement completed: {enhancement_run.successful_urls} successful, {enhancement_run.failed_urls} failed")
+        log.info(f"Enhanced CSV created: {enhanced_path}")
+        log.info(f"New ImportFile created with ID: {enhanced_import.id}")
         
     except Exception as e:
         log.error(f"Error in background URL processing: {str(e)}")
+        import traceback
+        log.error(f"Traceback: {traceback.format_exc()}")
         try:
             enhancement_run.status = "failed"
             enhancement_run.error_message = str(e)
             enhancement_run.finished_at = datetime.utcnow()
             session.add(enhancement_run)
             session.commit()
-        except:
-            pass  # If we can't update the status, just log it
+            log.info(f"Marked enhancement run {enhancement_run_id} as failed")
+        except Exception as session_error:
+            log.error(f"Failed to update enhancement run status: {session_error}")
     finally:
-        session.close()
+        try:
+            session.close()
+        except:
+            pass
 
 
 @router.post("/projects/{project_id}/enhance-with-urls")
