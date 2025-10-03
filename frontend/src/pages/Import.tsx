@@ -295,6 +295,15 @@ export default function ImportPage({ projectId, onImportChange }: { projectId: n
         import_ids: importIds
       });
       
+      // Delete the original files that were merged
+      for (const importId of importIds) {
+        try {
+          await api.delete(`/projects/${projectId}/import/${importId}`);
+        } catch (error) {
+          console.error(`Failed to delete import ${importId}:`, error);
+        }
+      }
+      
       showToast(`Merged ${importIds.length} files into one import`, 'success');
       setSelectedImports(new Set());
       await refreshImports();
