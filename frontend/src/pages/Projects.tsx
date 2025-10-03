@@ -276,7 +276,7 @@ export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: n
                                (projectStats[p.id]?.status_breakdown.auto_approved || 0) + 
                                (projectStats[p.id]?.status_breakdown.ai_auto_approved || 0)}
                       worklist={projectStats[p.id]?.status_breakdown.worklist || 0}
-                      rejected={counts.notAvailable}
+                      rejected={projectStats[p.id]?.status_breakdown.not_approved || 0}
                       pending={counts.actionRequired}
                     />
                   </div>
