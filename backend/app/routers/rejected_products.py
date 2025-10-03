@@ -588,3 +588,28 @@ def export_worklist_products(project_id: int, session: Session = Depends(get_ses
         "file_path": str(zip_path),
         "count": str(len(worklist_products))
     }
+
+
+@router.get("/projects/{project_id}/rejected-products/download/{filename}")
+def download_export_file(
+    project_id: int,
+    filename: str,
+    session: Session = Depends(get_session)
+):
+    """Download exported file"""
+    p = session.get(Project, project_id)
+    if not p:
+        raise HTTPException(status_code=404, detail="Projekt saknas.")
+    
+    # Create file path
+    file_path = Path(settings.STORAGE_ROOT) / "rejected_exports" / f"project_{project_id}" / filename
+    
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Fil saknas.")
+    
+    from fastapi.responses import FileResponse
+    return FileResponse(
+        path=str(file_path),
+        filename=filename,
+        media_type='application/octet-stream'
+    )
