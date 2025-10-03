@@ -162,30 +162,23 @@ def _auto_match_company_id(match_result: MatchResult, session: Session) -> Optio
                         )
                         
                         if db_supplier:
-                            # Try multiple matching strategies
-                            simple_ratio = fuzz.ratio(supplier_name.lower(), db_supplier.lower())
-                            partial_ratio = fuzz.partial_ratio(supplier_name.lower(), db_supplier.lower())
-                            token_sort_ratio = fuzz.token_sort_ratio(supplier_name.lower(), db_supplier.lower())
-                            token_set_ratio = fuzz.token_set_ratio(supplier_name.lower(), db_supplier.lower())
-                            
-                            # Use the best match
-                            best_match = max(simple_ratio, partial_ratio, token_sort_ratio, token_set_ratio)
+                            # Check for exact match or supplier name contained in database name
+                            supplier_lower = supplier_name.lower().strip()
+                            db_supplier_lower = db_supplier.lower().strip()
                             
                             print(f"DEBUG: Comparing '{supplier_name}' vs '{db_supplier}'")
-                            print(f"  Simple ratio: {simple_ratio}%")
-                            print(f"  Partial ratio: {partial_ratio}%")
-                            print(f"  Token sort ratio: {token_sort_ratio}%")
-                            print(f"  Token set ratio: {token_set_ratio}%")
-                            print(f"  Best match: {best_match}%")
                             
-                            if best_match > 80:
+                            # Check if supplier name is contained in database supplier name
+                            # e.g., "Carboline" should match "Carboline Canada" or "Carboline lalala"
+                            if supplier_lower in db_supplier_lower:
+                                print(f"DEBUG: Found exact match! '{supplier_name}' is contained in '{db_supplier}'")
                                 # Found a match, return company ID if available
                                 company_id = (
                                     row.get("company_id", "").strip() or 
                                     row.get("companyid", "").strip() or
                                     row.get("Company_ID", "").strip()
                                 )
-                                print(f"DEBUG: Found match! Company ID: '{company_id}'")
+                                print(f"DEBUG: Company ID: '{company_id}'")
                                 return company_id
             except Exception as e:
                 print(f"DEBUG: Error reading database file {db_file}: {e}")
