@@ -91,6 +91,7 @@ export default function MatchPage({ projectId }: { projectId: number }) {
     try {
       const res = await api.get<MatchResultItem[]>(`/projects/${projectId}/results`);
       console.log("Match results loaded:", res.data.length, "results");
+      console.log("Match results data:", res.data);
       setResults(res.data);
     } catch (error) {
       console.error("Failed to load match results:", error);
@@ -153,6 +154,17 @@ export default function MatchPage({ projectId }: { projectId: number }) {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedResults = filteredResults.slice(startIndex, endIndex);
+  
+  // Debug pagination
+  console.log("Pagination debug:", {
+    results: results.length,
+    filteredResults: filteredResults.length,
+    currentPage,
+    itemsPerPage,
+    startIndex,
+    endIndex,
+    paginatedResults: paginatedResults.length
+  });
 
   // Reset to page 1 when filter changes
   useEffect(() => {
