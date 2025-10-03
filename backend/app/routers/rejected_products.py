@@ -139,9 +139,9 @@ def _auto_match_company_id(match_result: MatchResult, session: Session) -> Optio
     # Get the active database for this project
     try:
         # Get database file path (this is a simplified approach)
-        db_files = list(Path(settings.STORAGE_DIR).glob("databases/*.csv"))
+        db_files = list(Path(settings.STORAGE_ROOT).glob("databases/*.csv"))
         if not db_files:
-            print(f"DEBUG: No database files found in {settings.STORAGE_DIR}/databases/")
+            print(f"DEBUG: No database files found in {settings.STORAGE_ROOT}/databases/")
             return None
         
         print(f"DEBUG: Found {len(db_files)} database files: {[f.name for f in db_files]}")
@@ -283,7 +283,7 @@ def upload_pdf_for_product(
         raise HTTPException(status_code=404, detail="Rejected product saknas.")
     
     # Save PDF file
-    pdf_dir = Path(settings.STORAGE_DIR) / "rejected_exports" / f"project_{project_id}"
+    pdf_dir = Path(settings.STORAGE_ROOT) / "rejected_exports" / f"project_{project_id}"
     pdf_dir.mkdir(parents=True, exist_ok=True)
     
     pdf_filename = f"{product_id}_{file.filename}"
@@ -313,7 +313,7 @@ def upload_zip_with_pdfs(
         raise HTTPException(status_code=404, detail="Projekt saknas.")
     
     # Create export directory
-    export_dir = Path(settings.STORAGE_DIR) / "rejected_exports" / f"project_{project_id}"
+    export_dir = Path(settings.STORAGE_ROOT) / "rejected_exports" / f"project_{project_id}"
     export_dir.mkdir(parents=True, exist_ok=True)
     
     # Save ZIP file
@@ -400,7 +400,7 @@ def export_rejected_products_csv(project_id: int, session: Session = Depends(get
         return {"message": "Inga completed products att exportera.", "count": 0}
     
     # Create export directory
-    export_dir = Path(settings.STORAGE_DIR) / "rejected_exports" / f"project_{project_id}"
+    export_dir = Path(settings.STORAGE_ROOT) / "rejected_exports" / f"project_{project_id}"
     export_dir.mkdir(parents=True, exist_ok=True)
     
     # Create CSV export
@@ -491,7 +491,7 @@ def export_worklist_products(project_id: int, session: Session = Depends(get_ses
         return {"message": "Inga worklist products att exportera.", "count": 0}
     
     # Create export directory
-    export_dir = Path(settings.STORAGE_DIR) / "rejected_exports" / f"project_{project_id}"
+    export_dir = Path(settings.STORAGE_ROOT) / "rejected_exports" / f"project_{project_id}"
     export_dir.mkdir(parents=True, exist_ok=True)
     
     timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
