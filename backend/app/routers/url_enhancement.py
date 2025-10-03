@@ -116,12 +116,16 @@ def _process_urls_in_background(project_id: int, import_id: int, enhancement_run
         enhanced_filename = f"enhanced_{imp.filename}"
         enhanced_path = Path(settings.IMPORTS_DIR) / enhanced_filename
         
+        log.info(f"Creating enhanced CSV file: {enhanced_path}")
         with open(enhanced_path, 'w', newline='', encoding='utf-8') as f:
             writer = csv.DictWriter(f, fieldnames=headers)
             writer.writeheader()
             writer.writerows(enhanced_rows)
         
+        log.info(f"Enhanced CSV file created successfully")
+        
         # Create new ImportFile entry
+        log.info(f"Creating new ImportFile entry")
         enhanced_import = ImportFile(
             project_id=project_id,
             original_name=f"Enhanced {imp.original_name} (URL data)",
@@ -130,16 +134,26 @@ def _process_urls_in_background(project_id: int, import_id: int, enhancement_run
             row_count=len(enhanced_rows)
         )
         session.add(enhanced_import)
+        log.info(f"ImportFile entry added to session")
         
         # Mark enhancement run as completed
+        log.info(f"Marking enhancement run as completed")
         enhancement_run.status = "completed"
         enhancement_run.finished_at = datetime.utcnow()
         session.add(enhancement_run)
+        
+        log.info(f"Committing session changes")
         session.commit()
         
         log.info(f"URL enhancement completed: {enhancement_run.successful_urls} successful, {enhancement_run.failed_urls} failed")
         log.info(f"Enhanced CSV created: {enhanced_path}")
         log.info(f"New ImportFile created with ID: {enhanced_import.id}")
+        
+        # Verify the enhanced file exists
+        if enhanced_path.exists():
+            log.info(f"Enhanced file exists: {enhanced_path.stat().st_size} bytes")
+        else:
+            log.error(f"Enhanced file does not exist: {enhanced_path}")
         
     except Exception as e:
         log.error(f"Error in background URL processing: {str(e)}")
