@@ -150,15 +150,23 @@ def score_pair(customer_row: dict[str, Any], db_row: dict[str, Any], customer_ma
     db_market = db_row.get(db_mapping.get("market", "Market"), "").strip()
     db_language = db_row.get(db_mapping.get("language", "Language"), "").strip()
 
+    # Debug logging for market/language detection
+    print(f"DEBUG: customer_market='{customer_market}', db_market='{db_market}'")
+    print(f"DEBUG: customer_language='{customer_language}', db_language='{db_language}'")
+
     # Track market and language mismatches for scoring and comments
     market_mismatch = False
     language_mismatch = False
     
     if customer_market and db_market and customer_market.lower() != db_market.lower():
         market_mismatch = True
+        print(f"DEBUG: Market mismatch detected: '{customer_market}' != '{db_market}'")
     
     if customer_language and db_language and customer_language.lower() != db_language.lower():
         language_mismatch = True
+        print(f"DEBUG: Language mismatch detected: '{customer_language}' != '{db_language}'")
+    
+    print(f"DEBUG: market_mismatch={market_mismatch}, language_mismatch={language_mismatch}")
 
     # Only score fields that have customer data
     vendor_score = score_fields(cv, dv) if cv.strip() else 0
@@ -176,6 +184,7 @@ def score_pair(customer_row: dict[str, Any], db_row: dict[str, Any], customer_ma
     
     # Set score to 0 if both market and language are wrong
     if market_mismatch and language_mismatch:
+        print(f"DEBUG: Setting score to 0 due to both market and language mismatch")
         overall = 0
     else:
         # Cap score at 50% for market mismatches, 40% for language mismatches
