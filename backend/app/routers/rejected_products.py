@@ -168,11 +168,13 @@ def _auto_match_company_id(match_result: MatchResult, session: Session) -> Optio
                             db_supplier_lower = db_supplier.lower().strip()
                             
                             print(f"DEBUG: Comparing '{supplier_name}' vs '{db_supplier}'")
+                            print(f"DEBUG: supplier_lower='{supplier_lower}', db_supplier_lower='{db_supplier_lower}'")
                             
                             # Check if supplier name is contained in database supplier name
                             # e.g., "Carboline" should match "Carboline Canada" or "Carboline lalala"
                             if supplier_lower in db_supplier_lower:
                                 print(f"DEBUG: Found exact match! '{supplier_name}' is contained in '{db_supplier}'")
+                                print(f"DEBUG: supplier_lower='{supplier_lower}', db_supplier_lower='{db_supplier_lower}'")
                                 # Found a match, return company ID if available
                                 # Try different field names for company ID
                                 company_id = (
