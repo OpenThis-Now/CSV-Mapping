@@ -287,23 +287,17 @@ export default function MatchPage({ projectId }: { projectId: number }) {
       {results.length === 0 && !running && (
         <div className="text-center py-12">
           <div className="text-gray-500 text-lg mb-4">
-            Inga matchresultat än
+            No matches yet
           </div>
           <div className="text-gray-400 text-sm mb-6">
-            Kör matching först för att se resultat
+            Run matching to see results
           </div>
-          <div className="flex gap-3">
+          <div className="flex justify-center">
             <button
               onClick={run}
               className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
             >
               Start Matching
-            </button>
-            <button
-              onClick={refresh}
-              className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium"
-            >
-              Refresh Results
             </button>
           </div>
         </div>
