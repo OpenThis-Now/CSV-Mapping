@@ -11,7 +11,7 @@ import { AIProvider, useAI } from "./contexts/AIContext";
 import { ToastProvider } from "./contexts/ToastContext";
 import api from "./lib/api";
 
-type View = "databases" | "projects" | "import" | "merge" | "match" | "ai" | "export" | "info";
+type View = "databases" | "projects" | "import" | "match" | "ai" | "export" | "info";
 
 function AppContent() {
   const [view, setView] = useState<View>("projects");
@@ -101,13 +101,6 @@ function AppContent() {
               Customer Import
             </button>
             <button 
-              className={`chip ${view === "merge" ? "bg-blue-100 border-blue-300 text-blue-800" : ""} ${!projectId || !hasDatabase || !hasImports ? "opacity-50 cursor-not-allowed" : ""}`}
-              onClick={() => setView("merge")} 
-              disabled={!projectId || !hasDatabase || !hasImports}
-            >
-              Merge
-            </button>
-            <button 
               className={`chip ${view === "match" ? "bg-blue-100 border-blue-300 text-blue-800" : ""} ${!projectId || !hasDatabase || !hasImports || !hasSelectedImport ? "opacity-50 cursor-not-allowed" : ""}`}
               onClick={() => setView("match")} 
               disabled={!projectId || !hasDatabase || !hasImports || !hasSelectedImport}
@@ -163,7 +156,6 @@ function AppContent() {
         }} selectedProjectId={projectId} />}
         {view === "databases" && <Databases activeProjectId={projectId} onDatabaseChange={() => projectId && checkProjectStatus(projectId)} />}
         {view === "import" && projectId && <ImportPage projectId={projectId} onImportChange={() => checkProjectStatus(projectId)} />}
-        {view === "merge" && projectId && <PDFImportPage projectId={projectId} />}
         {view === "match" && projectId && <MatchPage projectId={projectId} />}
         {view === "ai" && projectId && <AIDeep projectId={projectId} />}
         {view === "export" && projectId && <ExportPage projectId={projectId} />}

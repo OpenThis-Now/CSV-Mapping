@@ -479,9 +479,6 @@ export default function ImportPage({ projectId, onImportChange }: { projectId: n
                     {project?.active_import_id === imp.id && (
                       <div className="chip bg-green-100 text-green-800 border-green-300 font-semibold">Active ✓</div>
                     )}
-                    {selectedImports.has(imp.id) && (
-                      <div className="chip bg-green-100 text-green-800 border-green-300 font-semibold">Selected ✓</div>
-                    )}
                     <button
                       onClick={() => deleteImport(imp.id)}
                       className="flex items-center gap-1 px-3 py-1 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded border border-gray-200 hover:border-red-200 transition-colors"
