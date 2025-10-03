@@ -562,13 +562,17 @@ def export_worklist_products(project_id: int, session: Session = Depends(get_ses
         zip_file.write(csv_path, csv_filename)
         
         # Add PDFs to ZIP
+        pdf_count = 0
         for product in worklist_products:
             if product.pdf_filename:
                 pdf_path = export_dir / product.pdf_filename
                 if pdf_path.exists():
                     zip_file.write(pdf_path, product.pdf_filename)
+                    pdf_count += 1
                 else:
                     print(f"WARNING: PDF file not found: {pdf_path}")
+        
+        print(f"DEBUG: Added {pdf_count} PDFs to ZIP file")
     
     # Create export record
     export_record = RejectedExport(
