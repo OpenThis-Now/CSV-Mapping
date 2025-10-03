@@ -40,7 +40,8 @@ def get_project_stats(project_id: int, session: Session = Depends(get_session)) 
                 "approved": 0,
                 "not_approved": 0,
                 "sent_to_ai": 0,
-                "ai_auto_approved": 0
+                "ai_auto_approved": 0,
+                "worklist": 0
             }
         }
     
