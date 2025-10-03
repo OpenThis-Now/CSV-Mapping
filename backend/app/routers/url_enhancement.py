@@ -61,7 +61,7 @@ def _process_urls_in_background(project_id: int, import_id: int, enhancement_run
                     try:
                         log.info(f"Processing URL {row_idx + 1}/{enhancement_run.total_urls}: {url}")
                         
-                        # Extract PDF data
+                        # Extract PDF data with timeout protection
                         pdf_data = extract_pdf_data_with_ai(url)
                         
                         if pdf_data and len(pdf_data) > 0:
@@ -93,8 +93,10 @@ def _process_urls_in_background(project_id: int, import_id: int, enhancement_run
                                 enhanced_row[language_column] = pdf_item["language"]["value"]
                             
                             enhancement_run.successful_urls += 1
+                            log.info(f"Successfully processed URL {row_idx + 1}: {url}")
                         else:
                             enhancement_run.failed_urls += 1
+                            log.warning(f"No data extracted from URL {row_idx + 1}: {url}")
                             
                     except Exception as e:
                         log.error(f"Error processing URL {url}: {str(e)}")
@@ -103,6 +105,10 @@ def _process_urls_in_background(project_id: int, import_id: int, enhancement_run
                     enhancement_run.processed_urls += 1
                     session.add(enhancement_run)
                     session.commit()
+                    
+                    # Add small delay to prevent overwhelming the server
+                    import time
+                    time.sleep(0.5)
                 
                 enhanced_rows.append(enhanced_row)
             
@@ -242,7 +248,11 @@ def get_url_enhancement_status(project_id: int, session: Session = Depends(get_s
         return {"has_active_enhancement": False}
     
     if enhancement_run.status != "running":
-        return {"has_active_enhancement": False}
+        return {
+            "has_active_enhancement": False,
+            "status": enhancement_run.status,
+            "message": f"Enhancement {enhancement_run.status}"
+        }
     
     # Calculate stats
     queued = max(0, enhancement_run.total_urls - enhancement_run.processed_urls)

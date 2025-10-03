@@ -566,9 +566,16 @@ def process_pdf_files(pdf_files: List[Path]) -> List[Dict[str, Any]]:
 def extract_pdf_data_with_ai(url: str) -> List[Dict[str, Any]]:
     """Download PDF from URL and extract data using AI."""
     try:
-        # Download PDF from URL
-        response = requests.get(url, timeout=30)
+        # Download PDF from URL with shorter timeout and better error handling
+        print(f"Downloading PDF from URL: {url}")
+        response = requests.get(url, timeout=10, stream=True)
         response.raise_for_status()
+        
+        # Check if content is actually a PDF
+        content_type = response.headers.get('content-type', '').lower()
+        if 'pdf' not in content_type and not url.lower().endswith('.pdf'):
+            print(f"URL does not appear to be a PDF (content-type: {content_type}): {url}")
+            return []
         
         # Create temporary file
         with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as temp_file:
