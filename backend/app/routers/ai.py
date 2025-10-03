@@ -515,16 +515,40 @@ def get_completed_ai_reviews(project_id: int, session: Session = Depends(get_ses
         if result.approved_ai_suggestion_id:
             ai_suggestion = session.get(AiSuggestion, result.approved_ai_suggestion_id)
         
+        # For AI auto-approved products, use db_fields_json if no approved suggestion
+        database_fields = None
+        confidence = None
+        rationale = None
+        
+        if ai_suggestion:
+            # Manually approved AI suggestion
+            database_fields = ai_suggestion.database_fields_json
+            confidence = ai_suggestion.confidence
+            rationale = ai_suggestion.rationale
+        elif result.db_fields_json:
+            # AI auto-approved (stored in db_fields_json)
+            database_fields = result.db_fields_json
+            # Extract confidence from ai_summary if available
+            if result.ai_summary and "confidence" in result.ai_summary:
+                try:
+                    confidence_str = result.ai_summary.split("confidence:")[0].split()[-1]
+                    confidence = float(confidence_str.replace("%", "")) / 100
+                except:
+                    confidence = 0.95  # Default for auto-approved
+            else:
+                confidence = 0.95  # Default for auto-approved
+            rationale = result.ai_summary or "AI auto-approved"
+        
         completed_reviews.append({
             "customer_row_index": result.customer_row_index,
             "decision": decision,
             "customer_fields": result.customer_fields_json,
             "ai_summary": result.ai_summary,
             "approved_suggestion": {
-                "database_fields_json": ai_suggestion.database_fields_json if ai_suggestion else None,
-                "confidence": ai_suggestion.confidence if ai_suggestion else None,
-                "rationale": ai_suggestion.rationale if ai_suggestion else None
-            } if ai_suggestion else None
+                "database_fields_json": database_fields,
+                "confidence": confidence,
+                "rationale": rationale
+            } if database_fields else None
         })
     
     return completed_reviews
