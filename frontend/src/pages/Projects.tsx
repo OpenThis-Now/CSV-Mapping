@@ -191,19 +191,22 @@ export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: n
           const pctCompleted = counts.total > 0 ? ((counts.matched + counts.notAvailable) / counts.total) * 100 : 0;
           
           // Debug logging
+          const progressBarData = {
+            total: counts.total,
+            approved: (projectStats[p.id]?.status_breakdown.approved || 0) + 
+                     (projectStats[p.id]?.status_breakdown.auto_approved || 0) + 
+                     (projectStats[p.id]?.status_breakdown.ai_auto_approved || 0),
+            worklist: projectStats[p.id]?.status_breakdown.worklist || 0,
+            rejected: counts.notAvailable,
+            pending: counts.actionRequired
+          };
+          
           console.log(`Project ${p.id} (${p.name}):`, {
             projectStats: projectStats[p.id],
             counts,
             hasStats: !!projectStats[p.id],
-            progressBarData: {
-              total: counts.total,
-              approved: (projectStats[p.id]?.status_breakdown.approved || 0) + 
-                       (projectStats[p.id]?.status_breakdown.auto_approved || 0) + 
-                       (projectStats[p.id]?.status_breakdown.ai_auto_approved || 0),
-              worklist: projectStats[p.id]?.status_breakdown.worklist || 0,
-              rejected: counts.notAvailable,
-              pending: counts.actionRequired
-            }
+            progressBarData,
+            breakdown: projectStats[p.id]?.status_breakdown
           });
           
 
