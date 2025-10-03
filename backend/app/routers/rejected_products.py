@@ -26,7 +26,7 @@ def get_rejected_products(project_id: int, session: Session = Depends(get_sessio
     if not p:
         raise HTTPException(status_code=404, detail="Projekt saknas.")
     
-    # Get rejected match results
+    # Get rejected match results (both rejected and worklist items)
     rejected_results = session.exec(
         select(MatchResult)
         .where(MatchResult.match_run_id.in_(
@@ -382,9 +382,9 @@ def _auto_assign_pdf_to_product(pdf_filename: str, project_id: int, session: Ses
     return None
 
 
-@router.get("/projects/{project_id}/rejected-products/export")
-def export_rejected_products(project_id: int, session: Session = Depends(get_session)) -> Dict[str, str]:
-    """Export completed rejected products data"""
+@router.get("/projects/{project_id}/rejected-products/export-csv")
+def export_rejected_products_csv(project_id: int, session: Session = Depends(get_session)) -> Dict[str, str]:
+    """Export completed rejected products data as CSV"""
     p = session.get(Project, project_id)
     if not p:
         raise HTTPException(status_code=404, detail="Projekt saknas.")
@@ -419,8 +419,8 @@ def export_rejected_products(project_id: int, session: Session = Depends(get_ses
             match_result = session.get(MatchResult, product.match_result_id)
             if match_result:
                 writer.writerow([
-                    match_result.customer_fields_json.get("product", ""),
-                    match_result.customer_fields_json.get("vendor", ""),
+                    match_result.customer_fields_json.get("Product_name", ""),
+                    match_result.customer_fields_json.get("Supplier_name", ""),
                     product.company_id or "",
                     product.pdf_filename or "",
                     product.status,
@@ -431,7 +431,7 @@ def export_rejected_products(project_id: int, session: Session = Depends(get_ses
     # Create export record
     export_record = RejectedExport(
         project_id=project_id,
-        export_type="complete_data",
+        export_type="csv",
         filename=csv_filename,
         file_path=str(csv_path),
         status="completed"
@@ -440,8 +440,91 @@ def export_rejected_products(project_id: int, session: Session = Depends(get_ses
     session.commit()
     
     return {
-        "message": "Export completed successfully.",
+        "message": "CSV export completed successfully.",
         "filename": csv_filename,
         "file_path": str(csv_path),
         "count": len(completed_products)
+    }
+
+
+@router.get("/projects/{project_id}/rejected-products/export-worklist")
+def export_worklist_products(project_id: int, session: Session = Depends(get_session)) -> Dict[str, str]:
+    """Export Request Worklist products as CSV and ZIP"""
+    p = session.get(Project, project_id)
+    if not p:
+        raise HTTPException(status_code=404, detail="Projekt saknas.")
+    
+    # Get worklist products
+    worklist_products = session.exec(
+        select(RejectedProductData).where(
+            RejectedProductData.project_id == project_id,
+            RejectedProductData.status == "request_worklist"
+        )
+    ).all()
+    
+    if not worklist_products:
+        raise HTTPException(status_code=404, detail="Inga worklist products att exportera.")
+    
+    # Create export directory
+    export_dir = Path(settings.STORAGE_DIR) / "rejected_exports" / f"project_{project_id}"
+    export_dir.mkdir(parents=True, exist_ok=True)
+    
+    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+    
+    # Create CSV export
+    csv_filename = f"worklist_products_{timestamp}.csv"
+    csv_path = export_dir / csv_filename
+    
+    with open(csv_path, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        writer.writerow([
+            "Product Name", "Supplier", "Company ID", "PDF Filename", 
+            "Status", "Created At", "Notes"
+        ])
+        
+        for product in worklist_products:
+            match_result = session.get(MatchResult, product.match_result_id)
+            if match_result:
+                writer.writerow([
+                    match_result.customer_fields_json.get("Product_name", ""),
+                    match_result.customer_fields_json.get("Supplier_name", ""),
+                    product.company_id or "",
+                    product.pdf_filename or "",
+                    product.status,
+                    product.created_at.isoformat(),
+                    product.notes or ""
+                ])
+    
+    # Create ZIP with PDFs
+    zip_filename = f"worklist_pdfs_{timestamp}.zip"
+    zip_path = export_dir / zip_filename
+    
+    with zipfile.ZipFile(zip_path, 'w') as zip_file:
+        # Add CSV to ZIP
+        zip_file.write(csv_path, csv_filename)
+        
+        # Add PDFs to ZIP
+        for product in worklist_products:
+            if product.pdf_filename:
+                pdf_path = export_dir / product.pdf_filename
+                if pdf_path.exists():
+                    zip_file.write(pdf_path, product.pdf_filename)
+    
+    # Create export record
+    export_record = RejectedExport(
+        project_id=project_id,
+        export_type="worklist",
+        filename=zip_filename,
+        file_path=str(zip_path),
+        status="completed"
+    )
+    session.add(export_record)
+    session.commit()
+    
+    return {
+        "message": "Worklist export completed successfully.",
+        "csv_filename": csv_filename,
+        "zip_filename": zip_filename,
+        "file_path": str(zip_path),
+        "count": len(worklist_products)
     }
