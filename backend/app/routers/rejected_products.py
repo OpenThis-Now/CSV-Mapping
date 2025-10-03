@@ -162,10 +162,23 @@ def _auto_match_company_id(match_result: MatchResult, session: Session) -> Optio
                         )
                         
                         if db_supplier:
-                            similarity = fuzz.ratio(supplier_name.lower(), db_supplier.lower())
-                            print(f"DEBUG: Comparing '{supplier_name}' vs '{db_supplier}' -> {similarity}%")
+                            # Try multiple matching strategies
+                            simple_ratio = fuzz.ratio(supplier_name.lower(), db_supplier.lower())
+                            partial_ratio = fuzz.partial_ratio(supplier_name.lower(), db_supplier.lower())
+                            token_sort_ratio = fuzz.token_sort_ratio(supplier_name.lower(), db_supplier.lower())
+                            token_set_ratio = fuzz.token_set_ratio(supplier_name.lower(), db_supplier.lower())
                             
-                            if similarity > 80:
+                            # Use the best match
+                            best_match = max(simple_ratio, partial_ratio, token_sort_ratio, token_set_ratio)
+                            
+                            print(f"DEBUG: Comparing '{supplier_name}' vs '{db_supplier}'")
+                            print(f"  Simple ratio: {simple_ratio}%")
+                            print(f"  Partial ratio: {partial_ratio}%")
+                            print(f"  Token sort ratio: {token_sort_ratio}%")
+                            print(f"  Token set ratio: {token_set_ratio}%")
+                            print(f"  Best match: {best_match}%")
+                            
+                            if best_match > 80:
                                 # Found a match, return company ID if available
                                 company_id = (
                                     row.get("company_id", "").strip() or 
@@ -183,6 +196,37 @@ def _auto_match_company_id(match_result: MatchResult, session: Session) -> Optio
     
     print(f"DEBUG: No match found for supplier: '{supplier_name}'")
     return None
+
+
+@router.post("/projects/{project_id}/rejected-products/{product_id}/auto-match")
+def auto_match_company_id(
+    project_id: int,
+    product_id: int,
+    session: Session = Depends(get_session)
+) -> Dict[str, str]:
+    """Trigger auto-matching for a specific rejected product"""
+    p = session.get(Project, project_id)
+    if not p:
+        raise HTTPException(status_code=404, detail="Projekt saknas.")
+    
+    product = session.get(RejectedProductData, product_id)
+    if not product or product.project_id != project_id:
+        raise HTTPException(status_code=404, detail="Rejected product saknas.")
+    
+    # Get the match result
+    match_result = session.get(MatchResult, product.match_result_id)
+    if not match_result:
+        raise HTTPException(status_code=404, detail="Match result saknas.")
+    
+    # Try to auto-match company ID
+    company_id = _auto_match_company_id(match_result, session)
+    if company_id:
+        product.company_id = company_id
+        session.add(product)
+        session.commit()
+        return {"message": f"Company ID matched: {company_id}"}
+    else:
+        return {"message": "No matching company ID found"}
 
 
 @router.put("/projects/{project_id}/rejected-products/{product_id}")
