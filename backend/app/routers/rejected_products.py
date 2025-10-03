@@ -152,6 +152,14 @@ def _auto_match_company_id(match_result: MatchResult, session: Session) -> Optio
                 separator = detect_csv_separator(db_file)
                 with open_text_stream(db_file) as f:
                     reader = csv.DictReader(f, delimiter=separator)
+                    # Show available fields in first row
+                    first_row = next(reader, None)
+                    if first_row:
+                        print(f"DEBUG: Available fields in {db_file.name}: {list(first_row.keys())}")
+                        # Reset reader to start
+                        f.seek(0)
+                        reader = csv.DictReader(f, delimiter=separator)
+                    
                     for row in reader:
                         # Try different field names for supplier in database
                         db_supplier = (
@@ -181,8 +189,7 @@ def _auto_match_company_id(match_result: MatchResult, session: Session) -> Optio
                                     row.get("company_id", "").strip() or 
                                     row.get("companyid", "").strip() or
                                     row.get("Company_ID", "").strip() or
-                                    row.get("MSDSkey", "").strip() or  # Use MSDSkey as Company ID
-                                    row.get("msds_key", "").strip()
+                                    row.get("CompanyID", "").strip()
                                 )
                                 print(f"DEBUG: Company ID: '{company_id}'")
                                 return company_id
