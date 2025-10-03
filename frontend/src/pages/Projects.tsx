@@ -269,16 +269,18 @@ export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: n
                       <Pill>{counts.total} total</Pill>
                     </div>
 
-                    {/* Detailed Progress bar - always show */}
-                    <DetailedProgressBar
-                      total={counts.total}
-                      approved={(projectStats[p.id]?.status_breakdown.approved || 0) + 
-                               (projectStats[p.id]?.status_breakdown.auto_approved || 0) + 
-                               (projectStats[p.id]?.status_breakdown.ai_auto_approved || 0)}
-                      worklist={projectStats[p.id]?.status_breakdown.worklist || 0}
-                      rejected={projectStats[p.id]?.status_breakdown.not_approved || 0}
-                      pending={counts.actionRequired}
-                    />
+                    {/* Detailed Progress bar - only show if there are products */}
+                    {counts.total > 0 && (
+                      <DetailedProgressBar
+                        total={counts.total}
+                        approved={(projectStats[p.id]?.status_breakdown.approved || 0) + 
+                                 (projectStats[p.id]?.status_breakdown.auto_approved || 0) + 
+                                 (projectStats[p.id]?.status_breakdown.ai_auto_approved || 0)}
+                        worklist={projectStats[p.id]?.status_breakdown.worklist || 0}
+                        rejected={projectStats[p.id]?.status_breakdown.not_approved || 0}
+                        pending={counts.actionRequired}
+                      />
+                    )}
                   </div>
                 </div>
                 
