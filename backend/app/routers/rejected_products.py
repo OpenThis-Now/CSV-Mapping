@@ -63,11 +63,45 @@ def get_rejected_products(project_id: int, session: Session = Depends(get_sessio
                 session.add(existing_data)
                 session.commit()
         
+        # Debug logging
+        print(f"DEBUG: MatchResult {result.id} customer_fields_json: {result.customer_fields_json}")
+        
+        # Try different field names for product name
+        product_name = (
+            result.customer_fields_json.get("product") or 
+            result.customer_fields_json.get("product_name") or 
+            result.customer_fields_json.get("name") or 
+            result.customer_fields_json.get("title") or 
+            ""
+        )
+        
+        # Try different field names for supplier
+        supplier = (
+            result.customer_fields_json.get("vendor") or 
+            result.customer_fields_json.get("supplier") or 
+            result.customer_fields_json.get("company") or 
+            result.customer_fields_json.get("manufacturer") or 
+            ""
+        )
+        
+        # Try different field names for article number
+        article_number = (
+            result.customer_fields_json.get("article_number") or 
+            result.customer_fields_json.get("sku") or 
+            result.customer_fields_json.get("product_id") or 
+            result.customer_fields_json.get("part_number") or 
+            result.customer_fields_json.get("item_number") or 
+            ""
+        )
+        
+        print(f"DEBUG: Extracted - product_name: '{product_name}', supplier: '{supplier}', article_number: '{article_number}'")
+        
         products.append({
             "id": existing_data.id,
             "match_result_id": result.id,
-            "product_name": result.customer_fields_json.get("product", ""),
-            "supplier": result.customer_fields_json.get("vendor", ""),
+            "product_name": product_name,
+            "supplier": supplier,
+            "article_number": article_number,
             "company_id": company_id,
             "pdf_filename": existing_data.pdf_filename,
             "pdf_source": existing_data.pdf_source,

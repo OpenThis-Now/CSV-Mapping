@@ -7,6 +7,7 @@ interface RejectedProduct {
   match_result_id: number;
   product_name: string;
   supplier: string;
+  article_number?: string;
   company_id?: string;
   pdf_filename?: string;
   pdf_source?: string;
@@ -193,7 +194,7 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
                   </span>
                 </div>
                 <div className="text-sm text-gray-600 mb-1">
-                  <strong>Article Number:</strong> {product.customer_data.article_number || product.customer_data.sku || product.customer_data.product_id || 'N/A'}
+                  <strong>Article Number:</strong> {product.article_number || 'N/A'}
                 </div>
                 <div className="text-sm text-gray-600 mb-1">
                   <strong>Supplier:</strong> {product.supplier}
