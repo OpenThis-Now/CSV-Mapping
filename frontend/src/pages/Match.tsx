@@ -136,7 +136,10 @@ export default function MatchPage({ projectId }: { projectId: number }) {
     // No need to call startAnalysis() here as it would duplicate the AI processing
   };
 
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => { 
+    console.log("Match page loaded, refreshing results...");
+    refresh(); 
+  }, []);
 
   // Pagination logic
   const filteredResults = results.filter(result => {
@@ -279,12 +282,20 @@ export default function MatchPage({ projectId }: { projectId: number }) {
           <div className="text-gray-400 text-sm mb-6">
             Kör matching först för att se resultat
           </div>
-          <button
-            onClick={run}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-          >
-            Start Matching
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={run}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+            >
+              Start Matching
+            </button>
+            <button
+              onClick={refresh}
+              className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium"
+            >
+              Refresh Results
+            </button>
+          </div>
         </div>
       )}
 
