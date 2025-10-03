@@ -1,5 +1,6 @@
 import UploadArea from "@/components/UploadArea";
 import URLEnhancementStatus from "@/components/URLEnhancementStatus";
+import CSVEditor from "@/components/CSVEditor";
 import api from "@/lib/api";
 import { useEffect, useState, useRef } from "react";
 import { useToast } from "@/contexts/ToastContext";
@@ -34,6 +35,9 @@ export default function ImportPage({ projectId, onImportChange }: { projectId: n
   const [urlEnhancementStatus, setUrlEnhancementStatus] = useState<any>(null);
   const [selectedImports, setSelectedImports] = useState<Set<number>>(new Set());
   const [merging, setMerging] = useState(false);
+  const [editingImport, setEditingImport] = useState<number | null>(null);
+  const [csvData, setCsvData] = useState<Record<string, any>[]>([]);
+  const [loadingCsvData, setLoadingCsvData] = useState(false);
   const { showToast } = useToast();
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -322,6 +326,46 @@ export default function ImportPage({ projectId, onImportChange }: { projectId: n
     }
   };
 
+  const openCsvEditor = async (importId: number) => {
+    setLoadingCsvData(true);
+    try {
+      const res = await api.get(`/projects/${projectId}/import/${importId}/data`);
+      setCsvData(res.data);
+      setEditingImport(importId);
+    } catch (error: any) {
+      console.error("Failed to load CSV data:", error);
+      const errorMessage = error.response?.data?.detail || "Failed to load CSV data";
+      showToast(`Failed to load CSV data: ${errorMessage}`, 'error');
+    } finally {
+      setLoadingCsvData(false);
+    }
+  };
+
+  const saveCsvData = async (importId: number, data: Record<string, any>[]) => {
+    try {
+      await api.put(`/projects/${projectId}/import/${importId}/data`, data);
+      showToast("CSV data saved successfully!", 'success');
+      setEditingImport(null);
+      setCsvData([]);
+      await refreshImports();
+      await refreshProject();
+      
+      // Notify parent component about import change
+      if (onImportChange) {
+        onImportChange();
+      }
+    } catch (error: any) {
+      console.error("Failed to save CSV data:", error);
+      const errorMessage = error.response?.data?.detail || "Failed to save CSV data";
+      showToast(`Failed to save CSV data: ${errorMessage}`, 'error');
+    }
+  };
+
+  const cancelCsvEdit = () => {
+    setEditingImport(null);
+    setCsvData([]);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -499,6 +543,22 @@ export default function ImportPage({ projectId, onImportChange }: { projectId: n
                     {project?.active_import_id === imp.id ? 'Active ✓' : 'Set as active'}
                   </button>
                   
+                  <button
+                    className="chip bg-purple-100 text-purple-800 border-purple-300 hover:bg-purple-200 transition-colors"
+                    onClick={() => openCsvEditor(imp.id)}
+                    disabled={loadingCsvData}
+                    title="Edit CSV data directly"
+                  >
+                    {loadingCsvData && editingImport === imp.id ? (
+                      <>
+                        <div className="animate-spin rounded-full h-3 w-3 border-b border-purple-600 mr-1"></div>
+                        Loading...
+                      </>
+                    ) : (
+                      'Edit Data'
+                    )}
+                  </button>
+                  
                   {imp.has_sds_urls && (
                     <button
                       className="chip bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200 transition-colors"
@@ -517,6 +577,16 @@ export default function ImportPage({ projectId, onImportChange }: { projectId: n
                     </button>
                   )}
                 </div>
+                
+                {/* CSV Editor */}
+                {editingImport === imp.id && csvData.length > 0 && (
+                  <CSVEditor
+                    file={imp}
+                    csvData={csvData}
+                    onSave={(data) => saveCsvData(imp.id, data)}
+                    onCancel={cancelCsvEdit}
+                  />
+                )}
               </div>
             ))}
           </div>

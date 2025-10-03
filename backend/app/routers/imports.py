@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 from pathlib import Path
+from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlmodel import Session, select
@@ -10,7 +11,7 @@ from ..config import settings
 from ..db import get_session
 from ..models import ImportFile, Project
 from ..schemas import ImportUploadResponse
-from ..services.files import check_upload, compute_hash_and_save, open_text_stream
+from ..services.files import check_upload, compute_hash_and_save, open_text_stream, detect_csv_separator
 from ..services.mapping import auto_map_headers
 
 router = APIRouter()
@@ -99,3 +100,71 @@ def delete_import_file(project_id: int, import_id: int, session: Session = Depen
     session.commit()
     
     return {"message": "Importfil raderad."}
+
+
+@router.get("/projects/{project_id}/import/{import_id}/data")
+def get_import_data(project_id: int, import_id: int, session: Session = Depends(get_session)) -> List[Dict[str, Any]]:
+    """Get CSV data for editing"""
+    p = session.get(Project, project_id)
+    if not p:
+        raise HTTPException(status_code=404, detail="Projekt saknas.")
+    
+    imp = session.get(ImportFile, import_id)
+    if not imp or imp.project_id != project_id:
+        raise HTTPException(status_code=404, detail="Importfil saknas.")
+    
+    # Read CSV file
+    file_path = Path(settings.IMPORTS_DIR) / imp.filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="CSV-fil saknas på disk.")
+    
+    separator = detect_csv_separator(file_path)
+    
+    try:
+        with open_text_stream(file_path) as f:
+            reader = csv.DictReader(f, delimiter=separator)
+            data = list(reader)
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Kunde inte läsa CSV-fil: {str(e)}")
+
+
+@router.put("/projects/{project_id}/import/{import_id}/data")
+def update_import_data(project_id: int, import_id: int, data: List[Dict[str, Any]], session: Session = Depends(get_session)) -> Dict[str, str]:
+    """Update CSV data"""
+    p = session.get(Project, project_id)
+    if not p:
+        raise HTTPException(status_code=404, detail="Projekt saknas.")
+    
+    imp = session.get(ImportFile, import_id)
+    if not imp or imp.project_id != project_id:
+        raise HTTPException(status_code=404, detail="Importfil saknas.")
+    
+    # Write updated CSV file
+    file_path = Path(settings.IMPORTS_DIR) / imp.filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="CSV-fil saknas på disk.")
+    
+    separator = detect_csv_separator(file_path)
+    
+    try:
+        # Get column headers from first row or existing mapping
+        if data:
+            headers = list(data[0].keys())
+        else:
+            # If no data, use headers from mapping
+            headers = list(imp.columns_map_json.keys())
+        
+        with open(file_path, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, fieldnames=headers, delimiter=separator)
+            writer.writeheader()
+            writer.writerows(data)
+        
+        # Update row count
+        imp.row_count = len(data)
+        session.add(imp)
+        session.commit()
+        
+        return {"message": "CSV-data uppdaterad.", "row_count": len(data)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Kunde inte skriva CSV-fil: {str(e)}")
