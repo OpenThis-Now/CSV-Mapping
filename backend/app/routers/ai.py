@@ -681,9 +681,9 @@ def auto_queue_ai_analysis(project_id: int, session: Session = Depends(get_sessi
                                 log.info(f"Generated {len(suggestions)} suggestions for product {product.customer_row_index}")
                                 
                                 # Mark as completed
-                                    fresh_product.ai_status = "completed"
-                                    thread_session.add(fresh_product)
-                                    thread_session.commit()
+                                fresh_product.ai_status = "completed"
+                                thread_session.add(fresh_product)
+                                thread_session.commit()
                                 
                             except Exception as e:
                                 log.error(f"Error processing product {product.customer_row_index}: {e}")
