@@ -121,18 +121,30 @@ def get_rejected_products(project_id: int, session: Session = Depends(get_sessio
 
 def _auto_match_company_id(match_result: MatchResult, session: Session) -> Optional[str]:
     """Try to auto-match company ID from database based on supplier name"""
-    supplier_name = match_result.customer_fields_json.get("vendor", "").strip()
+    # Try different field names for supplier (same as in main function)
+    supplier_name = (
+        match_result.customer_fields_json.get("Supplier_name", "").strip() or
+        match_result.customer_fields_json.get("vendor", "").strip() or
+        match_result.customer_fields_json.get("supplier", "").strip() or
+        match_result.customer_fields_json.get("company", "").strip() or
+        match_result.customer_fields_json.get("manufacturer", "").strip()
+    )
+    
     if not supplier_name:
+        print(f"DEBUG: No supplier name found for auto-matching")
         return None
     
+    print(f"DEBUG: Trying to auto-match supplier: '{supplier_name}'")
+    
     # Get the active database for this project
-    # This is a simplified version - you might need to adjust based on your database structure
     try:
         # Get database file path (this is a simplified approach)
-        # You might need to adjust this based on how you store database files
         db_files = list(Path(settings.STORAGE_DIR).glob("databases/*.csv"))
         if not db_files:
+            print(f"DEBUG: No database files found")
             return None
+        
+        print(f"DEBUG: Found {len(db_files)} database files")
         
         # Try to find matching supplier in database
         for db_file in db_files:
@@ -141,15 +153,35 @@ def _auto_match_company_id(match_result: MatchResult, session: Session) -> Optio
                 with open_text_stream(db_file) as f:
                     reader = csv.DictReader(f, delimiter=separator)
                     for row in reader:
-                        db_supplier = row.get("supplier", "").strip()
-                        if db_supplier and fuzz.ratio(supplier_name.lower(), db_supplier.lower()) > 80:
-                            # Found a match, return company ID if available
-                            return row.get("company_id", "").strip() or row.get("companyid", "").strip()
-            except Exception:
+                        # Try different field names for supplier in database
+                        db_supplier = (
+                            row.get("supplier", "").strip() or
+                            row.get("vendor", "").strip() or
+                            row.get("company", "").strip() or
+                            row.get("manufacturer", "").strip()
+                        )
+                        
+                        if db_supplier:
+                            similarity = fuzz.ratio(supplier_name.lower(), db_supplier.lower())
+                            print(f"DEBUG: Comparing '{supplier_name}' vs '{db_supplier}' -> {similarity}%")
+                            
+                            if similarity > 80:
+                                # Found a match, return company ID if available
+                                company_id = (
+                                    row.get("company_id", "").strip() or 
+                                    row.get("companyid", "").strip() or
+                                    row.get("Company_ID", "").strip()
+                                )
+                                print(f"DEBUG: Found match! Company ID: '{company_id}'")
+                                return company_id
+            except Exception as e:
+                print(f"DEBUG: Error reading database file {db_file}: {e}")
                 continue
-    except Exception:
+    except Exception as e:
+        print(f"DEBUG: Error in auto-match: {e}")
         pass
     
+    print(f"DEBUG: No match found for supplier: '{supplier_name}'")
     return None
 
 
