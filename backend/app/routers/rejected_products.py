@@ -173,10 +173,13 @@ def _auto_match_company_id(match_result: MatchResult, session: Session) -> Optio
                             if supplier_lower in db_supplier_lower:
                                 print(f"DEBUG: Found exact match! '{supplier_name}' is contained in '{db_supplier}'")
                                 # Found a match, return company ID if available
+                                # Try different field names for company ID
                                 company_id = (
                                     row.get("company_id", "").strip() or 
                                     row.get("companyid", "").strip() or
-                                    row.get("Company_ID", "").strip()
+                                    row.get("Company_ID", "").strip() or
+                                    row.get("MSDSkey", "").strip() or  # Use MSDSkey as Company ID
+                                    row.get("msds_key", "").strip()
                                 )
                                 print(f"DEBUG: Company ID: '{company_id}'")
                                 return company_id
