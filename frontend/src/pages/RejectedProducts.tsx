@@ -112,8 +112,8 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
       } else {
         showToast(`CSV export completed: ${res.data.count} products exported`, 'success');
         // Download the CSV file
-        const downloadUrl = `/api/projects/${projectId}/rejected-products/download/${res.data.filename}`;
-        downloadFile(downloadUrl, res.data.filename);
+        const downloadUrl = `/api/projects/${projectId}/rejected-products/download/${res.data.csv_filename}`;
+        downloadFile(downloadUrl, res.data.csv_filename);
       }
     } catch (error) {
       console.error("Failed to export:", error);
