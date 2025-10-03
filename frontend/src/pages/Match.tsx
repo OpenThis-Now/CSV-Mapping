@@ -50,9 +50,13 @@ export default function MatchPage({ projectId }: { projectId: number }) {
           } else {
             setProgress(100);
             setStatus("Matching complete! AI analysis starting automatically for products with score 70-95...");
-            await refresh();
-            setRunning(false);
-            showToast("Matchning klar! AI-analys startar automatiskt för produkter med score 70-95.", 'success');
+            
+            // Wait a moment for backend to save results
+            setTimeout(async () => {
+              await refresh();
+              setRunning(false);
+              showToast("Matchning klar! AI-analys startar automatiskt för produkter med score 70-95.", 'success');
+            }, 2000);
           }
         } catch (error) {
           console.error("Progress polling error:", error);
@@ -72,8 +76,13 @@ export default function MatchPage({ projectId }: { projectId: number }) {
   };
 
   const refresh = async () => {
-    const res = await api.get<MatchResultItem[]>(`/projects/${projectId}/results`);
-    setResults(res.data);
+    try {
+      const res = await api.get<MatchResultItem[]>(`/projects/${projectId}/results`);
+      console.log("Match results loaded:", res.data.length, "results");
+      setResults(res.data);
+    } catch (error) {
+      console.error("Failed to load match results:", error);
+    }
   };
 
   const approveSelected = async () => {
@@ -183,15 +192,17 @@ export default function MatchPage({ projectId }: { projectId: number }) {
           </select>
         </div>
         
-        <div className="ml-auto flex items-center gap-0.5">
-          <button 
-            className="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700" 
-            onClick={run} 
-            disabled={running}
-          >
-            {running ? "Running..." : "Run matching"}
-          </button>
-        </div>
+        {results.length > 0 && (
+          <div className="ml-auto flex items-center gap-0.5">
+            <button 
+              className="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700" 
+              onClick={run} 
+              disabled={running}
+            >
+              {running ? "Running..." : "Run matching"}
+            </button>
+          </div>
+        )}
       </div>
 
       {running && (
@@ -248,7 +259,7 @@ export default function MatchPage({ projectId }: { projectId: number }) {
             onClick={run}
             className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
           >
-            Starta matching
+            Start Matching
           </button>
         </div>
       )}
