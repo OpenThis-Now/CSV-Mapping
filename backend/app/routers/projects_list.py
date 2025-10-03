@@ -58,14 +58,15 @@ def get_project_stats(project_id: int, session: Session = Depends(get_session)) 
         status_counts[status] = status_counts.get(status, 0) + 1
     
     # Map rejected statuses to not_approved for frontend compatibility
-    not_approved_count = status_counts.get("rejected", 0) + status_counts.get("auto_rejected", 0)
+    not_approved_count = status_counts.get("not_approved", 0) + status_counts.get("auto_not_approved", 0)
     
     # Get worklist count from RejectedProductData
-    worklist_count = session.exec(
+    worklist_results = session.exec(
         select(RejectedProductData)
         .where(RejectedProductData.project_id == project_id)
         .where(RejectedProductData.status == "request_worklist")
-    ).count()
+    ).all()
+    worklist_count = len(worklist_results)
     
     # Ensure all statuses are present with mapping
     status_breakdown = {
