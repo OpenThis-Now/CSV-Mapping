@@ -147,10 +147,14 @@ export default function MatchPage({ projectId }: { projectId: number }) {
     
     // Handle "review_required" as a combination of multiple decision values
     if (statusFilter === "review_required") {
-      return result.decision === "pending" || result.decision === "sent_to_ai";
+      const matches = result.decision === "pending" || result.decision === "sent_to_ai";
+      console.log(`Filtering result with decision "${result.decision}": ${matches}`);
+      return matches;
     }
     
-    return result.decision === statusFilter;
+    const matches = result.decision === statusFilter;
+    console.log(`Filtering result with decision "${result.decision}" against filter "${statusFilter}": ${matches}`);
+    return matches;
   });
 
   const totalPages = Math.ceil(filteredResults.length / itemsPerPage);
@@ -169,6 +173,8 @@ export default function MatchPage({ projectId }: { projectId: number }) {
     startIndex,
     endIndex,
     paginatedResults: paginatedResults.length,
+    statusFilter,
+    allDecisions: results.map(r => r.decision),
     filteredResultsData: filteredResults
   });
 
