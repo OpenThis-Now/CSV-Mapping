@@ -151,8 +151,12 @@ def score_pair(customer_row: dict[str, Any], db_row: dict[str, Any], customer_ma
     db_language = db_row.get(db_mapping.get("language", "Language"), "").strip()
 
     # Debug logging for market/language detection
+    print(f"DEBUG: customer_mapping keys: {list(customer_mapping.keys())}")
+    print(f"DEBUG: db_mapping keys: {list(db_mapping.keys())}")
     print(f"DEBUG: customer_market='{customer_market}', db_market='{db_market}'")
     print(f"DEBUG: customer_language='{customer_language}', db_language='{db_language}'")
+    print(f"DEBUG: customer_row keys: {list(customer_row.keys())}")
+    print(f"DEBUG: db_row keys: {list(db_row.keys())}")
 
     # Track market and language mismatches for scoring and comments
     market_mismatch = False
