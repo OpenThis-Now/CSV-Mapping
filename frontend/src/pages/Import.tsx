@@ -398,7 +398,7 @@ export default function ImportPage({ projectId, onImportChange }: { projectId: n
             <span className="ml-auto text-xs rounded bg-slate-100 px-2 py-0.5">.csv</span>
           </div>
 
-          <div className="text-center p-4 border-2 border-dashed border-slate-200 rounded-lg hover:border-blue-300 transition-colors">
+          <div className="text-center p-4 rounded-lg">
             <UploadArea onFile={onFile} accept=".csv" />
           </div>
           
@@ -429,7 +429,7 @@ export default function ImportPage({ projectId, onImportChange }: { projectId: n
             <span className="ml-auto text-xs rounded bg-slate-100 px-2 py-0.5">.pdf</span>
           </div>
 
-          <div className="text-center p-4 border-2 border-dashed border-slate-200 rounded-lg hover:border-rose-300 transition-colors">
+          <div className="text-center p-4 rounded-lg">
             <UploadArea 
               onFiles={onPDFFiles}
               accept=".pdf"
