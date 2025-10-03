@@ -99,8 +99,8 @@ def _process_single_product_ai(project_id: int, customer_row_index: int, session
             )
             session.add(s)
             
-            # Auto-approve if confidence is high enough
-            if s.confidence >= 0.95:
+            # Auto-approve if confidence is 100%
+            if s.confidence >= 1.0:
                 # Update the match result
                 match_result = session.exec(
                     select(MatchResult).where(
@@ -677,14 +677,14 @@ def auto_queue_ai_analysis(project_id: int, session: Session = Depends(get_sessi
                                     # Process AI suggestions with API key rotation
                                     api_key_index = product.customer_row_index % 5  # Rotate through 5 API keys
                                     suggestions = _process_single_product_ai(project_id, product.customer_row_index, thread_session, api_key_index)
-                                    
-                                    log.info(f"Generated {len(suggestions)} suggestions for product {product.customer_row_index}")
-                                    
-                                    # Mark as completed
+                                
+                                log.info(f"Generated {len(suggestions)} suggestions for product {product.customer_row_index}")
+                                
+                                # Mark as completed
                                     fresh_product.ai_status = "completed"
                                     thread_session.add(fresh_product)
                                     thread_session.commit()
-                                    
+                                
                             except Exception as e:
                                 log.error(f"Error processing product {product.customer_row_index}: {e}")
                                 # Mark as failed
