@@ -404,7 +404,7 @@ def export_rejected_products_csv(project_id: int, session: Session = Depends(get
     ).all()
     
     if not completed_products:
-        return {"message": "Inga completed products att exportera.", "count": 0}
+        return {"message": "Inga completed products att exportera.", "count": "0"}
     
     # Create export directory
     export_dir = Path(settings.STORAGE_ROOT) / "rejected_exports" / f"project_{project_id}"
@@ -475,7 +475,7 @@ def export_rejected_products_csv(project_id: int, session: Session = Depends(get
         "message": "CSV export completed successfully.",
         "filename": csv_filename,
         "file_path": str(csv_path),
-        "count": len(completed_products)
+        "count": str(len(completed_products))
     }
 
 
@@ -495,7 +495,7 @@ def export_worklist_products(project_id: int, session: Session = Depends(get_ses
     ).all()
     
     if not worklist_products:
-        return {"message": "Inga worklist products att exportera.", "count": 0}
+        return {"message": "Inga worklist products att exportera.", "count": "0"}
     
     # Create export directory
     export_dir = Path(settings.STORAGE_ROOT) / "rejected_exports" / f"project_{project_id}"
@@ -586,5 +586,5 @@ def export_worklist_products(project_id: int, session: Session = Depends(get_ses
         "csv_filename": csv_filename,
         "zip_filename": zip_filename,
         "file_path": str(zip_path),
-        "count": len(worklist_products)
+        "count": str(len(worklist_products))
     }
