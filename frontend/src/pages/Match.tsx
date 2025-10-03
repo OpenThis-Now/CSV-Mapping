@@ -175,6 +175,7 @@ export default function MatchPage({ projectId }: { projectId: number }) {
     paginatedResults: paginatedResults.length,
     statusFilter,
     allDecisions: results.map(r => r.decision),
+    paginatedResultsData: paginatedResults,
     filteredResultsData: filteredResults
   });
 
@@ -339,12 +340,19 @@ export default function MatchPage({ projectId }: { projectId: number }) {
       )}
 
       {results.length > 0 && (
-        <MatchResults
-          results={paginatedResults}
-          selectedIds={selectedIds}
-          onSelectionChange={setSelectedIds}
-          view={view}
-        />
+        <>
+          {console.log("Rendering MatchResults with:", {
+            paginatedResultsLength: paginatedResults.length,
+            paginatedResultsData: paginatedResults,
+            view: view
+          })}
+          <MatchResults
+            results={paginatedResults}
+            selectedIds={selectedIds}
+            onSelectionChange={setSelectedIds}
+            view={view}
+          />
+        </>
       )}
 
       {results.length > 0 && totalPages > 1 && (
