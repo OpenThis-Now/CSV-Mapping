@@ -11,7 +11,7 @@ interface RejectedProduct {
   company_id?: string;
   pdf_filename?: string;
   pdf_source?: string;
-  status: "needs_data" | "complete" | "sent";
+  status: "needs_data" | "complete" | "sent" | "request_worklist";
   created_at: string;
   completed_at?: string;
   notes?: string;
@@ -97,11 +97,21 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
 
   const exportCompleted = async () => {
     try {
-      const res = await api.get(`/projects/${projectId}/rejected-products/export`);
-      showToast(`Export completed: ${res.data.count} products exported`, 'success');
+      const res = await api.get(`/projects/${projectId}/rejected-products/export-csv`);
+      showToast(`CSV export completed: ${res.data.count} products exported`, 'success');
     } catch (error) {
       console.error("Failed to export:", error);
       showToast("Failed to export completed products", 'error');
+    }
+  };
+
+  const exportWorklist = async () => {
+    try {
+      const res = await api.get(`/projects/${projectId}/rejected-products/export-worklist`);
+      showToast(`Worklist export completed: ${res.data.count} products exported (CSV + ZIP)`, 'success');
+    } catch (error) {
+      console.error("Failed to export worklist:", error);
+      showToast("Failed to export worklist products", 'error');
     }
   };
 
@@ -109,7 +119,8 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
     const badges = {
       needs_data: "bg-yellow-100 text-yellow-800 border-yellow-300",
       complete: "bg-green-100 text-green-800 border-green-300",
-      sent: "bg-blue-100 text-blue-800 border-blue-300"
+      sent: "bg-blue-100 text-blue-800 border-blue-300",
+      request_worklist: "bg-purple-100 text-purple-800 border-purple-300"
     };
     return badges[status as keyof typeof badges] || "bg-gray-100 text-gray-800 border-gray-300";
   };
@@ -118,7 +129,8 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
     const texts = {
       needs_data: "Needs Data",
       complete: "Complete",
-      sent: "Sent"
+      sent: "Sent",
+      request_worklist: "Request Worklist"
     };
     return texts[status as keyof typeof texts] || status;
   };
@@ -151,7 +163,13 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
             onClick={exportCompleted}
             className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
           >
-            Export Completed
+            Export Completed (CSV)
+          </button>
+          <button
+            onClick={exportWorklist}
+            className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm"
+          >
+            Export Request Worklist (CSV + ZIP)
           </button>
         </div>
       </div>
@@ -236,13 +254,32 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Company ID
                     </label>
-                    <input
-                      type="text"
-                      value={editData.company_id || ''}
-                      onChange={(e) => setEditData({...editData, company_id: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter Company ID"
-                    />
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={editData.company_id || ''}
+                        onChange={(e) => setEditData({...editData, company_id: e.target.value})}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter Company ID"
+                      />
+                      <button
+                        onClick={async () => {
+                          showToast(`Auto-matching Company ID for supplier: ${product.supplier}`, 'info');
+                          try {
+                            // Trigger auto-matching by calling the backend endpoint
+                            await api.post(`/projects/${projectId}/rejected-products/${product.id}/auto-match`);
+                            showToast("Auto-matching completed", 'success');
+                            await loadProducts();
+                          } catch (error) {
+                            console.error("Auto-match failed:", error);
+                            showToast("Auto-matching failed", 'error');
+                          }
+                        }}
+                        className="px-3 py-2 bg-blue-100 text-blue-800 rounded hover:bg-blue-200 text-sm"
+                      >
+                        Auto-match
+                      </button>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -256,6 +293,7 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
                       <option value="needs_data">Needs Data</option>
                       <option value="complete">Complete</option>
                       <option value="sent">Sent</option>
+                      <option value="request_worklist">Request Worklist</option>
                     </select>
                   </div>
                 </div>

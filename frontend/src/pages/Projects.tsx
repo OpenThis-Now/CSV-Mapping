@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import api, { Project, DatabaseListItem } from "@/lib/api";
+import DetailedProgressBar from "@/components/DetailedProgressBar";
 
 type ProjectStats = {
   total_products: number;
@@ -10,6 +11,7 @@ type ProjectStats = {
     not_approved: number; // Maps to rejected + auto_rejected from backend
     sent_to_ai: number;
     ai_auto_approved: number;
+    worklist: number;
   };
 };
 
@@ -188,6 +190,13 @@ export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: n
           const counts = formatStatusCounts(projectStats[p.id]);
           const pctCompleted = counts.total > 0 ? ((counts.matched + counts.notAvailable) / counts.total) * 100 : 0;
           
+          // Debug logging
+          console.log(`Project ${p.id} (${p.name}):`, {
+            projectStats: projectStats[p.id],
+            counts,
+            hasStats: !!projectStats[p.id]
+          });
+          
 
           const Pill = ({ children }: { children: React.ReactNode }) => (
             <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">
@@ -241,51 +250,24 @@ export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: n
                   )}
                   <div className="text-xs text-gray-500 mb-3">Status: {p.status} · Active DB: {getDatabaseName(p.active_database_id ?? null)}</div>
                   
-                  {counts.total > 0 ? (
-                    <div className="space-y-4">
-                      {/* Header with total */}
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-gray-900">Products</span>
-                        <Pill>{counts.total} total</Pill>
-                      </div>
-
-
-                      {/* Progress bar */}
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-xs text-gray-500">
-                          <span>Progress</span>
-                          <span>{Math.round(pctCompleted)}% completed</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div 
-                            className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-                            style={{ width: `${pctCompleted}%` }}
-                          ></div>
-                        </div>
-                      </div>
-
-                      {/* Status badges */}
-                      <div className="flex flex-wrap gap-2">
-                        {counts.matched > 0 && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
-                            ✓ {counts.matched} matched
-                          </span>
-                        )}
-                        {counts.actionRequired > 0 && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-1 text-xs font-medium text-yellow-800">
-                            ⚠ {counts.actionRequired} action required
-                          </span>
-                        )}
-                        {counts.notAvailable > 0 && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-700">
-                            ✗ {counts.notAvailable} rejected
-                          </span>
-                        )}
-                      </div>
+                  <div className="space-y-4">
+                    {/* Header with total */}
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-900">Products</span>
+                      <Pill>{counts.total} total</Pill>
                     </div>
-                  ) : (
-                    <div className="text-xs text-gray-500">No products</div>
-                  )}
+
+                    {/* Detailed Progress bar - always show */}
+                    <DetailedProgressBar
+                      total={counts.total}
+                      approved={(projectStats[p.id]?.status_breakdown.approved || 0) + 
+                               (projectStats[p.id]?.status_breakdown.auto_approved || 0) + 
+                               (projectStats[p.id]?.status_breakdown.ai_auto_approved || 0)}
+                      worklist={projectStats[p.id]?.status_breakdown.worklist || 0}
+                      rejected={counts.notAvailable}
+                      pending={counts.actionRequired}
+                    />
+                  </div>
                 </div>
                 
                 {/* Action buttons */}
