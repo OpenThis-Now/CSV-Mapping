@@ -351,6 +351,7 @@ export default function MatchPage({ projectId }: { projectId: number }) {
             selectedIds={selectedIds}
             onSelectionChange={setSelectedIds}
             view={view}
+            statusFilter={statusFilter}
           />
         </>
       )}
