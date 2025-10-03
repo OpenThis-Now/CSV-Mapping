@@ -174,11 +174,15 @@ def score_pair(customer_row: dict[str, Any], db_row: dict[str, Any], customer_ma
 
     overall -= numeric_penalty(cp, dp, thr.numeric_mismatch_penalty)
     
-    # Cap score at 50% for market mismatches, 40% for language mismatches
-    if market_mismatch:
-        overall = min(50, overall)
-    if language_mismatch:
-        overall = min(40, overall)
+    # Set score to 0 if both market and language are wrong
+    if market_mismatch and language_mismatch:
+        overall = 0
+    else:
+        # Cap score at 50% for market mismatches, 40% for language mismatches
+        if market_mismatch:
+            overall = min(50, overall)
+        if language_mismatch:
+            overall = min(40, overall)
 
     exact = vendor_score >= 95 and product_score >= 95 or sku_exact(cs, ds)
 
@@ -187,9 +191,11 @@ def score_pair(customer_row: dict[str, Any], db_row: dict[str, Any], customer_ma
         reason.append("Exact SKU match")
     elif cs.strip() and ds.strip():
         reason.append("Different SKUs")
-    if market_mismatch:
+    if market_mismatch and language_mismatch:
+        reason.append("Wrong market & language")
+    elif market_mismatch:
         reason.append("Other market")
-    if language_mismatch:
+    elif language_mismatch:
         reason.append("Language mismatch")
     if vendor_score < thr.vendor_min:
         reason.append("Low vendor match")

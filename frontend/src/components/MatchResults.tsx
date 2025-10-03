@@ -142,13 +142,19 @@ function TableView({ results, selectedIds, onSelectionChange }: { results: Match
                 />
               </td>
               <td className="px-3 py-4 align-top">
-                <TripleCell 
-                  title={r.db_preview?.["Product"] || r.db_preview?.["Produkt"] || "-"} 
-                  vendor={r.db_preview?.["Supplier"] || r.db_preview?.["Leverantör"] || "-"} 
-                  sku={r.db_preview?.["Art.no"] || r.db_preview?.["Artikelnummer"] || "-"} 
-                  market={r.db_preview?.["Market"] || r.db_preview?.["Marknad"] || ""}
-                  language={r.db_preview?.["Language"] || r.db_preview?.["Språk"] || ""}
-                />
+                {r.overall_score < 15 ? (
+                  <div className="text-sm text-gray-500 italic">
+                    Not on market & language
+                  </div>
+                ) : (
+                  <TripleCell 
+                    title={r.db_preview?.["Product"] || r.db_preview?.["Produkt"] || "-"} 
+                    vendor={r.db_preview?.["Supplier"] || r.db_preview?.["Leverantör"] || "-"} 
+                    sku={r.db_preview?.["Art.no"] || r.db_preview?.["Artikelnummer"] || "-"} 
+                    market={r.db_preview?.["Market"] || r.db_preview?.["Marknad"] || ""}
+                    language={r.db_preview?.["Language"] || r.db_preview?.["Språk"] || ""}
+                  />
+                )}
               </td>
               <td className="px-3 py-4 align-top">
                 {r.decision === "auto_approved" && <Badge tone="green">Auto approved</Badge>}
@@ -245,14 +251,20 @@ function CardView({ results, selectedIds, onSelectionChange }: { results: MatchR
               </div>
               <div>
                 <div className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500">Database data</div>
-                <TripleCell 
-                  title={r.db_preview?.["Product"] || r.db_preview?.["Produkt"] || "-"} 
-                  vendor={r.db_preview?.["Supplier"] || r.db_preview?.["Leverantör"] || "-"} 
-                  sku={r.db_preview?.["Art.no"] || r.db_preview?.["Artikelnummer"] || "-"} 
-                  market={r.db_preview?.["Market"] || r.db_preview?.["Marknad"] || ""}
-                  legislation={r.db_preview?.["Legislation"] || r.db_preview?.["Legislation"] || ""}
-                  language={r.db_preview?.["Language"] || r.db_preview?.["Språk"] || ""}
-                />
+                {r.overall_score < 15 ? (
+                  <div className="text-sm text-gray-500 italic">
+                    Not on market & language
+                  </div>
+                ) : (
+                  <TripleCell 
+                    title={r.db_preview?.["Product"] || r.db_preview?.["Produkt"] || "-"} 
+                    vendor={r.db_preview?.["Supplier"] || r.db_preview?.["Leverantör"] || "-"} 
+                    sku={r.db_preview?.["Art.no"] || r.db_preview?.["Artikelnummer"] || "-"} 
+                    market={r.db_preview?.["Market"] || r.db_preview?.["Marknad"] || ""}
+                    legislation={r.db_preview?.["Legislation"] || r.db_preview?.["Legislation"] || ""}
+                    language={r.db_preview?.["Language"] || r.db_preview?.["Språk"] || ""}
+                  />
+                )}
               </div>
             </div>
             <div className="ml-auto flex w-64 shrink-0 flex-col items-end gap-2">
