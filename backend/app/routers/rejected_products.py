@@ -141,10 +141,10 @@ def _auto_match_company_id(match_result: MatchResult, session: Session) -> Optio
         # Get database file path (this is a simplified approach)
         db_files = list(Path(settings.STORAGE_DIR).glob("databases/*.csv"))
         if not db_files:
-            print(f"DEBUG: No database files found")
+            print(f"DEBUG: No database files found in {settings.STORAGE_DIR}/databases/")
             return None
         
-        print(f"DEBUG: Found {len(db_files)} database files")
+        print(f"DEBUG: Found {len(db_files)} database files: {[f.name for f in db_files]}")
         
         # Try to find matching supplier in database
         for db_file in db_files:
@@ -155,6 +155,7 @@ def _auto_match_company_id(match_result: MatchResult, session: Session) -> Optio
                     for row in reader:
                         # Try different field names for supplier in database
                         db_supplier = (
+                            row.get("Supplier_name", "").strip() or
                             row.get("supplier", "").strip() or
                             row.get("vendor", "").strip() or
                             row.get("company", "").strip() or
