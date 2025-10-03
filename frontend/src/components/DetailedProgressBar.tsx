@@ -73,10 +73,10 @@ export default function DetailedProgressBar({ total, approved, worklist, rejecte
           ></div>
         )}
         
-        {/* Pending (gray) */}
+        {/* Pending (light gray) */}
         {pendingPct > 0 && (
           <div 
-            className="bg-gray-400 h-2 absolute transition-all duration-300" 
+            className="bg-gray-200 h-2 absolute transition-all duration-300" 
             style={{ 
               width: `${pendingPct}%`,
               left: `${approvedPct + worklistPct + rejectedPct}%`
@@ -104,7 +104,7 @@ export default function DetailedProgressBar({ total, approved, worklist, rejecte
           </span>
         )}
         {pending > 0 && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 font-medium text-gray-800">
+          <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-1 font-medium text-yellow-800">
             ⚠ {pending} pending
           </span>
         )}
