@@ -403,23 +403,49 @@ def export_rejected_products_csv(project_id: int, session: Session = Depends(get
     
     with open(csv_path, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
-        writer.writerow([
-            "Product Name", "Supplier", "Company ID", "PDF Filename", 
-            "Status", "Completed At", "Notes"
-        ])
+        
+        # Get all unique field names from customer data
+        all_customer_fields = set()
+        all_db_fields = set()
+        for product in completed_products:
+            match_result = session.get(MatchResult, product.match_result_id)
+            if match_result:
+                all_customer_fields.update(match_result.customer_fields_json.keys())
+                if match_result.db_fields_json:
+                    all_db_fields.update(match_result.db_fields_json.keys())
+        
+        # Create header row
+        header = []
+        # Add all customer fields
+        for field in sorted(all_customer_fields):
+            header.append(f"Customer_{field}")
+        # Add all database fields  
+        for field in sorted(all_db_fields):
+            header.append(f"Database_{field}")
+        # Add workflow fields
+        header.extend(["Company_ID", "Status", "PDF_Filename", "Completed_At", "Notes"])
+        
+        writer.writerow(header)
         
         for product in completed_products:
             match_result = session.get(MatchResult, product.match_result_id)
             if match_result:
-                writer.writerow([
-                    match_result.customer_fields_json.get("Product_name", ""),
-                    match_result.customer_fields_json.get("Supplier_name", ""),
+                row = []
+                # Add all customer fields
+                for field in sorted(all_customer_fields):
+                    row.append(match_result.customer_fields_json.get(field, ""))
+                # Add all database fields
+                for field in sorted(all_db_fields):
+                    row.append(match_result.db_fields_json.get(field, "") if match_result.db_fields_json else "")
+                # Add workflow fields
+                row.extend([
                     product.company_id or "",
-                    product.pdf_filename or "",
                     product.status,
+                    product.pdf_filename or "",
                     product.completed_at.isoformat() if product.completed_at else "",
                     product.notes or ""
                 ])
+                writer.writerow(row)
     
     # Create export record
     export_record = RejectedExport(
@@ -470,23 +496,49 @@ def export_worklist_products(project_id: int, session: Session = Depends(get_ses
     
     with open(csv_path, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
-        writer.writerow([
-            "Product Name", "Supplier", "Company ID", "PDF Filename", 
-            "Status", "Created At", "Notes"
-        ])
+        
+        # Get all unique field names from customer data
+        all_customer_fields = set()
+        all_db_fields = set()
+        for product in worklist_products:
+            match_result = session.get(MatchResult, product.match_result_id)
+            if match_result:
+                all_customer_fields.update(match_result.customer_fields_json.keys())
+                if match_result.db_fields_json:
+                    all_db_fields.update(match_result.db_fields_json.keys())
+        
+        # Create header row
+        header = []
+        # Add all customer fields
+        for field in sorted(all_customer_fields):
+            header.append(f"Customer_{field}")
+        # Add all database fields  
+        for field in sorted(all_db_fields):
+            header.append(f"Database_{field}")
+        # Add workflow fields
+        header.extend(["Company_ID", "Status", "PDF_Filename", "Created_At", "Notes"])
+        
+        writer.writerow(header)
         
         for product in worklist_products:
             match_result = session.get(MatchResult, product.match_result_id)
             if match_result:
-                writer.writerow([
-                    match_result.customer_fields_json.get("Product_name", ""),
-                    match_result.customer_fields_json.get("Supplier_name", ""),
+                row = []
+                # Add all customer fields
+                for field in sorted(all_customer_fields):
+                    row.append(match_result.customer_fields_json.get(field, ""))
+                # Add all database fields
+                for field in sorted(all_db_fields):
+                    row.append(match_result.db_fields_json.get(field, "") if match_result.db_fields_json else "")
+                # Add workflow fields
+                row.extend([
                     product.company_id or "",
-                    product.pdf_filename or "",
                     product.status,
+                    product.pdf_filename or "",
                     product.created_at.isoformat(),
                     product.notes or ""
                 ])
+                writer.writerow(row)
     
     # Create ZIP with PDFs
     zip_filename = f"worklist_pdfs_{timestamp}.zip"
@@ -502,6 +554,8 @@ def export_worklist_products(project_id: int, session: Session = Depends(get_ses
                 pdf_path = export_dir / product.pdf_filename
                 if pdf_path.exists():
                     zip_file.write(pdf_path, product.pdf_filename)
+                else:
+                    print(f"WARNING: PDF file not found: {pdf_path}")
     
     # Create export record
     export_record = RejectedExport(
