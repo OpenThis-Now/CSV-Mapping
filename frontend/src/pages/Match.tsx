@@ -236,6 +236,23 @@ export default function MatchPage({ projectId }: { projectId: number }) {
         </div>
       </div>
 
+      {results.length === 0 && !running && (
+        <div className="text-center py-12">
+          <div className="text-gray-500 text-lg mb-4">
+            Inga matchresultat än
+          </div>
+          <div className="text-gray-400 text-sm mb-6">
+            Kör matching först för att se resultat
+          </div>
+          <button
+            onClick={run}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+          >
+            Starta matching
+          </button>
+        </div>
+      )}
+
       {selectedIds.length > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
           <div className="flex items-center justify-between">
@@ -266,14 +283,16 @@ export default function MatchPage({ projectId }: { projectId: number }) {
         </div>
       )}
 
-      <MatchResults
-        results={paginatedResults}
-        selectedIds={selectedIds}
-        onSelectionChange={setSelectedIds}
-        view={view}
-      />
+      {results.length > 0 && (
+        <MatchResults
+          results={paginatedResults}
+          selectedIds={selectedIds}
+          onSelectionChange={setSelectedIds}
+          view={view}
+        />
+      )}
 
-      {totalPages > 1 && (
+      {results.length > 0 && totalPages > 1 && (
         <div className="flex items-center justify-center gap-2">
           <button
             onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
