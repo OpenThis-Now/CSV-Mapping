@@ -57,6 +57,8 @@ export default function ImportPage({ projectId, onImportChange }: { projectId: n
   const checkUrlEnhancementStatus = async () => {
     try {
       const res = await api.get(`/projects/${projectId}/url-enhancement/status`);
+      console.log("URL enhancement status:", res.data);
+      
       if (res.data.has_active_enhancement) {
         setUrlEnhancementStatus(res.data);
         setUrlEnhancing(res.data.enhancement_run_id);
@@ -73,13 +75,17 @@ export default function ImportPage({ projectId, onImportChange }: { projectId: n
         await refreshImports();
         await refreshProject();
         
-        // Show completion message
+        // Show completion message based on status
         if (res.data.status === "completed") {
           showToast("URL enhancement completed successfully!", 'success');
           setStatus("URL enhancement completed successfully!");
         } else if (res.data.status === "failed") {
           showToast("URL enhancement failed. Check logs for details.", 'error');
           setStatus("URL enhancement failed. Check logs for details.");
+        } else {
+          // Unknown status, show generic message
+          showToast("URL enhancement finished.", 'info');
+          setStatus("URL enhancement finished.");
         }
       }
     } catch (error) {
