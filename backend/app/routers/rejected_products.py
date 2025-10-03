@@ -66,8 +66,9 @@ def get_rejected_products(project_id: int, session: Session = Depends(get_sessio
         # Debug logging
         print(f"DEBUG: MatchResult {result.id} customer_fields_json: {result.customer_fields_json}")
         
-        # Try different field names for product name
+        # Try different field names for product name (case sensitive!)
         product_name = (
+            result.customer_fields_json.get("Product_name") or 
             result.customer_fields_json.get("product") or 
             result.customer_fields_json.get("product_name") or 
             result.customer_fields_json.get("name") or 
@@ -75,8 +76,9 @@ def get_rejected_products(project_id: int, session: Session = Depends(get_sessio
             ""
         )
         
-        # Try different field names for supplier
+        # Try different field names for supplier (case sensitive!)
         supplier = (
+            result.customer_fields_json.get("Supplier_name") or 
             result.customer_fields_json.get("vendor") or 
             result.customer_fields_json.get("supplier") or 
             result.customer_fields_json.get("company") or 
@@ -84,8 +86,9 @@ def get_rejected_products(project_id: int, session: Session = Depends(get_sessio
             ""
         )
         
-        # Try different field names for article number
+        # Try different field names for article number (case sensitive!)
         article_number = (
+            result.customer_fields_json.get("Article_number") or 
             result.customer_fields_json.get("article_number") or 
             result.customer_fields_json.get("sku") or 
             result.customer_fields_json.get("product_id") or 
