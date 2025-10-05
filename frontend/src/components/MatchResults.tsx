@@ -276,14 +276,45 @@ function CardView({ results, selectedIds, onSelectionChange }: { results: MatchR
               </div>
             </div>
             <div className="ml-auto flex w-64 shrink-0 flex-col items-end gap-2">
-              <div>
-                {r.decision === "auto_approved" && <Badge tone="green">Auto approved</Badge>}
-                {r.decision === "approved" && <Badge tone="green">Approved</Badge>}
-                {r.decision === "ai_auto_approved" && <Badge tone="green">AI auto approved</Badge>}
-                {r.decision === "rejected" && <Badge tone="red">Rejected</Badge>}
-                {r.decision === "auto_rejected" && <Badge tone="red">Auto-rejected</Badge>}
-                {r.decision === "sent_to_ai" && <Badge tone="blue">Sent to AI</Badge>}
-                {r.decision === "pending" && <Badge tone="yellow">Pending</Badge>}
+              <div className="flex items-center gap-2">
+                {/* Hover/Focus action buttons - positioned to left of status */}
+                <div className="hidden items-center gap-2 group-hover:flex group-focus-within:flex">
+                  <button 
+                    onClick={() => onApprove(r.id)} 
+                    className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium bg-slate-100 hover:bg-slate-200"
+                  >
+                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    Approve
+                  </button>
+                  <button 
+                    onClick={() => onReject(r.id)} 
+                    className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium border hover:bg-slate-50"
+                  >
+                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                    Reject
+                  </button>
+                  <button 
+                    onClick={() => onSendToAI(r.id)} 
+                    className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium bg-[#0E1627] text-white hover:bg-[#121C32]"
+                  >
+                    <Send className="w-3 h-3" strokeWidth={2} />
+                    Send to AI
+                  </button>
+                </div>
+                
+                <div>
+                  {r.decision === "auto_approved" && <Badge tone="green">Auto approved</Badge>}
+                  {r.decision === "approved" && <Badge tone="green">Approved</Badge>}
+                  {r.decision === "ai_auto_approved" && <Badge tone="green">AI auto approved</Badge>}
+                  {r.decision === "rejected" && <Badge tone="red">Rejected</Badge>}
+                  {r.decision === "auto_rejected" && <Badge tone="red">Auto-rejected</Badge>}
+                  {r.decision === "sent_to_ai" && <Badge tone="blue">Sent to AI</Badge>}
+                  {r.decision === "pending" && <Badge tone="yellow">Pending</Badge>}
+                </div>
               </div>
               <div className="text-sm">
                 Score <span className="font-semibold">{r.overall_score}</span>
@@ -299,36 +330,6 @@ function CardView({ results, selectedIds, onSelectionChange }: { results: MatchR
               </div>
               <div className="text-sm text-gray-700">{r.reason}</div>
             </div>
-          </div>
-          
-          {/* Hover/Focus action buttons */}
-          <div className="pointer-events-auto absolute right-4 bottom-3 hidden items-center gap-2 group-hover:flex group-focus-within:flex bg-white/90 backdrop-blur-sm rounded-lg p-2 shadow-lg border">
-            <button 
-              onClick={() => onApprove(r.id)} 
-              className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium bg-slate-100 hover:bg-slate-200"
-            >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-              Approve
-            </button>
-            <button 
-              onClick={() => onReject(r.id)} 
-              className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium border hover:bg-slate-50"
-            >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-              </svg>
-              Reject
-            </button>
-            <button 
-              onClick={() => onSendToAI(r.id)} 
-              className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium bg-[#0E1627] text-white hover:bg-[#121C32] active:bg-[#0B1120] shadow-[0_4px_14px_rgba(0,0,0,0.15)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7DD3FC] focus-visible:ring-offset-2"
-            >
-              <Send className="w-4 h-4" strokeWidth={2} />
-              Send to AI
-            </button>
-          </div>
         </div>
       ))}
     </div>
