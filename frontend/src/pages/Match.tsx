@@ -285,7 +285,7 @@ export default function MatchPage({ projectId }: { projectId: number }) {
         {results.length > 0 && (
           <div className="ml-auto flex items-center gap-0.5">
             <button 
-              className="rounded-2xl bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-700" 
+              className="rounded-2xl bg-blue-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-600" 
               onClick={run} 
               disabled={running}
             >
@@ -310,13 +310,6 @@ export default function MatchPage({ projectId }: { projectId: number }) {
         </div>
       )}
 
-      <div className="flex items-center justify-end">
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600">
-            Showing {startIndex + 1}-{Math.min(endIndex, filteredResults.length)} of {filteredResults.length} results
-          </span>
-        </div>
-      </div>
 
       {results.length === 0 && !running && (
         <div className="text-center py-12">
@@ -338,7 +331,7 @@ export default function MatchPage({ projectId }: { projectId: number }) {
       )}
 
       {selectedIds.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+        <div className="sticky top-0 z-10 bg-blue-50 border border-blue-200 rounded-lg p-3 shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-blue-900">
               {selectedIds.length} product{selectedIds.length !== 1 ? 's' : ''} selected

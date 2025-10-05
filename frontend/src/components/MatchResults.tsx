@@ -338,9 +338,7 @@ export default function MatchResults({ results, selectedIds, onSelectionChange, 
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="text-sm text-gray-600">
-          {statusFilter !== "all" && (
-            <span>Showing {filteredResults.length} of {results.length} results</span>
-          )}
+          <span>Showing <span className="font-bold">{filteredResults.length > 0 ? 1 : 0}-{filteredResults.length}</span> of {results.length} results</span>
         </div>
         <div className="flex items-center gap-2">
           <span className={`text-sm ${localView === 'table' ? 'font-semibold' : ''}`}>Table</span>
