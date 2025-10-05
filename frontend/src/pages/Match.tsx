@@ -344,17 +344,38 @@ export default function MatchPage({ projectId }: { projectId: number }) {
             results={paginatedResults}
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
-          onApprove={(id) => {
-            setSelectedIds([id]);
-            approveSelected();
+          onApprove={async (id) => {
+            try {
+              await api.post(`/projects/${projectId}/approve`, { ids: [id] });
+              setSelectedIds([]);
+              await refresh();
+              showToast("Product approved.", 'success');
+            } catch (error) {
+              console.error("Failed to approve:", error);
+              showToast("Failed to approve product.", 'error');
+            }
           }}
-          onReject={(id) => {
-            setSelectedIds([id]);
-            rejectSelected();
+          onReject={async (id) => {
+            try {
+              await api.post(`/projects/${projectId}/reject`, { ids: [id] });
+              setSelectedIds([]);
+              await refresh();
+              showToast("Product rejected.", 'success');
+            } catch (error) {
+              console.error("Failed to reject:", error);
+              showToast("Failed to reject product.", 'error');
+            }
           }}
-          onSendToAI={(id) => {
-            setSelectedIds([id]);
-            sendToAI();
+          onSendToAI={async (id) => {
+            try {
+              await api.post(`/projects/${projectId}/send-to-ai`, { ids: [id] });
+              setSelectedIds([]);
+              await refresh();
+              showToast("Product sent to AI.", 'success');
+            } catch (error) {
+              console.error("Failed to send to AI:", error);
+              showToast("Failed to send product to AI.", 'error');
+            }
           }}
           view={view}
           statusFilter={statusFilter}
