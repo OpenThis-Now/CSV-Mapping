@@ -6,6 +6,9 @@ interface MatchResultsProps {
   results: MatchResultItem[];
   selectedIds: number[];
   onSelectionChange: (ids: number[]) => void;
+  onApprove: (id: number) => void;
+  onReject: (id: number) => void;
+  onSendToAI: (id: number) => void;
   view: "table" | "card";
   statusFilter: string;
   totalResults?: number;
@@ -227,7 +230,7 @@ function CardView({ results, selectedIds, onSelectionChange }: { results: MatchR
   return (
     <div className="grid grid-cols-1 gap-3">
       {sortedResults.map((r) => (
-        <div key={r.id} className="rounded-2xl border bg-white p-4 shadow-sm">
+        <div key={r.id} className="group relative rounded-2xl border bg-white p-4 shadow-sm focus-within:ring-2 focus-within:ring-black">
           <div className="flex items-start gap-4">
             <input 
               type="checkbox" 
@@ -296,13 +299,44 @@ function CardView({ results, selectedIds, onSelectionChange }: { results: MatchR
               <div className="text-sm text-gray-700">{r.reason}</div>
             </div>
           </div>
+          
+          {/* Hover/Focus action buttons */}
+          <div className="pointer-events-auto absolute inset-x-4 bottom-3 hidden items-center justify-end gap-2 group-hover:flex group-focus-within:flex md:flex">
+            <button 
+              onClick={() => onApprove(r.id)} 
+              className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium bg-slate-100 hover:bg-slate-200"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+              Approve
+            </button>
+            <button 
+              onClick={() => onReject(r.id)} 
+              className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium border hover:bg-slate-50"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+              Reject
+            </button>
+            <button 
+              onClick={() => onSendToAI(r.id)} 
+              className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium bg-[#0E1627] text-white hover:bg-[#121C32] active:bg-[#0B1120] shadow-[0_4px_14px_rgba(0,0,0,0.15)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7DD3FC] focus-visible:ring-offset-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              </svg>
+              Send to AI
+            </button>
+          </div>
         </div>
       ))}
     </div>
   );
 }
 
-export default function MatchResults({ results, selectedIds, onSelectionChange, view, statusFilter, totalResults, filteredResults, startIndex, endIndex }: MatchResultsProps) {
+export default function MatchResults({ results, selectedIds, onSelectionChange, onApprove, onReject, onSendToAI, view, statusFilter, totalResults, filteredResults, startIndex, endIndex }: MatchResultsProps) {
   const [localView, setLocalView] = useState<'table' | 'card'>(view);
   
   // Filter results based on status with mapping

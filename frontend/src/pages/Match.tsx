@@ -344,6 +344,18 @@ export default function MatchPage({ projectId }: { projectId: number }) {
             results={paginatedResults}
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
+          onApprove={(id) => {
+            setSelectedIds([id]);
+            approveSelected();
+          }}
+          onReject={(id) => {
+            setSelectedIds([id]);
+            rejectSelected();
+          }}
+          onSendToAI={(id) => {
+            setSelectedIds([id]);
+            sendToAI();
+          }}
           view={view}
           statusFilter={statusFilter}
             totalResults={results.length}
