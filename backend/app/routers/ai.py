@@ -171,16 +171,23 @@ def build_ai_prompt(customer_row, db_sample, mapping, k: int) -> str:
            - No contradictory evidence.
            (Do not deduct for supplier alias/typo in this case.)
 
-        B) Otherwise start from evidence and deduct:
+        B) **CRITICAL: Product type mismatch penalty** — If products are fundamentally different types:
+           - **Alcohol wipes vs Industrial adhesive** → confidence ≤ 0.10
+           - **Paint vs Cleaning solution** → confidence ≤ 0.15  
+           - **Medical device vs Construction material** → confidence ≤ 0.10
+           - **Food product vs Chemical** → confidence ≤ 0.05
+           - **Different product categories entirely** → confidence ≤ 0.20
+
+        C) Otherwise start from evidence and deduct:
            - Start points:
              * 0.95 if exact article/SKU/MPN match (canonicalized) and names align strongly.
              * 0.90 if GTIN/EAN/UPC match but minor name drift.
              * 0.75–0.89 strong partials (identifier partials + high token similarity).
              * 0.50–0.74 contextual/industry matches with weak identifiers.
            - Deductions (sum; floor at 0):
-             * −0.20 market mismatch (severity by region distance).
-             * −0.25 language mismatch (cap total at ≤0.49 if language differs).
-             * −0.10 supplier alias uncertainty (skip if Exact canonical match).
+             * −0.30 market mismatch (severity by region distance).
+             * −0.40 language mismatch (cap total at ≤0.49 if language differs).
+             * −0.20 supplier mismatch (different companies entirely).
              * −0.15 variant risk (e.g., Part A vs Part B, different size/revision).
              * −0.10 inconsistent identifiers across sources.
 
@@ -223,6 +230,11 @@ def build_ai_prompt(customer_row, db_sample, mapping, k: int) -> str:
         Input: name "PAINT 100", supplier "Company A", art.no "P100", market "USA", language "English".
         Candidate: name "PAINT 100", supplier "Company A", art.no "P100", market "USA", language "English".
         Expected rationale ending: "FIELDS_TO_REVIEW: None"
+        
+        Example 4 — product type mismatch (should be very low confidence):
+        Input: name "Alcohol Wipes", supplier "Nice Pak", art.no "WP001", market "Australia", language "English".
+        Candidate: name "Industrial Adhesive", supplier "3M Canada", art.no "ADH123", market "Canada", language "English".
+        Expected: confidence ≤ 0.10, rationale ending: "FIELDS_TO_REVIEW: Product name, Supplier, Market"
 
         Customer row to match:
         {json.dumps(customer_row, ensure_ascii=False)}
