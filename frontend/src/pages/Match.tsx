@@ -239,7 +239,7 @@ export default function MatchPage({ projectId }: { projectId: number }) {
   }, [statusFilter]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-20">
       <div className="sticky top-16 z-30 bg-white border-b py-2 flex items-center gap-0.5">
         <div className="flex items-center gap-0.5">
           <span className="text-xs text-gray-600">Vendor ≥</span>
