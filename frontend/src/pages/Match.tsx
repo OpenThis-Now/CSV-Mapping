@@ -169,7 +169,7 @@ export default function MatchPage({ projectId }: { projectId: number }) {
       
       // Handle "rejected" - include both manual and auto rejections
       if (statusFilter === "rejected") {
-        const matches = result.decision === "rejected" || result.decision === "auto_rejected";
+        const matches = result.decision === "rejected" || result.decision === "auto_rejected" || result.decision === "ai_auto_rejected";
         console.log(`Filtering result with decision "${result.decision}" for rejected: ${matches}`);
         return matches;
       }
@@ -180,7 +180,7 @@ export default function MatchPage({ projectId }: { projectId: number }) {
     })
   .sort((a, b) => {
     // Sort by decision first (pending first), then by customer_row_index, then by id
-    const decisionOrder = { pending: 0, sent_to_ai: 1, auto_rejected: 2, auto_approved: 3, approved: 4, rejected: 5 };
+    const decisionOrder = { pending: 0, sent_to_ai: 1, ai_auto_rejected: 2, auto_rejected: 3, auto_approved: 4, approved: 5, rejected: 6 };
     const aOrder = decisionOrder[a.decision as keyof typeof decisionOrder] ?? 999;
     const bOrder = decisionOrder[b.decision as keyof typeof decisionOrder] ?? 999;
     

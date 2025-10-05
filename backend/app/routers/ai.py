@@ -116,6 +116,22 @@ def _process_single_product_ai(project_id: int, customer_row_index: int, session
                     match_result.ai_summary = f"AI auto-approved with {s.confidence:.0%} confidence: {s.rationale}"
                     session.add(match_result)
             
+            # Auto-reject if confidence is below 30%
+            elif s.confidence < 0.3:
+                # Update the match result
+                match_result = session.exec(
+                    select(MatchResult).where(
+                        MatchResult.customer_row_index == customer_row_index,
+                        MatchResult.decision == "sent_to_ai"
+                    ).order_by(MatchResult.id.desc())
+                ).first()
+                
+                if match_result:
+                    match_result.decision = "ai_auto_rejected"
+                    match_result.ai_status = "auto_rejected"
+                    match_result.ai_summary = f"AI auto-rejected with {s.confidence:.0%} confidence (below 30% threshold): {s.rationale}"
+                    session.add(match_result)
+            
             out.append(AiSuggestionItem(
                 id=0,  # Will be set after commit
                 customer_row_index=s.customer_row_index,

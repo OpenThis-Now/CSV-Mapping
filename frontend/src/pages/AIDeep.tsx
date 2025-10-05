@@ -161,7 +161,11 @@ export default function AIDeep({ projectId }: { projectId: number }) {
                 
                 // Determine color based on confidence level
                 let color = "";
-                if (confidence <= 0.4) {
+                let autoRejected = false;
+                if (confidence < 0.3) {
+                  color = "bg-red-600"; // Darker red for auto-rejected
+                  autoRejected = true;
+                } else if (confidence <= 0.4) {
                   color = "bg-red-500";
                 } else if (confidence <= 0.6) {
                   color = "bg-yellow-500";
@@ -170,7 +174,7 @@ export default function AIDeep({ projectId }: { projectId: number }) {
                 }
 
                 return {
-                  label: index === 0 ? "Recommended match" : "Alternative match",
+                  label: autoRejected ? "Auto-rejected" : (index === 0 ? "Recommended match" : "Alternative match"),
                   conf: confidencePercent,
                   value: suggestion.database_fields_json["Product_name"],
                   color: color,
@@ -239,6 +243,25 @@ export default function AIDeep({ projectId }: { projectId: number }) {
                                 <p className="font-semibold text-blue-700">AI explanation:</p>
                                 <p className="mb-2">{item.details.explanation}</p>
                                 {(() => {
+                                  const confidence = item.details.suggestion.confidence;
+                                  
+                                  // Show auto-rejection warning for low confidence
+                                  if (confidence < 0.3) {
+                                    return (
+                                      <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
+                                        <div className="flex items-center gap-2">
+                                          <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                          </svg>
+                                          <div>
+                                            <p className="text-sm font-medium text-red-800">Auto-rejected due to low confidence</p>
+                                            <p className="text-sm text-red-700">This match has {Math.round(confidence * 100)}% confidence, which is below the 30% threshold for automatic rejection.</p>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+                                  
                                   // Extract fields to review from AI explanation
                                   const explanation = item.details.explanation || '';
                                   const fieldsMatch = explanation.match(/FIELDS_TO_REVIEW:\s*([^\.]+)/i);
