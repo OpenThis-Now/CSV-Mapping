@@ -188,26 +188,35 @@ export default function MatchPage({ projectId }: { projectId: number }) {
   const paginatedResults = filteredResults.slice(startIndex, endIndex);
   
   // Debug pagination
-  console.log("Pagination debug:", {
-    results: results.length,
-    filteredResults: filteredResults.length,
-    currentPage,
-    safeCurrentPage,
-    itemsPerPage,
-    startIndex,
-    endIndex,
-    paginatedResults: paginatedResults.length,
-    statusFilter,
-    allDecisions: results.map(r => r.decision),
-    paginatedResultsData: paginatedResults,
-    filteredResultsData: filteredResults,
-    // Debug sorting
-    firstFewResults: results.slice(0, 5).map(r => ({ id: r.id, customer_row_index: r.customer_row_index, decision: r.decision })),
-    firstFewFiltered: filteredResults.slice(0, 5).map(r => ({ id: r.id, customer_row_index: r.customer_row_index, decision: r.decision })),
-    // Debug pending products specifically
-    pendingProducts: results.filter(r => r.decision === "pending").map(r => ({ id: r.id, customer_row_index: r.customer_row_index, decision: r.decision })),
-    pendingOnCurrentPage: paginatedResults.filter(r => r.decision === "pending").map(r => ({ id: r.id, customer_row_index: r.customer_row_index, decision: r.decision }))
-  });
+  console.log("=== PAGINATION DEBUG ===");
+  console.log("Results count:", results.length);
+  console.log("Filtered results count:", filteredResults.length);
+  console.log("Current page:", currentPage);
+  console.log("Items per page:", itemsPerPage);
+  console.log("Status filter:", statusFilter);
+  
+  // Debug sorting
+  console.log("=== SORTING DEBUG ===");
+  console.log("First 5 results from backend:", results.slice(0, 5).map(r => ({ id: r.id, customer_row_index: r.customer_row_index, decision: r.decision })));
+  console.log("First 5 filtered results:", filteredResults.slice(0, 5).map(r => ({ id: r.id, customer_row_index: r.customer_row_index, decision: r.decision })));
+  
+  // Debug pending products specifically
+  const pendingProducts = results.filter(r => r.decision === "pending");
+  const pendingOnCurrentPage = paginatedResults.filter(r => r.decision === "pending");
+  
+  console.log("=== PENDING PRODUCTS DEBUG ===");
+  console.log("All pending products:", pendingProducts.map(r => ({ id: r.id, customer_row_index: r.customer_row_index, decision: r.decision })));
+  console.log("Pending on current page:", pendingOnCurrentPage.map(r => ({ id: r.id, customer_row_index: r.customer_row_index, decision: r.decision })));
+  console.log("Total pending count:", pendingProducts.length);
+  console.log("Pending on current page count:", pendingOnCurrentPage.length);
+  
+  // Debug all decisions
+  console.log("=== DECISIONS DEBUG ===");
+  const decisionCounts = results.reduce((acc, r) => {
+    acc[r.decision] = (acc[r.decision] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  console.log("Decision counts:", decisionCounts);
 
   // Reset to page 1 when filter changes
   useEffect(() => {
