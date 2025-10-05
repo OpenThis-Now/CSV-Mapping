@@ -203,7 +203,10 @@ export default function MatchPage({ projectId }: { projectId: number }) {
     filteredResultsData: filteredResults,
     // Debug sorting
     firstFewResults: results.slice(0, 5).map(r => ({ id: r.id, customer_row_index: r.customer_row_index, decision: r.decision })),
-    firstFewFiltered: filteredResults.slice(0, 5).map(r => ({ id: r.id, customer_row_index: r.customer_row_index, decision: r.decision }))
+    firstFewFiltered: filteredResults.slice(0, 5).map(r => ({ id: r.id, customer_row_index: r.customer_row_index, decision: r.decision })),
+    // Debug pending products specifically
+    pendingProducts: results.filter(r => r.decision === "pending").map(r => ({ id: r.id, customer_row_index: r.customer_row_index, decision: r.decision })),
+    pendingOnCurrentPage: paginatedResults.filter(r => r.decision === "pending").map(r => ({ id: r.id, customer_row_index: r.customer_row_index, decision: r.decision }))
   });
 
   // Reset to page 1 when filter changes
