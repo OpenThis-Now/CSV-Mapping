@@ -31,6 +31,7 @@ export default function ImportPage({ projectId, onImportChange }: { projectId: n
   const [uploading, setUploading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [pdfUploading, setPdfUploading] = useState(false);
+  const [pdfProgress, setPdfProgress] = useState(0);
   const [urlEnhancing, setUrlEnhancing] = useState<number | null>(null);
   const [urlEnhancementStatus, setUrlEnhancementStatus] = useState<any>(null);
   const [selectedImports, setSelectedImports] = useState<Set<number>>(new Set());
@@ -165,6 +166,7 @@ export default function ImportPage({ projectId, onImportChange }: { projectId: n
   const onPDFFiles = async (files: File[]) => {
     setSelectedFiles(files);
     setPdfUploading(true);
+    setPdfProgress(0);
     
     try {
       const formData = new FormData();
@@ -172,7 +174,18 @@ export default function ImportPage({ projectId, onImportChange }: { projectId: n
         formData.append('files', file);
       });
       
+      // Simulate progress updates during upload
+      const progressInterval = setInterval(() => {
+        setPdfProgress(prev => {
+          if (prev >= 90) return prev; // Don't go to 100% until request completes
+          return prev + Math.random() * 15; // Random progress increments
+        });
+      }, 500);
+      
       const res = await api.post(`/projects/${projectId}/pdf-import`, formData);
+      
+      clearInterval(progressInterval);
+      setPdfProgress(100);
       
       setLast(res.data);
       setStatus(`Processed ${files.length} PDF files, extracted ${res.data.row_count} products`);
@@ -192,6 +205,7 @@ export default function ImportPage({ projectId, onImportChange }: { projectId: n
       setStatus(`Failed to process PDF files: ${errorMessage}`);
     } finally {
       setPdfUploading(false);
+      setPdfProgress(0);
       setSelectedFiles([]);
     }
   };
@@ -454,9 +468,17 @@ export default function ImportPage({ projectId, onImportChange }: { projectId: n
           )}
           
           {pdfUploading && (
-            <div className="flex items-center justify-center gap-2 text-rose-600 mt-3">
-              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-rose-600"></div>
-              <span className="text-sm">Processing...</span>
+            <div className="mt-3 space-y-2">
+              <div className="flex items-center justify-between text-xs text-rose-600">
+                <span>Processing PDF files...</span>
+                <span>{Math.round(pdfProgress)}%</span>
+              </div>
+              <div className="w-full bg-rose-100 rounded-full h-2">
+                <div 
+                  className="bg-rose-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${pdfProgress}%` }}
+                ></div>
+              </div>
             </div>
           )}
         </div>
