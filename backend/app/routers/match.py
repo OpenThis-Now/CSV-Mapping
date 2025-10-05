@@ -99,22 +99,31 @@ def run_matching(project_id: int, req: MatchRequest, session: Session = Depends(
             else:
                 log.info(f"Database field '{field}' mapped to column '{db.columns_map_json[field]}'")
         
-        # If match_new_only is True, get existing customer_row_indexes to skip them
-        existing_row_indexes = set()
+        # If match_new_only is True, get existing product combinations to skip them
+        existing_products = set()
         if req and req.match_new_only:
-            # Get existing results from the current match run
+            # Get existing results from the current match run and create a set of product combinations
             existing_results = session.exec(
-                select(MatchResult.customer_row_index)
+                select(MatchResult.customer_fields_json)
                 .where(MatchResult.match_run_id == run.id)
             ).all()
-            existing_row_indexes = set(existing_results)
-            log.info(f"Found {len(existing_row_indexes)} existing matches in current run, will skip these rows")
+            
+            for result in existing_results:
+                # Create a unique key based on product data (not row index)
+                if result and isinstance(result, dict):
+                    product_key = f"{result.get('product', '')}_{result.get('vendor', '')}_{result.get('sku', '')}"
+                    existing_products.add(product_key)
+            
+            log.info(f"Found {len(existing_products)} existing product combinations, will skip these")
         
         for row_index, crow, dbrow, meta in run_match(cust_csv, db_csv, imp.columns_map_json, db.columns_map_json, thr):
-            # Skip existing rows if match_new_only is True
-            if req and req.match_new_only and row_index in existing_row_indexes:
-                log.debug(f"Skipping existing row {row_index}")
-                continue
+            # Skip existing products if match_new_only is True
+            if req and req.match_new_only:
+                # Create product key from current row data
+                product_key = f"{crow.get('product', '')}_{crow.get('vendor', '')}_{crow.get('sku', '')}"
+                if product_key in existing_products:
+                    log.debug(f"Skipping existing product: {product_key}")
+                    continue
             mr = MatchResult(
                 match_run_id=run.id,
                 customer_row_index=row_index,
