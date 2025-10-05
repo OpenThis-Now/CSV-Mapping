@@ -42,10 +42,37 @@ def run_matching(project_id: int, req: MatchRequest, session: Session = Depends(
         sku_exact_boost=thr_json.get("sku_exact_boost", 10),
         numeric_mismatch_penalty=thr_json.get("numeric_mismatch_penalty", 8),
     )
-    run = MatchRun(project_id=project_id, thresholds_json=thr_json, status="running")
-    session.add(run)
-    session.commit()
-    session.refresh(run)
+    # If match_new_only is True, try to use existing run, otherwise create new
+    if req and req.match_new_only:
+        # Try to find the latest match run for this project
+        existing_run = session.exec(
+            select(MatchRun)
+            .where(MatchRun.project_id == project_id)
+            .order_by(MatchRun.started_at.desc())
+        ).first()
+        
+        if existing_run and existing_run.status == "finished":
+            # Use existing run
+            run = existing_run
+            run.status = "running"
+            run.finished_at = None  # Clear finished_at since we're running again
+            session.add(run)
+            session.commit()
+            log.info(f"Reusing existing match run {run.id} for new products")
+        else:
+            # Create new run if no existing run found
+            run = MatchRun(project_id=project_id, thresholds_json=thr_json, status="running")
+            session.add(run)
+            session.commit()
+            session.refresh(run)
+            log.info(f"Created new match run {run.id}")
+    else:
+        # Always create new run for full matching
+        run = MatchRun(project_id=project_id, thresholds_json=thr_json, status="running")
+        session.add(run)
+        session.commit()
+        session.refresh(run)
+        log.info(f"Created new match run {run.id} for full matching")
 
     db_csv = Path(settings.DATABASES_DIR) / db.filename  # type: ignore
     cust_csv = Path(settings.IMPORTS_DIR) / imp.filename
@@ -75,13 +102,13 @@ def run_matching(project_id: int, req: MatchRequest, session: Session = Depends(
         # If match_new_only is True, get existing customer_row_indexes to skip them
         existing_row_indexes = set()
         if req and req.match_new_only:
+            # Get existing results from the current match run
             existing_results = session.exec(
                 select(MatchResult.customer_row_index)
-                .join(MatchRun)
-                .where(MatchRun.project_id == project_id)
+                .where(MatchResult.match_run_id == run.id)
             ).all()
             existing_row_indexes = set(existing_results)
-            log.info(f"Found {len(existing_row_indexes)} existing matches, will skip these rows")
+            log.info(f"Found {len(existing_row_indexes)} existing matches in current run, will skip these rows")
         
         for row_index, crow, dbrow, meta in run_match(cust_csv, db_csv, imp.columns_map_json, db.columns_map_json, thr):
             # Skip existing rows if match_new_only is True
