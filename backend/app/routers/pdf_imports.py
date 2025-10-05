@@ -219,7 +219,13 @@ def combine_import_files(project_id: int, req: CombineImportsRequest, session: S
             combined_path = Path(settings.IMPORTS_DIR) / combined_filename
             
             # Spara kombinerad CSV
-            combined_df.to_csv(combined_path, index=False, encoding='utf-8')
+            try:
+                combined_df.to_csv(combined_path, index=False, encoding='utf-8')
+                print(f"DEBUG: Successfully saved combined file to: {combined_path}")
+                print(f"DEBUG: File exists after save: {combined_path.exists()}")
+            except Exception as e:
+                print(f"ERROR: Failed to save combined file: {e}")
+                raise HTTPException(status_code=500, detail=f"Failed to save combined file: {e}")
             
             
             # Skapa enhetlig kolumnmappning för den kombinerade filen
