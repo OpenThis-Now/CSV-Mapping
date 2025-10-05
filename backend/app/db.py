@@ -31,25 +31,29 @@ def _run_migrations() -> None:
     
     try:
         with engine.connect() as conn:
-            # Check if row_count column exists in databasecatalog
-            result = conn.execute(text("PRAGMA table_info(databasecatalog)"))
-            columns = [row[1] for row in result.fetchall()]
-            
-            if 'row_count' not in columns:
-                logger.info("Adding row_count column to databasecatalog table")
-                conn.execute(text('ALTER TABLE databasecatalog ADD COLUMN row_count INTEGER DEFAULT 0'))
-                conn.commit()
-                logger.info("Successfully added row_count column to databasecatalog")
-            
-            # Check if row_count column exists in importfile
-            result = conn.execute(text("PRAGMA table_info(importfile)"))
-            columns = [row[1] for row in result.fetchall()]
-            
-            if 'row_count' not in columns:
-                logger.info("Adding row_count column to importfile table")
-                conn.execute(text('ALTER TABLE importfile ADD COLUMN row_count INTEGER DEFAULT 0'))
-                conn.commit()
-                logger.info("Successfully added row_count column to importfile")
+            # Check if we're using SQLite or PostgreSQL
+            if 'sqlite' in database_url:
+                # SQLite migrations
+                result = conn.execute(text("PRAGMA table_info(databasecatalog)"))
+                columns = [row[1] for row in result.fetchall()]
+                
+                if 'row_count' not in columns:
+                    logger.info("Adding row_count column to databasecatalog table")
+                    conn.execute(text('ALTER TABLE databasecatalog ADD COLUMN row_count INTEGER DEFAULT 0'))
+                    conn.commit()
+                    logger.info("Successfully added row_count column to databasecatalog")
+                
+                result = conn.execute(text("PRAGMA table_info(importfile)"))
+                columns = [row[1] for row in result.fetchall()]
+                
+                if 'row_count' not in columns:
+                    logger.info("Adding row_count column to importfile table")
+                    conn.execute(text('ALTER TABLE importfile ADD COLUMN row_count INTEGER DEFAULT 0'))
+                    conn.commit()
+                    logger.info("Successfully added row_count column to importfile")
+            else:
+                # PostgreSQL migrations
+                logger.info("Using PostgreSQL - skipping manual migrations (tables will be created automatically)")
                 
     except Exception as e:
         logger.error(f"Error running migrations: {e}")
