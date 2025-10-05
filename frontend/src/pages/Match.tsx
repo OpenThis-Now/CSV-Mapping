@@ -59,8 +59,8 @@ export default function MatchPage({ projectId }: { projectId: number }) {
             
             // Wait a moment for backend to save results
             setTimeout(async () => {
-              await refresh();
-              setRunning(false);
+            await refresh();
+            setRunning(false);
               const message = results.length > 0 
                 ? "New products matched! AI analysis starting automatically for products with score 70-95." 
                 : "Matching complete! AI analysis starting automatically for products with score 70-95.";
@@ -93,10 +93,10 @@ export default function MatchPage({ projectId }: { projectId: number }) {
 
   const refresh = async () => {
     try {
-      const res = await api.get<MatchResultItem[]>(`/projects/${projectId}/results`);
+    const res = await api.get<MatchResultItem[]>(`/projects/${projectId}/results`);
       console.log("Match results loaded:", res.data.length, "results");
       console.log("Match results data:", res.data);
-      setResults(res.data);
+    setResults(res.data);
     } catch (error) {
       console.error("Failed to load match results:", error);
     }
@@ -283,58 +283,58 @@ export default function MatchPage({ projectId }: { projectId: number }) {
         </div>
         
         {results.length > 0 && (
-          <div className="ml-auto flex items-center gap-0.5">
-            <button 
+        <div className="ml-auto flex items-center gap-0.5">
+          <button 
               className="rounded-2xl bg-blue-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-600" 
-              onClick={run} 
-              disabled={running}
-            >
+            onClick={run} 
+            disabled={running}
+          >
               {running ? "Running..." : "Match new products"}
-            </button>
+          </button>
           </div>
         )}
       </div>
 
       {selectedIds.length > 0 && (
-        <div className="sticky top-0 z-10 bg-blue-50 border border-blue-200 rounded-lg p-3 shadow-sm">
+        <div className="sticky top-16 z-20 bg-blue-50 border border-blue-200 rounded-lg p-3 shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-blue-900">
               {selectedIds.length} product{selectedIds.length !== 1 ? 's' : ''} selected
             </span>
             <div className="flex gap-2">
-              <button
-                onClick={approveSelected}
+          <button 
+            onClick={approveSelected}
                 className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
-              >
+          >
                 Approve
-              </button>
-              <button
-                onClick={rejectSelected}
+          </button>
+          <button 
+            onClick={rejectSelected}
                 className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
-              >
+          >
                 Reject
-              </button>
-              <button
-                onClick={sendToAI}
+          </button>
+          <button 
+            onClick={sendToAI}
                 className="px-3 py-1 bg-purple-600 text-white text-sm rounded hover:bg-purple-700"
-              >
+          >
                 Send to AI
-              </button>
-            </div>
-          </div>
+          </button>
+        </div>
+      </div>
         </div>
       )}
-
-      {running && (
+        
+        {running && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-blue-900">{status}</span>
             <span className="text-sm text-blue-700">{progress}%</span>
-          </div>
+            </div>
           <div className="w-full bg-blue-200 rounded-full h-2">
-            <div 
-              className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-              style={{ width: `${progress}%` }}
+              <div 
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                style={{ width: `${progress}%` }}
             />
           </div>
         </div>
@@ -356,10 +356,10 @@ export default function MatchPage({ projectId }: { projectId: number }) {
             >
               Start Matching
             </button>
+            </div>
           </div>
-        </div>
-      )}
-
+        )}
+        
 
       {results.length > 0 && (
         <>
@@ -368,12 +368,12 @@ export default function MatchPage({ projectId }: { projectId: number }) {
             paginatedResultsData: paginatedResults,
             view: view
           })}
-          <MatchResults
+        <MatchResults 
             results={paginatedResults}
-            selectedIds={selectedIds}
-            onSelectionChange={setSelectedIds}
-            view={view}
-            statusFilter={statusFilter}
+          selectedIds={selectedIds}
+          onSelectionChange={setSelectedIds}
+          view={view}
+          statusFilter={statusFilter}
             totalResults={results.length}
             filteredResults={filteredResults.length}
             startIndex={startIndex}
