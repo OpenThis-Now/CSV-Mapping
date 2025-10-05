@@ -377,10 +377,18 @@ export default function AIDeep({ projectId }: { projectId: number }) {
                           <div className="bg-white/20 p-3 rounded text-xs">
                             <div className="font-semibold mb-1">{productName}</div>
                             <div className="space-y-1 opacity-75">
-                              <div><span className="font-medium">Supplier:</span> {review.customer_fields?.["Supplier"] || review.customer_fields?.["Supplier_name"] || "-"}</div>
-                              <div><span className="font-medium">Art.no:</span> {review.customer_fields?.["Art.no"] || review.customer_fields?.["Article_number"] || "-"}</div>
-                              <div><span className="font-medium">Market:</span> {review.customer_fields?.["Market"] || "-"}</div>
-                              <div><span className="font-medium">Language:</span> {review.customer_fields?.["Language"] || "-"}</div>
+                              <div><span className="font-medium">Supplier:</span> {review.customer_fields?.["Supplier"] || review.customer_fields?.["Supplier_name"] || review.customer_fields?.["vendor"] || "-"}</div>
+                              <div><span className="font-medium">Art.no:</span> {review.customer_fields?.["Art.no"] || review.customer_fields?.["Article_number"] || review.customer_fields?.["article"] || "-"}</div>
+                              <div><span className="font-medium">Market:</span> {review.customer_fields?.["Market"] || review.customer_fields?.["market"] || "-"}</div>
+                              <div><span className="font-medium">Language:</span> {review.customer_fields?.["Language"] || review.customer_fields?.["language"] || "-"}</div>
+                              {review.customer_fields?.["Location_ID"] && <div><span className="font-medium">Location ID:</span> {review.customer_fields["Location_ID"]}</div>}
+                              {review.customer_fields?.["Product_ID"] && <div><span className="font-medium">Product ID:</span> {review.customer_fields["Product_ID"]}</div>}
+                              {review.customer_fields?.["Description"] && <div><span className="font-medium">Description:</span> {review.customer_fields["Description"]}</div>}
+                              {review.customer_fields?.["SDS-URL"] && <div><span className="font-medium">SDS URL:</span> <a href={review.customer_fields["SDS-URL"]} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{review.customer_fields["SDS-URL"]}</a></div>}
+                              {review.customer_fields?.["Unique_ID"] && <div><span className="font-medium">Unique ID:</span> {review.customer_fields["Unique_ID"]}</div>}
+                              {review.customer_fields?.["MSDSkey"] && <div><span className="font-medium">MSDS Key:</span> {review.customer_fields["MSDSkey"]}</div>}
+                              {review.customer_fields?.["Revision_date"] && <div><span className="font-medium">Revision Date:</span> {review.customer_fields["Revision_date"]}</div>}
+                              {review.customer_fields?.["Expire_date"] && <div><span className="font-medium">Expire Date:</span> {review.customer_fields["Expire_date"]}</div>}
                             </div>
                           </div>
                         </div>
