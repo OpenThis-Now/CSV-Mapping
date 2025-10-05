@@ -136,7 +136,7 @@ def list_results(project_id: int, session: Session = Depends(get_session)) -> li
     run = session.exec(select(MatchRun).where(MatchRun.project_id == project_id).order_by(MatchRun.started_at.desc())).first()
     if not run:
         return []
-    results = session.exec(select(MatchResult).where(MatchResult.match_run_id == run.id)).all()
+    results = session.exec(select(MatchResult).where(MatchResult.match_run_id == run.id).order_by(MatchResult.customer_row_index)).all()
     items: list[MatchResultItem] = []
     for r in results:
         # Get AI confidence for this customer row

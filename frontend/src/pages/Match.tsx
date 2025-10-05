@@ -142,36 +142,41 @@ export default function MatchPage({ projectId }: { projectId: number }) {
   }, []);
 
   // Pagination logic
-  const filteredResults = results.filter(result => {
-    if (statusFilter === "all") return true;
-    
-    // Handle "review_required" as a combination of multiple decision values
-    if (statusFilter === "review_required") {
-      const matches = result.decision === "pending" || result.decision === "sent_to_ai";
-      console.log(`Filtering result with decision "${result.decision}": ${matches}`);
+  const filteredResults = results
+    .filter(result => {
+      if (statusFilter === "all") return true;
+      
+      // Handle "review_required" as a combination of multiple decision values
+      if (statusFilter === "review_required") {
+        const matches = result.decision === "pending" || result.decision === "sent_to_ai";
+        console.log(`Filtering result with decision "${result.decision}": ${matches}`);
+        return matches;
+      }
+      
+      // Handle "approved" - include both manual and auto approvals
+      if (statusFilter === "approved") {
+        const matches = result.decision === "approved" || 
+                       result.decision === "auto_approved" || 
+                       result.decision === "ai_auto_approved";
+        console.log(`Filtering result with decision "${result.decision}" for approved: ${matches}`);
+        return matches;
+      }
+      
+      // Handle "rejected" - include both manual and auto rejections
+      if (statusFilter === "rejected") {
+        const matches = result.decision === "rejected" || result.decision === "auto_rejected";
+        console.log(`Filtering result with decision "${result.decision}" for rejected: ${matches}`);
+        return matches;
+      }
+      
+      const matches = result.decision === statusFilter;
+      console.log(`Filtering result with decision "${result.decision}" against filter "${statusFilter}": ${matches}`);
       return matches;
-    }
-    
-    // Handle "approved" - include both manual and auto approvals
-    if (statusFilter === "approved") {
-      const matches = result.decision === "approved" || 
-                     result.decision === "auto_approved" || 
-                     result.decision === "ai_auto_approved";
-      console.log(`Filtering result with decision "${result.decision}" for approved: ${matches}`);
-      return matches;
-    }
-    
-    // Handle "rejected" - include both manual and auto rejections
-    if (statusFilter === "rejected") {
-      const matches = result.decision === "rejected" || result.decision === "auto_rejected";
-      console.log(`Filtering result with decision "${result.decision}" for rejected: ${matches}`);
-      return matches;
-    }
-    
-    const matches = result.decision === statusFilter;
-    console.log(`Filtering result with decision "${result.decision}" against filter "${statusFilter}": ${matches}`);
-    return matches;
-  });
+    })
+    .sort((a, b) => {
+      // Sort by customer_row_index to ensure consistent ordering
+      return a.customer_row_index - b.customer_row_index;
+    });
 
   const totalPages = Math.ceil(filteredResults.length / itemsPerPage);
   const safeCurrentPage = Math.max(1, currentPage);
