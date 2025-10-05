@@ -93,15 +93,27 @@ def send_to_ai(project_id: int, req: ApproveRequest, session: Session = Depends(
     """Mark results as sent to AI"""
     if not req.ids and not req.customer_row_indices:
         raise HTTPException(status_code=400, detail="Inga resultat angivna.")
-    q = select(MatchResult).where(MatchResult.decision.in_(["pending", "auto_approved", "approved", "rejected", "ai_auto_approved"]))
+    
+    # Build query to get only the specific results we want to send to AI
+    q = select(MatchResult).where(
+        MatchResult.decision.in_(["pending", "auto_approved", "approved", "rejected", "ai_auto_approved"])
+    )
+    
+    # Filter by IDs if provided
+    if req.ids:
+        q = q.where(MatchResult.id.in_(req.ids))
+    
+    # Filter by customer_row_indices if provided  
+    if req.customer_row_indices:
+        q = q.where(MatchResult.customer_row_index.in_(req.customer_row_indices))
+    
     results = session.exec(q).all()
     count = 0
     for r in results:
-        if r.id in set(req.ids) or r.customer_row_index in set(req.customer_row_indices):
-            r.decision = "sent_to_ai"
-            r.ai_status = "queued"  # Add to AI queue
-            session.add(r)
-            count += 1
+        r.decision = "sent_to_ai"
+        r.ai_status = "queued"  # Add to AI queue
+        session.add(r)
+        count += 1
     session.commit()
     
     # Start AI processing for manually sent products

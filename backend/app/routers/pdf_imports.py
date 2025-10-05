@@ -1,26 +1,173 @@
 from __future__ import annotations
 
+import asyncio
 import csv
 from pathlib import Path
 from typing import List
+import logging
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, BackgroundTasks
 from sqlmodel import Session, select
 
 from ..config import settings
 from ..db import get_session
-from ..models import ImportFile, Project
+from ..models import ImportFile, Project, PDFProcessingRun
 from ..schemas import ImportUploadResponse, CombineImportsRequest
 from ..services.files import check_upload, compute_hash_and_save, open_text_stream
 from ..services.mapping import auto_map_headers
 from ..services.pdf_processor import process_pdf_files, create_csv_from_pdf_data
 
 router = APIRouter()
+log = logging.getLogger("app.pdf_imports")
 
 
-@router.post("/projects/{project_id}/pdf-import", response_model=ImportUploadResponse)
-def upload_pdf_files(project_id: int, files: List[UploadFile] = File(...), session: Session = Depends(get_session)) -> ImportUploadResponse:
-    """Ladda upp och bearbeta PDF-filer med AI-extraktion"""
+async def process_pdf_files_background(
+    processing_run_id: int, 
+    project_id: int, 
+    pdf_paths: List[Path], 
+    csv_filename: str
+):
+    """Background task to process PDF files with progress tracking"""
+    from ..db import get_session
+    
+    # Get a new database session for background processing
+    session = next(get_session())
+    
+    try:
+        # Update status to processing
+        processing_run = session.get(PDFProcessingRun, processing_run_id)
+        if not processing_run:
+            log.error(f"Processing run {processing_run_id} not found")
+            return
+        
+        processing_run.status = "running"
+        processing_run.total_files = len(pdf_paths)
+        session.commit()
+        
+        log.info(f"Starting background PDF processing for {len(pdf_paths)} files")
+        
+        all_products = []
+        successful_files = 0
+        failed_files = 0
+        
+        for i, pdf_path in enumerate(pdf_paths):
+            filename = pdf_path.name
+            log.info(f"Processing PDF {i+1}/{len(pdf_paths)}: {filename}")
+            
+            # Update current file being processed
+            processing_run.current_file = filename
+            processing_run.processed_files = i
+            session.commit()
+            
+            try:
+                # Extract text from PDF
+                from ..services.pdf_processor import extract_pdf_text, extract_product_info_with_ai, create_fallback_entry
+                
+                text = extract_pdf_text(pdf_path)
+                
+                if not text:
+                    log.warning(f"No text extracted from {filename} - creating fallback entry")
+                    product_info = create_fallback_entry(filename)
+                    failed_files += 1
+                else:
+                    log.info(f"Extracted {len(text)} characters from {filename}")
+                    # Use AI to extract product information
+                    product_info = extract_product_info_with_ai(text, filename)
+                    successful_files += 1
+                
+                all_products.append(product_info)
+                log.info(f"Processed {filename}: status = {product_info.get('extraction_status', 'unknown')}")
+                
+            except Exception as e:
+                log.error(f"Error processing {filename}: {e}")
+                # Create fallback entry for this file
+                from ..services.pdf_processor import create_fallback_entry
+                fallback_info = create_fallback_entry(filename)
+                all_products.append(fallback_info)
+                failed_files += 1
+            
+            # Clean up temporary PDF file
+            try:
+                pdf_path.unlink()
+            except Exception as e:
+                log.warning(f"Could not delete temporary file {pdf_path}: {e}")
+        
+        # Create CSV from extracted data
+        csv_path = Path(settings.IMPORTS_DIR) / csv_filename
+        from ..services.pdf_processor import create_csv_from_pdf_data
+        create_csv_from_pdf_data(all_products, csv_path)
+        
+        # Read CSV for metadata
+        from ..services.files import detect_csv_separator
+        separator = detect_csv_separator(csv_path)
+        
+        with open_text_stream(csv_path) as f:
+            reader = csv.DictReader(f, delimiter=separator)
+            headers = reader.fieldnames or []
+            if not headers:
+                raise Exception("CSV saknar rubriker.")
+            mapping = auto_map_headers(headers)
+            count = sum(1 for _ in reader)
+        
+        # Create ImportFile record
+        imp = ImportFile(
+            project_id=project_id,
+            filename=csv_filename,
+            original_name=f"PDF Import ({len(pdf_paths)} files)",
+            columns_map_json=mapping,
+            row_count=count,
+        )
+        session.add(imp)
+        
+        # Set the new import file as active for the project
+        project = session.get(Project, project_id)
+        if project:
+            project.active_import_id = imp.id
+            session.add(project)
+        
+        # Update processing run status
+        processing_run.status = "completed"
+        processing_run.finished_at = datetime.utcnow()
+        processing_run.successful_files = successful_files
+        processing_run.failed_files = failed_files
+        processing_run.processed_files = len(pdf_paths)
+        session.commit()
+        
+        log.info(f"Completed PDF processing: {successful_files} successful, {failed_files} failed, {count} products extracted")
+        
+    except Exception as e:
+        log.error(f"PDF processing failed: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        # Update processing run status to failed
+        processing_run = session.get(PDFProcessingRun, processing_run_id)
+        if processing_run:
+            processing_run.status = "failed"
+            processing_run.finished_at = datetime.utcnow()
+            processing_run.error_message = str(e)
+            session.commit()
+        
+        # Clean up temporary files
+        for pdf_path in pdf_paths:
+            try:
+                pdf_path.unlink()
+            except:
+                pass
+    finally:
+        session.close()
+
+
+@router.post("/projects/{project_id}/pdf-import")
+async def upload_pdf_files(
+    project_id: int, 
+    background_tasks: BackgroundTasks,
+    files: List[UploadFile] = File(...), 
+    session: Session = Depends(get_session)
+):
+    """Ladda upp och bearbeta PDF-filer med AI-extraktion (asynkron med progress tracking)"""
+    from datetime import datetime
+    
     p = session.get(Project, project_id)
     if not p:
         raise HTTPException(status_code=404, detail="Projekt saknas.")
@@ -35,74 +182,77 @@ def upload_pdf_files(project_id: int, files: List[UploadFile] = File(...), sessi
         check_upload(file)
     
     try:
-        # Spara PDF:er temporärt och bearbeta dem
+        # Create processing run record
+        processing_run = PDFProcessingRun(
+            project_id=project_id,
+            total_files=len(files),
+            status="uploading"
+        )
+        session.add(processing_run)
+        session.commit()
+        session.refresh(processing_run)
+        
+        # Spara PDF:er temporärt
         pdf_paths = []
         for file in files:
             _, pdf_path = compute_hash_and_save(Path(settings.TMP_DIR), file)
             pdf_paths.append(pdf_path)
         
-        # Bearbeta PDF:er med AI
-        print(f"Processing {len(pdf_paths)} PDF files...")
-        pdf_data = process_pdf_files(pdf_paths)
-        
-        # Skapa CSV från extraherade data
+        # Skapa CSV-filnamn
         csv_filename = f"pdf_import_{project_id}_{Path(files[0].filename).stem}.csv"
-        csv_path = Path(settings.IMPORTS_DIR) / csv_filename
         
-        # Skapa CSV-fil
-        create_csv_from_pdf_data(pdf_data, csv_path)
-        
-        # Läsa CSV för att få metadata (headers, row count)
-        from ..services.files import detect_csv_separator
-        separator = detect_csv_separator(csv_path)
-        
-        with open_text_stream(csv_path) as f:
-            reader = csv.DictReader(f, delimiter=separator)
-            headers = reader.fieldnames or []
-            if not headers:
-                raise HTTPException(status_code=400, detail="CSV saknar rubriker.")
-            mapping = auto_map_headers(headers)
-            count = sum(1 for _ in reader)
-        
-        # Skapa ImportFile-post
-        imp = ImportFile(
-            project_id=project_id,
-            filename=csv_filename,
-            original_name=f"PDF Import ({len(files)} files)",
-            columns_map_json=mapping,
-            row_count=count,
+        # Start background processing
+        background_tasks.add_task(
+            process_pdf_files_background,
+            processing_run.id,
+            project_id,
+            pdf_paths,
+            csv_filename
         )
-        session.add(imp)
         
-        # Sätt den nya importfilen som aktiv för projektet
-        p.active_import_id = imp.id
-        session.add(p)
-        
-        session.commit()
-        session.refresh(imp)
-        
-        # Rensa temporära PDF-filer
-        for pdf_path in pdf_paths:
-            try:
-                pdf_path.unlink()
-            except Exception as e:
-                print(f"Could not delete temporary file {pdf_path}: {e}")
-        
-        return ImportUploadResponse(
-            import_file_id=imp.id, 
-            filename=imp.filename, 
-            row_count=imp.row_count, 
-            columns_map_json=mapping
-        )
+        return {
+            "processing_run_id": processing_run.id,
+            "status": "processing_started",
+            "total_files": len(files),
+            "message": f"PDF processing started for {len(files)} files"
+        }
         
     except Exception as e:
-        # Rensa temporära filer vid fel
-        for pdf_path in pdf_paths:
-            try:
-                pdf_path.unlink()
-            except:
-                pass
+        log.error(f"Failed to start PDF processing: {e}")
         raise HTTPException(status_code=500, detail=f"PDF-bearbetning misslyckades: {str(e)}")
+
+
+@router.get("/projects/{project_id}/pdf-import/status")
+def get_pdf_processing_status(project_id: int, session: Session = Depends(get_session)):
+    """Get current PDF processing status for a project"""
+    # Find the most recent processing run for this project
+    processing_run = session.exec(
+        select(PDFProcessingRun)
+        .where(PDFProcessingRun.project_id == project_id)
+        .order_by(PDFProcessingRun.started_at.desc())
+        .limit(1)
+    ).first()
+    
+    if not processing_run:
+        return {
+            "has_active_processing": False,
+            "status": None
+        }
+    
+    return {
+        "has_active_processing": processing_run.status in ["uploading", "running"],
+        "processing_run_id": processing_run.id,
+        "status": processing_run.status,
+        "total_files": processing_run.total_files,
+        "processed_files": processing_run.processed_files,
+        "successful_files": processing_run.successful_files,
+        "failed_files": processing_run.failed_files,
+        "current_file": processing_run.current_file,
+        "progress_percentage": round((processing_run.processed_files / processing_run.total_files * 100) if processing_run.total_files > 0 else 0, 1),
+        "started_at": processing_run.started_at.isoformat() if processing_run.started_at else None,
+        "finished_at": processing_run.finished_at.isoformat() if processing_run.finished_at else None,
+        "error_message": processing_run.error_message
+    }
 
 
 @router.get("/projects/{project_id}/pdf-import")
