@@ -203,18 +203,7 @@ def build_ai_prompt(customer_row, db_sample, mapping, k: int) -> str:
            * Variant considerations
            * Whether better alternatives likely exist in this candidate set
            
-           CRITICAL REQUIREMENT: Your rationale MUST end with exactly this format:
-           "FIELDS_TO_REVIEW: [comma-separated field names]"
-           
-           Field names to use: "Product name", "Article number", "Supplier", "Market", "Language"
-           
-           Examples of correct endings:
-           - "FIELDS_TO_REVIEW: Article number" (if article number has issues)
-           - "FIELDS_TO_REVIEW: Product name, Article number" (if both have issues)
-           - "FIELDS_TO_REVIEW: Supplier" (if supplier is different)
-           - "FIELDS_TO_REVIEW: None" (only if it's a perfect match)
-           
-           NEVER end without FIELDS_TO_REVIEW section. This is mandatory.
+           IMPORTANT: Do NOT include "FIELDS_TO_REVIEW" in your rationale - this will be handled separately.
 
         — Calibration examples (for the model; do not output) —
         Example 1 — should be 1.0:
@@ -222,20 +211,20 @@ def build_ai_prompt(customer_row, db_sample, mapping, k: int) -> str:
         Candidate: name identical, supplier "The Sherwin-Williams Company", art.no "B59V1200", market "Canada", language "English".
         Reasoning: article number equal after canonicalization (extra '0' removed); supplier alias; identical variant "Part B"; same market/language → **Exact canonical match; confidence 1.0**.
         
-        Example 2 — should include FIELDS_TO_REVIEW:
+        Example 2 — partial match:
         Input: name "THINNER 215", supplier "Carboline", art.no "05570910001D", market "Canada", language "English".
         Candidate: name "THINNER 25", supplier "Carboline Global Inc", art.no "0525S1NL", market "Canada", language "English".
-        Expected rationale ending: "FIELDS_TO_REVIEW: Product name, Article number"
+        Expected rationale: "This candidate was selected due to similar supplier names and product type (both are thinners), but the article numbers and product names differ significantly."
         
         Example 3 — perfect match:
         Input: name "PAINT 100", supplier "Company A", art.no "P100", market "USA", language "English".
         Candidate: name "PAINT 100", supplier "Company A", art.no "P100", market "USA", language "English".
-        Expected rationale ending: "FIELDS_TO_REVIEW: None"
+        Expected rationale: "This is an exact match with identical product name, supplier, article number, market, and language. All fields align perfectly, indicating this is the same product."
         
         Example 4 — product type mismatch (should be very low confidence):
         Input: name "Alcohol Wipes", supplier "Nice Pak", art.no "WP001", market "Australia", language "English".
         Candidate: name "Industrial Adhesive", supplier "3M Canada", art.no "ADH123", market "Canada", language "English".
-        Expected: confidence ≤ 0.10, rationale should explain why it was considered (e.g., "This candidate was selected because both products are industrial cleaning/construction materials, but the fundamental product types are incompatible"), ending: "FIELDS_TO_REVIEW: Product name, Supplier, Market"
+        Expected: confidence ≤ 0.10, rationale should explain why it was considered (e.g., "This candidate was selected because both products are industrial cleaning/construction materials, but the fundamental product types are incompatible.")
 
         Customer row to match:
         {json.dumps(customer_row, ensure_ascii=False)}
