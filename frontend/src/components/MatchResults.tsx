@@ -301,7 +301,7 @@ function CardView({ results, selectedIds, onSelectionChange }: { results: MatchR
           </div>
           
           {/* Hover/Focus action buttons */}
-          <div className="pointer-events-auto absolute inset-x-4 bottom-3 hidden items-center justify-end gap-2 group-hover:flex group-focus-within:flex md:flex">
+          <div className="pointer-events-auto absolute inset-x-4 bottom-3 hidden items-center justify-end gap-2 group-hover:flex group-focus-within:flex">
             <button 
               onClick={() => onApprove(r.id)} 
               className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium bg-slate-100 hover:bg-slate-200"
