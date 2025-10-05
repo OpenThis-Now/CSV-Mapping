@@ -173,13 +173,23 @@ export default function MatchPage({ projectId }: { projectId: number }) {
       console.log(`Filtering result with decision "${result.decision}" against filter "${statusFilter}": ${matches}`);
       return matches;
     })
-    .sort((a, b) => {
-      // Sort by customer_row_index first, then by id for consistent ordering
-      if (a.customer_row_index !== b.customer_row_index) {
-        return a.customer_row_index - b.customer_row_index;
-      }
-      return a.id - b.id;
-    });
+  .sort((a, b) => {
+    // Sort by decision first (pending first), then by customer_row_index, then by id
+    const decisionOrder = { pending: 0, sent_to_ai: 1, auto_rejected: 2, auto_approved: 3, approved: 4, rejected: 5 };
+    const aOrder = decisionOrder[a.decision as keyof typeof decisionOrder] ?? 999;
+    const bOrder = decisionOrder[b.decision as keyof typeof decisionOrder] ?? 999;
+    
+    if (aOrder !== bOrder) {
+      return aOrder - bOrder;
+    }
+    
+    // Within same decision, sort by customer_row_index
+    if (a.customer_row_index !== b.customer_row_index) {
+      return a.customer_row_index - b.customer_row_index;
+    }
+    
+    return a.id - b.id;
+  });
 
   const totalPages = Math.ceil(filteredResults.length / itemsPerPage);
   const safeCurrentPage = Math.max(1, currentPage);
