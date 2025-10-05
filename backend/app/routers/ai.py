@@ -196,6 +196,7 @@ def build_ai_prompt(customer_row, db_sample, mapping, k: int) -> str:
         - "database_fields_json": the unmodified database row (as a JSON object)
         - "confidence": number 0..1
         - "rationale": A natural, flowing explanation in paragraph form that includes:
+           * **Why this product was selected as a potential match** (what similarities led to it being considered)
            * Match strength assessment (Exact/Strong/Partial/Weak match)
            * Evidence analysis: product name, supplier, article number matches and any typo corrections
            * Market/language differences and impact (explicit flags: "OTHER MARKET: …"; "LANGUAGE MISMATCH: …")
@@ -234,7 +235,7 @@ def build_ai_prompt(customer_row, db_sample, mapping, k: int) -> str:
         Example 4 — product type mismatch (should be very low confidence):
         Input: name "Alcohol Wipes", supplier "Nice Pak", art.no "WP001", market "Australia", language "English".
         Candidate: name "Industrial Adhesive", supplier "3M Canada", art.no "ADH123", market "Canada", language "English".
-        Expected: confidence ≤ 0.10, rationale ending: "FIELDS_TO_REVIEW: Product name, Supplier, Market"
+        Expected: confidence ≤ 0.10, rationale should explain why it was considered (e.g., "This candidate was selected because both products are industrial cleaning/construction materials, but the fundamental product types are incompatible"), ending: "FIELDS_TO_REVIEW: Product name, Supplier, Market"
 
         Customer row to match:
         {json.dumps(customer_row, ensure_ascii=False)}
