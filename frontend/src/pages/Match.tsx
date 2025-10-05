@@ -373,6 +373,10 @@ export default function MatchPage({ projectId }: { projectId: number }) {
             onSelectionChange={setSelectedIds}
             view={view}
             statusFilter={statusFilter}
+            totalResults={results.length}
+            filteredResults={filteredResults.length}
+            startIndex={startIndex}
+            endIndex={endIndex}
           />
         </>
       )}

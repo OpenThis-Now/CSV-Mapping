@@ -8,6 +8,10 @@ interface MatchResultsProps {
   onSelectionChange: (ids: number[]) => void;
   view: "table" | "card";
   statusFilter: string;
+  totalResults?: number;
+  filteredResults?: number;
+  startIndex?: number;
+  endIndex?: number;
 }
 
 function Badge({ children, tone = "gray" }: { children: React.ReactNode; tone?: "gray" | "green" | "yellow" | "red" | "blue" }) {
@@ -298,11 +302,11 @@ function CardView({ results, selectedIds, onSelectionChange }: { results: MatchR
   );
 }
 
-export default function MatchResults({ results, selectedIds, onSelectionChange, view, statusFilter }: MatchResultsProps) {
+export default function MatchResults({ results, selectedIds, onSelectionChange, view, statusFilter, totalResults, filteredResults, startIndex, endIndex }: MatchResultsProps) {
   const [localView, setLocalView] = useState<'table' | 'card'>(view);
   
   // Filter results based on status with mapping
-  const filteredResults = useMemo(() => {
+  const localFilteredResults = useMemo(() => {
     if (statusFilter === "all") {
       return results;
     }
@@ -338,7 +342,7 @@ export default function MatchResults({ results, selectedIds, onSelectionChange, 
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="text-sm text-gray-600">
-          <span>Showing <span className="font-bold">{filteredResults.length > 0 ? 1 : 0}-{filteredResults.length}</span> of {results.length} results</span>
+          <span>Showing <span className="font-bold">{startIndex !== undefined ? startIndex + 1 : 1}-{endIndex !== undefined ? Math.min(endIndex, filteredResults || 0) : (filteredResults || 0)}</span> of {totalResults || results.length} results</span>
         </div>
         <div className="flex items-center gap-2">
           <span className={`text-sm ${localView === 'table' ? 'font-semibold' : ''}`}>Table</span>
@@ -353,7 +357,7 @@ export default function MatchResults({ results, selectedIds, onSelectionChange, 
         </div>
       </div>
 
-      {localView === "table" ? <TableView results={filteredResults} selectedIds={selectedIds} onSelectionChange={onSelectionChange} /> : <CardView results={filteredResults} selectedIds={selectedIds} onSelectionChange={onSelectionChange} />}
+      {localView === "table" ? <TableView results={localFilteredResults} selectedIds={selectedIds} onSelectionChange={onSelectionChange} /> : <CardView results={localFilteredResults} selectedIds={selectedIds} onSelectionChange={onSelectionChange} />}
 
     </div>
   );
