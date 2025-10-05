@@ -1,4 +1,5 @@
 import React from 'react';
+import { Send } from 'lucide-react';
 
 type BulkActionBarProps = {
   count: number;
@@ -16,7 +17,7 @@ export function BulkActionBar({ count, onApprove, onReject, onSend }: BulkAction
       className="fixed inset-x-3 bottom-3 z-50 mx-auto max-w-6xl"
     >
       <div className="flex items-center justify-between rounded-2xl border bg-white/80 p-2 shadow-lg backdrop-blur supports-[backdrop-filter]:backdrop-blur">
-        <span className="px-2 text-sm text-slate-600">{count} markerade</span>
+        <span className="px-2 text-sm text-slate-600">{count} selected</span>
         <div className="flex items-center gap-2">
           <button 
             onClick={onApprove} 
@@ -38,11 +39,9 @@ export function BulkActionBar({ count, onApprove, onReject, onSend }: BulkAction
           </button>
           <button 
             onClick={onSend} 
-            className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium bg-black text-white hover:opacity-90"
+            className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium bg-[#0E1627] text-white hover:bg-[#121C32] active:bg-[#0B1120] shadow-[0_4px_14px_rgba(0,0,0,0.15)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7DD3FC] focus-visible:ring-offset-2"
           >
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
-            </svg>
+            <Send className="w-5 h-5" strokeWidth={2} />
             Send to AI
           </button>
         </div>
