@@ -262,21 +262,31 @@ export default function AIDeep({ projectId }: { projectId: number }) {
                                     );
                                   }
                                   
-                                  // Extract fields to review from AI explanation
-                                  const explanation = item.details.explanation || '';
-                                  const fieldsMatch = explanation.match(/FIELDS_TO_REVIEW:\s*([^\.]+)/i);
-                                  const fieldsToReview = fieldsMatch ? fieldsMatch[1].trim() : null;
+                                  // Generate recommendation based on confidence level
+                                  const confidence = item.details.suggestion.confidence;
                                   
-                                  if (fieldsToReview && fieldsToReview.toLowerCase() !== 'none') {
+                                  if (confidence >= 0.8) {
+                                    return (
+                                      <p className="text-sm text-green-600">
+                                        <span className="font-medium">AI recommendation:</span> Strong match - no fields need review
+                                      </p>
+                                    );
+                                  } else if (confidence >= 0.6) {
                                     return (
                                       <p className="text-sm text-blue-600">
-                                        <span className="font-medium">AI recommendation fields to review:</span> {fieldsToReview}
+                                        <span className="font-medium">AI recommendation:</span> Good match - review supplier and article number
+                                      </p>
+                                    );
+                                  } else if (confidence >= 0.4) {
+                                    return (
+                                      <p className="text-sm text-orange-600">
+                                        <span className="font-medium">AI recommendation:</span> Weak match - review all fields carefully
                                       </p>
                                     );
                                   } else {
                                     return (
-                                      <p className="text-sm text-green-600">
-                                        <span className="font-medium">AI recommendation:</span> No fields need review - this is a strong match
+                                      <p className="text-sm text-red-600">
+                                        <span className="font-medium">AI recommendation:</span> Very weak match - consider rejecting
                                       </p>
                                     );
                                   }
