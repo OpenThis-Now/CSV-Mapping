@@ -58,6 +58,7 @@ class Thresholds(BaseModel):
 
 class MatchRequest(BaseModel):
     thresholds: Optional[Thresholds] = None
+    match_new_only: Optional[bool] = False
 
 
 class MatchRunResponse(BaseModel):

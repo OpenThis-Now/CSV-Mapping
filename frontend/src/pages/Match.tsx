@@ -21,7 +21,7 @@ export default function MatchPage({ projectId }: { projectId: number }) {
   const run = async () => {
     setRunning(true);
     setProgress(0);
-    setStatus("Starting matching...");
+    setStatus(results.length > 0 ? "Matching new products..." : "Starting matching...");
     
     try {
       // Start matchning
@@ -36,7 +36,8 @@ export default function MatchPage({ projectId }: { projectId: number }) {
           },
           sku_exact_boost: 10,
           numeric_mismatch_penalty: 8
-        }
+        },
+        match_new_only: results.length > 0  // Match only new products if we have existing results
       });
       
       // Immediately try to refresh results in case matching is very fast
@@ -60,7 +61,10 @@ export default function MatchPage({ projectId }: { projectId: number }) {
             setTimeout(async () => {
               await refresh();
               setRunning(false);
-              showToast("Matchning klar! AI-analys startar automatiskt för produkter med score 70-95.", 'success');
+              const message = results.length > 0 
+                ? "New products matched! AI analysis starting automatically for products with score 70-95." 
+                : "Matching complete! AI analysis starting automatically for products with score 70-95.";
+              showToast(message, 'success');
             }, 2000);
           }
         } catch (error) {
@@ -281,11 +285,11 @@ export default function MatchPage({ projectId }: { projectId: number }) {
         {results.length > 0 && (
           <div className="ml-auto flex items-center gap-0.5">
             <button 
-              className="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700" 
+              className="rounded-2xl bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-700" 
               onClick={run} 
               disabled={running}
             >
-              {running ? "Running..." : "Run matching"}
+              {running ? "Running..." : "Match new products"}
             </button>
           </div>
         )}

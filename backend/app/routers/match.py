@@ -56,6 +56,7 @@ def run_matching(project_id: int, req: MatchRequest, session: Session = Depends(
         log.info(f"Customer CSV: {cust_csv}, exists: {cust_csv.exists()}")
         log.info(f"Database CSV: {db_csv}, exists: {db_csv.exists()}")
         log.info(f"Mapping: {imp.columns_map_json}")
+        log.info(f"Match new only: {req.match_new_only if req else False}")
         
         # Debug: Check if mapping has the required fields
         required_fields = ["vendor", "product", "sku", "market", "language"]
@@ -71,7 +72,22 @@ def run_matching(project_id: int, req: MatchRequest, session: Session = Depends(
             else:
                 log.info(f"Database field '{field}' mapped to column '{db.columns_map_json[field]}'")
         
+        # If match_new_only is True, get existing customer_row_indexes to skip them
+        existing_row_indexes = set()
+        if req and req.match_new_only:
+            existing_results = session.exec(
+                select(MatchResult.customer_row_index)
+                .join(MatchRun)
+                .where(MatchRun.project_id == project_id)
+            ).all()
+            existing_row_indexes = set(existing_results)
+            log.info(f"Found {len(existing_row_indexes)} existing matches, will skip these rows")
+        
         for row_index, crow, dbrow, meta in run_match(cust_csv, db_csv, imp.columns_map_json, db.columns_map_json, thr):
+            # Skip existing rows if match_new_only is True
+            if req and req.match_new_only and row_index in existing_row_indexes:
+                log.debug(f"Skipping existing row {row_index}")
+                continue
             mr = MatchResult(
                 match_run_id=run.id,
                 customer_row_index=row_index,
