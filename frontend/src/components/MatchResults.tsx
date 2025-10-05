@@ -330,6 +330,7 @@ function CardView({ results, selectedIds, onSelectionChange }: { results: MatchR
               </div>
               <div className="text-sm text-gray-700">{r.reason}</div>
             </div>
+          </div>
         </div>
       ))}
     </div>
