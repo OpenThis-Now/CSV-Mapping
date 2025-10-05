@@ -1,6 +1,5 @@
 import UploadArea from "@/components/UploadArea";
 import URLEnhancementStatus from "@/components/URLEnhancementStatus";
-import PDFProcessingProgress from "@/components/PDFProcessingProgress";
 import CSVEditor from "@/components/CSVEditor";
 import api from "@/lib/api";
 import { useEffect, useState, useRef } from "react";
@@ -32,7 +31,6 @@ export default function ImportPage({ projectId, onImportChange }: { projectId: n
   const [uploading, setUploading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [pdfUploading, setPdfUploading] = useState(false);
-  const [pdfProcessingStatus, setPdfProcessingStatus] = useState<any>(null);
   const [urlEnhancing, setUrlEnhancing] = useState<number | null>(null);
   const [urlEnhancementStatus, setUrlEnhancementStatus] = useState<any>(null);
   const [selectedImports, setSelectedImports] = useState<Set<number>>(new Set());
@@ -108,43 +106,12 @@ export default function ImportPage({ projectId, onImportChange }: { projectId: n
     }
   };
 
-  const checkPdfProcessingStatus = async () => {
-    try {
-      const res = await api.get(`/projects/${projectId}/pdf-import/status`);
-      console.log("PDF processing status:", res.data);
-      
-      if (res.data.has_active_processing) {
-        setPdfProcessingStatus(res.data);
-      } else {
-        // Only show completion message if we were previously processing
-        if (pdfProcessingStatus?.has_active_processing) {
-          // Processing completed or failed
-          setPdfProcessingStatus(null);
-          
-          // Refresh imports to show the new processed file
-          await refreshImports();
-          await refreshProject();
-          
-          if (res.data.status === 'completed') {
-            showToast("PDF processing completed! Check your imports for the extracted data.", 'success');
-          } else if (res.data.status === 'failed') {
-            showToast(`PDF processing failed: ${res.data.error_message || 'Unknown error'}`, 'error');
-          }
-        } else {
-          setPdfProcessingStatus(null);
-        }
-      }
-    } catch (error) {
-      console.error("Failed to check PDF processing status:", error);
-    }
-  };
 
   const startPolling = () => {
     if (pollingRef.current) return; // Already polling
     
     pollingRef.current = setInterval(() => {
       checkUrlEnhancementStatus();
-      checkPdfProcessingStatus();
     }, 2000); // Poll every 2 seconds
   };
 
@@ -159,7 +126,6 @@ export default function ImportPage({ projectId, onImportChange }: { projectId: n
     refreshImports();
     refreshProject();
     checkUrlEnhancementStatus(); // Check for ongoing enhancements
-    checkPdfProcessingStatus(); // Check for ongoing PDF processing
   }, [projectId]);
 
   useEffect(() => {
@@ -169,12 +135,12 @@ export default function ImportPage({ projectId, onImportChange }: { projectId: n
 
   useEffect(() => {
     // Start/stop polling based on enhancement or PDF processing status
-    if (urlEnhancementStatus?.has_active_enhancement || pdfProcessingStatus?.has_active_processing) {
+    if (urlEnhancementStatus?.has_active_enhancement) {
       startPolling();
     } else {
       stopPolling();
     }
-  }, [urlEnhancementStatus, pdfProcessingStatus]);
+  }, [urlEnhancementStatus]);
 
   const onFile = async (file: File) => {
     const fd = new FormData();
@@ -209,17 +175,21 @@ export default function ImportPage({ projectId, onImportChange }: { projectId: n
       const res = await api.post(`/projects/${projectId}/pdf-import`, formData);
       
       setLast(res.data);
-      setStatus(`Started processing ${files.length} PDF files...`);
-      showToast(`PDF processing started for ${files.length} files`, 'success');
+      setStatus(`Processed ${files.length} PDF files, extracted ${res.data.row_count} products`);
+      showToast(`Successfully processed ${files.length} PDF files`, 'success');
       
-      // The processing is now handled in the background, progress will be shown via polling
-      // No need to refresh imports immediately as the processing is still running
+      await refreshImports();
+      await refreshProject();
       
+      // Notify parent component about import change
+      if (onImportChange) {
+        onImportChange();
+      }
     } catch (error: any) {
       console.error("PDF upload failed:", error);
       const errorMessage = error.response?.data?.detail || "PDF processing failed";
       showToast(`PDF processing failed: ${errorMessage}`, 'error');
-      setStatus(`Failed to start PDF processing: ${errorMessage}`);
+      setStatus(`Failed to process PDF files: ${errorMessage}`);
     } finally {
       setPdfUploading(false);
       setSelectedFiles([]);
@@ -408,10 +378,6 @@ export default function ImportPage({ projectId, onImportChange }: { projectId: n
         <URLEnhancementStatus stats={urlEnhancementStatus.stats} />
       )}
 
-      {/* PDF Processing Progress */}
-      {pdfProcessingStatus?.has_active_processing && (
-        <PDFProcessingProgress status={pdfProcessingStatus} />
-      )}
 
       {/* Upload Sections - Side by Side */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
