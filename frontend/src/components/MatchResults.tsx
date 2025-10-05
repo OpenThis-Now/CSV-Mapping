@@ -198,7 +198,7 @@ function TableView({ results, selectedIds, onSelectionChange }: { results: Match
   );
 }
 
-function CardView({ results, selectedIds, onSelectionChange }: { results: MatchResultItem[]; selectedIds: number[]; onSelectionChange: (ids: number[]) => void }) {
+function CardView({ results, selectedIds, onSelectionChange, onApprove, onReject, onSendToAI }: { results: MatchResultItem[]; selectedIds: number[]; onSelectionChange: (ids: number[]) => void; onApprove: (id: number) => void; onReject: (id: number) => void; onSendToAI: (id: number) => void }) {
   // Sort results according to priority:
   // 1. Lowest score first (highest priority)
   // 2. Rejected second
@@ -392,7 +392,7 @@ export default function MatchResults({ results, selectedIds, onSelectionChange, 
         </div>
       </div>
 
-      {localView === "table" ? <TableView results={localFilteredResults} selectedIds={selectedIds} onSelectionChange={onSelectionChange} /> : <CardView results={localFilteredResults} selectedIds={selectedIds} onSelectionChange={onSelectionChange} />}
+      {localView === "table" ? <TableView results={localFilteredResults} selectedIds={selectedIds} onSelectionChange={onSelectionChange} /> : <CardView results={localFilteredResults} selectedIds={selectedIds} onSelectionChange={onSelectionChange} onApprove={onApprove} onReject={onReject} onSendToAI={onSendToAI} />}
 
     </div>
   );
