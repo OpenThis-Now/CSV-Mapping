@@ -77,6 +77,13 @@ def run_matching(project_id: int, req: MatchRequest, session: Session = Depends(
     db_csv = Path(settings.DATABASES_DIR) / db.filename  # type: ignore
     cust_csv = Path(settings.IMPORTS_DIR) / imp.filename
 
+    # Check if customer CSV file exists
+    if not cust_csv.exists():
+        raise HTTPException(status_code=404, detail=f"Customer CSV file not found: {cust_csv}")
+    
+    if not db_csv.exists():
+        raise HTTPException(status_code=404, detail=f"Database CSV file not found: {db_csv}")
+
     created = 0
     try:
         log.info(f"Starting match run for project {project_id}, import {imp.id}, database {db.id}")
