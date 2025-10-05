@@ -263,7 +263,6 @@ export default function AIDeep({ projectId }: { projectId: number }) {
                                   }
                                   
                                   // Generate recommendation based on confidence level
-                                  const confidence = item.details.suggestion.confidence;
                                   
                                   if (confidence >= 0.8) {
                                     return (
