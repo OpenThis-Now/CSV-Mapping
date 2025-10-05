@@ -337,26 +337,26 @@ export default function MatchPage({ projectId }: { projectId: number }) {
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-blue-900">
-              {selectedIds.length} produkter valda
+              {selectedIds.length} product{selectedIds.length !== 1 ? 's' : ''} selected
             </span>
             <div className="flex gap-2">
               <button
                 onClick={approveSelected}
                 className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
               >
-                Godkänn
+                Approve
               </button>
               <button
                 onClick={rejectSelected}
                 className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
               >
-                Avvisa
+                Reject
               </button>
               <button
                 onClick={sendToAI}
                 className="px-3 py-1 bg-purple-600 text-white text-sm rounded hover:bg-purple-700"
               >
-                Skicka till AI
+                Send to AI
               </button>
             </div>
           </div>
