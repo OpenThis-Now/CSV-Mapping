@@ -1,5 +1,6 @@
 import api, { MatchResultItem } from "@/lib/api";
 import MatchResults from "@/components/MatchResults";
+import { BulkActionBar } from "@/components/BulkActionBar";
 import { useEffect, useState } from "react";
 import { useAI } from "@/contexts/AIContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -295,35 +296,6 @@ export default function MatchPage({ projectId }: { projectId: number }) {
         )}
       </div>
 
-      {selectedIds.length > 0 && (
-        <div className="sticky top-20 z-40 bg-blue-50 border border-blue-200 rounded-lg p-3 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-blue-900">
-              {selectedIds.length} product{selectedIds.length !== 1 ? 's' : ''} selected
-            </span>
-            <div className="flex gap-2">
-          <button 
-            onClick={approveSelected}
-                className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
-          >
-                Approve
-          </button>
-          <button 
-            onClick={rejectSelected}
-                className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
-          >
-                Reject
-          </button>
-          <button 
-            onClick={sendToAI}
-                className="px-3 py-1 bg-purple-600 text-white text-sm rounded hover:bg-purple-700"
-          >
-                Send to AI
-          </button>
-        </div>
-      </div>
-        </div>
-      )}
         
         {running && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -418,6 +390,13 @@ export default function MatchPage({ projectId }: { projectId: number }) {
           </button>
         </div>
       )}
+      
+      <BulkActionBar
+        count={selectedIds.length}
+        onApprove={approveSelected}
+        onReject={rejectSelected}
+        onSend={sendToAI}
+      />
     </div>
   );
 }
