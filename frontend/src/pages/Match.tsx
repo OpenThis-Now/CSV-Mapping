@@ -152,6 +152,22 @@ export default function MatchPage({ projectId }: { projectId: number }) {
       return matches;
     }
     
+    // Handle "approved" - include both manual and auto approvals
+    if (statusFilter === "approved") {
+      const matches = result.decision === "approved" || 
+                     result.decision === "auto_approved" || 
+                     result.decision === "ai_auto_approved";
+      console.log(`Filtering result with decision "${result.decision}" for approved: ${matches}`);
+      return matches;
+    }
+    
+    // Handle "rejected" - include both manual and auto rejections
+    if (statusFilter === "rejected") {
+      const matches = result.decision === "rejected" || result.decision === "auto_rejected";
+      console.log(`Filtering result with decision "${result.decision}" for rejected: ${matches}`);
+      return matches;
+    }
+    
     const matches = result.decision === statusFilter;
     console.log(`Filtering result with decision "${result.decision}" against filter "${statusFilter}": ${matches}`);
     return matches;
