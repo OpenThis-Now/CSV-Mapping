@@ -296,7 +296,7 @@ export default function MatchPage({ projectId }: { projectId: number }) {
       </div>
 
       {selectedIds.length > 0 && (
-        <div className="sticky top-16 z-20 bg-blue-50 border border-blue-200 rounded-lg p-3 shadow-sm">
+        <div className="sticky top-20 z-20 bg-blue-50 border border-blue-200 rounded-lg p-3 shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-blue-900">
               {selectedIds.length} product{selectedIds.length !== 1 ? 's' : ''} selected
