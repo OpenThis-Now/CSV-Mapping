@@ -21,7 +21,7 @@ class AIQueueProcessor:
     def __init__(self):
         self.is_processing = False
         self.current_batch = []
-        self.max_concurrent = 10  # Process max 10 products at once (increased from 3)
+        self.max_concurrent = 20  # Process max 20 products at once (increased for better throughput)
         
     async def start_processing(self, project_id: int):
         """Start processing the AI queue for a project."""
@@ -93,8 +93,8 @@ class AIQueueProcessor:
             finally:
                 session.close()
             
-            # Small delay before checking for more products
-            await asyncio.sleep(1)
+            # Small delay before checking for more products (reduced for faster processing)
+            await asyncio.sleep(0.5)
     
     async def _process_single_product(self, product: MatchResult, session: Session):
         """Process a single product through AI analysis."""
@@ -216,10 +216,12 @@ class AIQueueProcessor:
         from ..routers.ai import build_ai_prompt
         from ..services.mapping import auto_map_headers
         
-        # Use the same AI logic as the existing endpoint
+        # Use the same AI logic as the existing endpoint with API key rotation
         try:
             prompt = build_ai_prompt(customer_row, database_matches, {}, 3)
-            ai_suggestions = suggest_with_openai(prompt, max_items=3)
+            # Use different API key for each product to distribute load
+            api_key_index = customer_row_index % 10  # Rotate through 10 API keys
+            ai_suggestions = suggest_with_openai(prompt, max_items=3, api_key_index=api_key_index)
             
             return ai_suggestions
         except Exception as e:
