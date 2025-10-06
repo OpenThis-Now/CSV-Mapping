@@ -95,6 +95,9 @@ SCOPE & RULES
 - Do NOT guess or hallucinate. Lower confidence if inference is needed.
 - Evidence.snippet should be a SHORT, verbatim fragment (≤200 characters) containing the cue that justified the value.
 - IMPORTANT: Use filename patterns to help determine market (e.g., "sweden_ab" = Swedish market, "germany" = German market).
+- CRITICAL: Read CAREFULLY and THOROUGHLY. Do not rush. Look for ALL possible indicators before making decisions.
+- For company_name: Check headers, footers, Section 1.3, and "Details of the supplier" blocks thoroughly.
+- For authored_market: Look for regulatory frameworks FIRST (WHS, WHMIS, OSHA, CLP/REACH) before country names.
 
 DEFINITIONS & SIGNALS
 A) product_name
@@ -112,6 +115,8 @@ C) company_name
    - Look for company names in headers, footers, and Section 1 "Details of the supplier" blocks.
    - Common patterns: "Company Name Ltd", "Company Name GmbH", "Company Name AB", "Company Name SE & Co. KG".
    - If multiple company names appear, prefer the main manufacturer/supplier (usually the first or most prominent one).
+   - IMPORTANT: Read the ENTIRE first page carefully. Company names often appear in multiple places.
+   - Look for complete legal entity names, not just brand names (e.g., "Alfred Kärcher SE & Co. KG" not just "Kärcher").
 
 D) authored_market (regulatory market the SDS was authored for)
    - CRITICAL: Focus on regulatory framework and market indicators, NOT supplier location. A German supplier can write SDS for US market.
@@ -122,6 +127,7 @@ D) authored_market (regulatory market the SDS was authored for)
      4. Company subsidiary location (e.g., "Merck Life Science AB" = Swedish subsidiary)
      5. URL patterns (e.g., "sweden_ab" in filename = Swedish market)
    - CRITICAL: Focus on REGULATORY FRAMEWORK, not supplier location. A German company can make SDS for Australian market.
+   - READ CAREFULLY: Look for regulatory framework mentions in the document title, headers, and first few paragraphs.
    - Determine using explicit regulatory references and market indicators:
      • EU/EEA countries: Look for regulatory framework + market language/emergency numbers:
        - Sweden: "Regulation (EC) No 1272/2008 (CLP)" + Swedish language + Swedish emergency numbers + "SE-" postal codes + "sweden_ab" in URL
