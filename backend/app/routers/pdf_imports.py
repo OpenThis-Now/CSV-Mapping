@@ -19,25 +19,26 @@ from ..services.parallel_pdf_processor import process_pdf_files_optimized
 
 
 def _remove_duplicate_columns(df: pd.DataFrame) -> pd.DataFrame:
-    """Remove duplicate columns while keeping all products (rows)."""
+    """Remove duplicate columns while keeping all products (rows). Case-insensitive."""
     if df.empty:
         return df
     
     print(f"Original columns: {list(df.columns)}")
     
-    # Find duplicate column names
-    seen_columns = {}
+    # Find duplicate column names (case-insensitive)
+    seen_columns = {}  # lowercase -> original case
     columns_to_keep = []
     columns_to_remove = []
     
     for i, col in enumerate(df.columns):
-        if col in seen_columns:
-            # This is a duplicate column
+        col_lower = col.lower()
+        if col_lower in seen_columns:
+            # This is a duplicate column (case-insensitive)
             columns_to_remove.append(i)
-            print(f"Removing duplicate column at index {i}: '{col}'")
+            print(f"Removing duplicate column at index {i}: '{col}' (duplicate of '{seen_columns[col_lower]}')")
         else:
             # First occurrence of this column name
-            seen_columns[col] = i
+            seen_columns[col_lower] = col
             columns_to_keep.append(i)
     
     # Keep only the first occurrence of each column
