@@ -709,14 +709,34 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
       
       console.log('Downloading from:', fullUrl);
       
-      // For file downloads, we can use a direct link approach
+      // Use fetch to get the file as blob, then create download link
+      const response = await fetch(fullUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/octet-stream, application/zip, application/csv, */*',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Download failed: ${response.status} ${response.statusText}`);
+      }
+      
+      const blob = await response.blob();
+      console.log('Downloaded blob size:', blob.size, 'type:', blob.type);
+      
+      // Create download link
+      const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = fullUrl;
+      link.href = downloadUrl;
       link.download = filename;
-      link.target = '_blank';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      
+      // Clean up the object URL
+      setTimeout(() => {
+        window.URL.revokeObjectURL(downloadUrl);
+      }, 1000);
       
     } catch (error) {
       console.error('Download failed:', error);
