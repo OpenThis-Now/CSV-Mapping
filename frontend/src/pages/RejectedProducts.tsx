@@ -127,13 +127,25 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
     }
   };
 
-  const downloadFile = (url: string, filename: string) => {
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const downloadFile = async (url: string, filename: string) => {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error('Download failed');
+      }
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error('Download failed:', error);
+      showToast('Failed to download file', 'error');
+    }
   };
 
   const exportCompleted = async () => {
@@ -145,7 +157,7 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
         showToast(`CSV export completed: ${res.data.count} products exported`, 'success');
         // Download the CSV file
         const downloadUrl = `/api/projects/${projectId}/rejected-products/download/${res.data.filename}`;
-        downloadFile(downloadUrl, res.data.filename);
+        await downloadFile(downloadUrl, res.data.filename);
       }
     } catch (error) {
       console.error("Failed to export:", error);
@@ -162,7 +174,7 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
         showToast(`Worklist export completed: ${res.data.count} products exported (CSV + ZIP)`, 'success');
         // Download the ZIP file (contains both CSV and PDFs)
         const downloadUrl = `/api/projects/${projectId}/rejected-products/download/${res.data.zip_filename}`;
-        downloadFile(downloadUrl, res.data.zip_filename);
+        await downloadFile(downloadUrl, res.data.zip_filename);
       }
     } catch (error) {
       console.error("Failed to export worklist:", error);
