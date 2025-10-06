@@ -81,7 +81,7 @@ function AppContent() {
       <header className="sticky top-0 z-20 bg-white border-b">
         <div className="max-w-6xl mx-auto flex items-center gap-3 p-3">
           <div className="flex items-center gap-3">
-            {/* Bridge Icon */}
+            {/* Bridge Icon - Suspension Bridge like the logo */}
             <svg 
               width="32" 
               height="24" 
@@ -89,15 +89,16 @@ function AppContent() {
               className="text-gray-600"
               fill="none" 
               stroke="currentColor" 
-              strokeWidth="2" 
+              strokeWidth="1.5" 
               strokeLinecap="round" 
               strokeLinejoin="round"
             >
-              {/* Bridge supports */}
-              <line x1="8" y1="8" x2="8" y2="16" />
-              <line x1="24" y1="8" x2="24" y2="16" />
-              {/* Bridge arch */}
-              <path d="M8 8 Q16 4 24 8" />
+              {/* Left tower */}
+              <line x1="8" y1="6" x2="8" y2="16" />
+              {/* Right tower */}
+              <line x1="24" y1="6" x2="24" y2="16" />
+              {/* Curved suspension cables - like your logo */}
+              <path d="M8 6 Q16 2 24 6" />
               {/* Bridge deck */}
               <line x1="8" y1="16" x2="24" y2="16" />
             </svg>
