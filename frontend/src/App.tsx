@@ -81,33 +81,21 @@ function AppContent() {
       <header className="sticky top-0 z-20 bg-white border-b">
         <div className="max-w-6xl mx-auto flex items-center gap-3 p-3">
           <div className="flex items-center gap-3">
-            {/* Bridge Icon - Suspension Bridge like the logo */}
-            <svg 
-              width="32" 
-              height="24" 
-              viewBox="0 0 32 24" 
-              className="text-gray-600"
-              fill="none" 
-              stroke="currentColor" 
-              strokeWidth="1.5" 
-              strokeLinecap="round" 
-              strokeLinejoin="round"
-            >
-              {/* Left tower */}
-              <line x1="8" y1="6" x2="8" y2="16" />
-              {/* Right tower */}
-              <line x1="24" y1="6" x2="24" y2="16" />
-              {/* Curved suspension cables - like your logo */}
-              <path d="M8 6 Q16 2 24 6" />
-              {/* Bridge deck */}
-              <line x1="8" y1="16" x2="24" y2="16" />
-            </svg>
-            
-            {/* Text */}
-            <div className="flex flex-col">
-              <div className="text-lg font-medium text-gray-700 leading-none">Mapping</div>
-              <div className="text-lg font-medium text-gray-700 leading-none">Bridge</div>
-            </div>
+            {/* Mapping Bridge Logo */}
+            <img 
+              src="/images/mapping-bridge-logo.png" 
+              alt="Mapping Bridge Logo" 
+              className="h-8 w-auto"
+              onError={(e) => {
+                // Fallback to text if image fails to load
+                const target = e.target as HTMLImageElement;
+                target.style.display = 'none';
+                const fallback = document.createElement('div');
+                fallback.className = 'text-lg font-medium text-gray-700';
+                fallback.textContent = 'Mapping Bridge';
+                target.parentNode?.insertBefore(fallback, target);
+              }}
+            />
           </div>
           <nav className="ml-6 flex gap-2">
             <button 
