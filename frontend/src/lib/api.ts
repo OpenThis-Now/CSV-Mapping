@@ -30,6 +30,17 @@ const api = axios.create({
 
 export default api;
 
+// AI Queue Status functions
+export const getAIQueueStatus = async (projectId: number): Promise<AIQueueStatus> => {
+  const response = await api.get(`/projects/${projectId}/ai/queue-status`);
+  return response.data;
+};
+
+export const getUnifiedAIStatus = async (projectId: number): Promise<UnifiedAIStatus> => {
+  const response = await api.get(`/projects/${projectId}/ai/unified-status`);
+  return response.data;
+};
+
 export type DatabaseListItem = { id: number; name: string; filename: string; row_count: number; created_at: string; updated_at: string; };
 export type Project = { id: number; name: string; status: string; active_database_id?: number | null; };
 export type ImportUploadResponse = { import_file_id: number; filename: string; row_count: number; columns_map_json: Record<string, string>; };
@@ -107,4 +118,39 @@ export type SupplierMatchResult = {
     new_country_needed: number;
     new_supplier_needed: number;
   };
+};
+
+export type AIQueueStatus = {
+  queued: number;
+  processing: number;
+  ready: number;
+  autoApproved: number;
+};
+
+export type UnifiedAIStatus = {
+  csv: {
+    queued: number;
+    processing: number;
+    completed: number;
+    total: number;
+  };
+  pdf: {
+    queued: number;
+    processing: number;
+    completed: number;
+    total: number;
+  };
+  url: {
+    queued: number;
+    processing: number;
+    completed: number;
+    total: number;
+  };
+  total: {
+    queued: number;
+    processing: number;
+    completed: number;
+    total: number;
+  };
+  hasActivity: boolean;
 };

@@ -820,6 +820,121 @@ def get_ai_queue_status(project_id: int, session: Session = Depends(get_session)
     }
 
 
+@router.get("/projects/{project_id}/ai/unified-status")
+def get_unified_ai_status(project_id: int, session: Session = Depends(get_session)):
+    """Get unified AI processing status including CSV AI queue, PDF processing, and URL enhancement."""
+    from ..models import MatchRun, URLEnhancementRun
+    
+    # Get the latest match run for this project
+    latest_run = session.exec(
+        select(MatchRun).where(MatchRun.project_id == project_id).order_by(MatchRun.started_at.desc())
+    ).first()
+    
+    # Initialize counters
+    csv_queued = 0
+    csv_processing = 0
+    csv_completed = 0
+    pdf_queued = 0
+    pdf_processing = 0
+    pdf_completed = 0
+    url_queued = 0
+    url_processing = 0
+    url_completed = 0
+    
+    # CSV-based AI queue status
+    if latest_run:
+        csv_queued = len(session.exec(
+            select(MatchResult).where(
+                MatchResult.match_run_id == latest_run.id,
+                MatchResult.decision == "sent_to_ai",
+                (MatchResult.ai_status == "queued") | (MatchResult.ai_status.is_(None))
+            )
+        ).all())
+        
+        csv_processing = len(session.exec(
+            select(MatchResult).where(
+                MatchResult.match_run_id == latest_run.id,
+                MatchResult.decision == "sent_to_ai",
+                MatchResult.ai_status == "processing"
+            )
+        ).all())
+        
+        csv_completed = len(session.exec(
+            select(MatchResult).where(
+                MatchResult.match_run_id == latest_run.id,
+                MatchResult.decision == "sent_to_ai",
+                MatchResult.ai_status.in_(["completed", "auto_approved"])
+            )
+        ).all())
+    
+    # URL Enhancement status
+    latest_url_run = session.exec(
+        select(URLEnhancementRun).where(
+            URLEnhancementRun.project_id == project_id
+        ).order_by(URLEnhancementRun.created_at.desc())
+    ).first()
+    
+    if latest_url_run:
+        url_queued = max(0, latest_url_run.total_urls - latest_url_run.processed_urls)
+        url_processing = 1 if latest_url_run.status == "running" and latest_url_run.processed_urls < latest_url_run.total_urls else 0
+        url_completed = latest_url_run.processed_urls
+    
+    # PDF processing status (check for running PDF imports)
+    # Note: PDF processing is typically fast and doesn't have persistent queue status
+    # We'll check if there are any recent PDF imports that might be processing
+    pdf_imports = session.exec(
+        select(ImportFile).where(
+            ImportFile.project_id == project_id,
+            ImportFile.filename.like("%pdf_import%")
+        ).order_by(ImportFile.created_at.desc()).limit(5)
+    ).all()
+    
+    # If there are recent PDF imports, assume they might be processing
+    if pdf_imports:
+        # Check if any were created in the last 5 minutes (likely still processing)
+        from datetime import datetime, timedelta
+        recent_threshold = datetime.now() - timedelta(minutes=5)
+        
+        recent_pdfs = [imp for imp in pdf_imports if imp.created_at > recent_threshold]
+        if recent_pdfs:
+            pdf_processing = len(recent_pdfs)
+            pdf_queued = 0  # PDFs are processed immediately, no persistent queue
+    
+    # Calculate totals
+    total_queued = csv_queued + pdf_queued + url_queued
+    total_processing = csv_processing + pdf_processing + url_processing
+    total_completed = csv_completed + pdf_completed + url_completed
+    total_items = total_queued + total_processing + total_completed
+    
+    return {
+        "csv": {
+            "queued": csv_queued,
+            "processing": csv_processing,
+            "completed": csv_completed,
+            "total": csv_queued + csv_processing + csv_completed
+        },
+        "pdf": {
+            "queued": pdf_queued,
+            "processing": pdf_processing,
+            "completed": pdf_completed,
+            "total": pdf_queued + pdf_processing + pdf_completed
+        },
+        "url": {
+            "queued": url_queued,
+            "processing": url_processing,
+            "completed": url_completed,
+            "total": url_queued + url_processing + url_completed
+        },
+        "total": {
+            "queued": total_queued,
+            "processing": total_processing,
+            "completed": total_completed,
+            "total": total_items
+        },
+        "hasActivity": total_processing > 0 or total_queued > 0
+    }
+
+
 @router.post("/projects/{project_id}/ai/pause-queue")
 def pause_ai_queue(project_id: int, session: Session = Depends(get_session)):
     """Pause the AI queue processing."""
