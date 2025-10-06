@@ -162,9 +162,32 @@ def score_pair(customer_row: dict[str, Any], db_row: dict[str, Any], customer_ma
     market_mismatch = False
     language_mismatch = False
     
-    if customer_market and db_market and customer_market.lower() != db_market.lower():
+    # Normalize market names for better matching
+    def normalize_market(market):
+        if not market:
+            return ""
+        market_lower = market.lower().strip()
+        # Map common variations to standard names
+        if market_lower in ['eu', 'eu (clp/reach)', 'europe', 'european union']:
+            return 'eu'
+        elif market_lower in ['australia', 'au', 'australian']:
+            return 'australia'
+        elif market_lower in ['canada', 'ca', 'canadian']:
+            return 'canada'
+        elif market_lower in ['sweden', 'se', 'swedish']:
+            return 'sweden'
+        elif market_lower in ['usa', 'us', 'united states', 'american']:
+            return 'usa'
+        elif market_lower in ['germany', 'de', 'german']:
+            return 'germany'
+        return market_lower
+    
+    customer_market_norm = normalize_market(customer_market)
+    db_market_norm = normalize_market(db_market)
+    
+    if customer_market_norm and db_market_norm and customer_market_norm != db_market_norm:
         market_mismatch = True
-        print(f"DEBUG: Market mismatch detected: '{customer_market}' != '{db_market}'")
+        print(f"DEBUG: Market mismatch detected: '{customer_market}' (normalized: '{customer_market_norm}') != '{db_market}' (normalized: '{db_market_norm}')")
     
     if customer_language and db_language and customer_language.lower() != db_language.lower():
         language_mismatch = True
@@ -186,16 +209,22 @@ def score_pair(customer_row: dict[str, Any], db_row: dict[str, Any], customer_ma
 
     overall -= numeric_penalty(cp, dp, thr.numeric_mismatch_penalty)
     
-    # Set score to 0 if both market and language are wrong
+    # Be less strict about market/language mismatches - focus on product matching
     if market_mismatch and language_mismatch:
-        print(f"DEBUG: Setting score to 0 due to both market and language mismatch")
-        overall = 0
+        # Only set to 0 if it's a very poor match anyway
+        if overall < 20:
+            print(f"DEBUG: Setting score to 0 due to very poor match with market and language mismatch")
+            overall = 0
+        else:
+            # Reduce score but don't eliminate completely
+            overall = max(10, overall * 0.3)
+            print(f"DEBUG: Reduced score to {overall} due to market and language mismatch")
     else:
-        # Cap score at 50% for market mismatches, 40% for language mismatches
+        # Cap score at 70% for market mismatches, 60% for language mismatches (less strict)
         if market_mismatch:
-            overall = min(50, overall)
+            overall = min(70, overall)
         if language_mismatch:
-            overall = min(40, overall)
+            overall = min(60, overall)
 
     exact = vendor_score >= 95 and product_score >= 95 or sku_exact(cs, ds)
 
