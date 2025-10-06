@@ -44,6 +44,10 @@ def normalize_supplier_name(name: str) -> str:
         r'\bllp\.?\b',
         r'\bplc\.?\b',
         r'\bthe\b',  # Remove "The" at the beginning
+        r'\btrading\b',  # Remove generic "trading" terms
+        r'\bgroup\b',    # Remove generic "group" terms
+        r'\bholdings\b', # Remove generic "holdings" terms
+        r'\binternational\b', # Remove generic "international" terms
     ]
     
     for suffix in suffixes_to_remove:
@@ -68,6 +72,23 @@ def calculate_supplier_similarity(name1: str, name2: str) -> float:
     if not norm1 or not norm2:
         return 0.0
     
+    # Check if they have any meaningful words in common
+    words1 = set(norm1.split())
+    words2 = set(norm2.split())
+    
+    # Remove very common words that don't indicate company identity
+    common_words = {'australia', 'international', 'global', 'worldwide', 'europe', 'america', 'asia', 'pacific', 'north', 'south', 'east', 'west', 'central', 'solutions', 'services', 'systems', 'technologies', 'industries'}
+    words1 = words1 - common_words
+    words2 = words2 - common_words
+    
+    # If no meaningful words in common, similarity should be very low
+    if not words1 or not words2:
+        return 0.0
+    
+    common_meaningful_words = words1.intersection(words2)
+    if not common_meaningful_words:
+        return 0.0  # No meaningful words in common = very different companies
+    
     # Calculate multiple similarity metrics
     ratio = fuzz.ratio(norm1, norm2)
     token_sort_ratio = fuzz.token_sort_ratio(norm1, norm2)
@@ -75,6 +96,11 @@ def calculate_supplier_similarity(name1: str, name2: str) -> float:
     
     # Use the highest score
     max_score = max(ratio, token_sort_ratio, token_set_ratio)
+    
+    # Apply penalty if very few meaningful words in common
+    meaningful_word_ratio = len(common_meaningful_words) / max(len(words1), len(words2))
+    if meaningful_word_ratio < 0.3:  # Less than 30% of meaningful words in common
+        max_score *= 0.7  # Apply 30% penalty
     
     return max_score / 100.0  # Convert to 0-1 scale
 
@@ -351,15 +377,15 @@ def ai_match_suppliers(project_id: int, session: Session = Depends(get_session))
             })
             print(f"DEBUG: Exact match found: {best_match.supplier_name}")
         else:
-            # Try fuzzy matching with same country first
+            # Try fuzzy matching with same country first (higher threshold for exact match)
             fuzzy_match_same_country = find_best_supplier_match(
-                supplier_name, suppliers, country=country, min_similarity=0.8
+                supplier_name, suppliers, country=country, min_similarity=0.95  # Increased from 0.8
             )
             
             if fuzzy_match_same_country:
-                # Check if it's really a good match (high similarity)
+                # Check if it's really a good match (very high similarity required)
                 similarity = calculate_supplier_similarity(supplier_name, fuzzy_match_same_country.supplier_name)
-                if similarity >= 0.9:
+                if similarity >= 0.95:  # Increased from 0.9 - only very close matches
                     matched_results.append({
                         "supplier_name": supplier_name,
                         "country": country,
@@ -378,9 +404,9 @@ def ai_match_suppliers(project_id: int, session: Session = Depends(get_session))
                     })
                     print(f"DEBUG: Fuzzy match (different confidence) found: {fuzzy_match_same_country.supplier_name} (similarity: {similarity:.2f})")
             else:
-                # Try fuzzy matching without country restriction
+                # Try fuzzy matching without country restriction (higher threshold)
                 fuzzy_match_any_country = find_best_supplier_match(
-                    supplier_name, suppliers, country=None, min_similarity=0.85
+                    supplier_name, suppliers, country=None, min_similarity=0.90  # Increased from 0.85
                 )
                 
                 if fuzzy_match_any_country:
@@ -427,6 +453,11 @@ def test_supplier_matching(project_id: int, session: Session = Depends(get_sessi
         ("Apple Inc.", "Apple Computer Inc."),
         ("Google LLC", "Google Inc."),
         ("3M Company", "Minnesota Mining and Manufacturing Company"),
+        ("Adventure Trading Australia Pty Ltd", "3M Australia"),  # Should NOT match
+        ("Adventure Trading Australia Pty Ltd", "Adventure Group Australia"),  # Should match
+        ("BP Australia", "British Petroleum Australia"),  # Should match
+        ("Shell Australia", "Shell International"),  # Should match
+        ("Chevron Australia", "Exxon Australia"),  # Should NOT match
     ]
     
     results = []
@@ -442,7 +473,9 @@ def test_supplier_matching(project_id: int, session: Session = Depends(get_sessi
             "normalized1": norm1,
             "normalized2": norm2,
             "similarity": similarity,
-            "would_match": similarity >= 0.8
+            "would_match_exact": similarity >= 0.95,  # New stricter threshold
+            "would_match_country_needed": similarity >= 0.90,
+            "would_match_old": similarity >= 0.8  # Old threshold for comparison
         })
     
     return {
