@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import csv
+import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlmodel import Session, select
+from rapidfuzz import fuzz
 
 from ..config import settings
 from ..db import get_session
@@ -14,6 +16,94 @@ from ..services.files import check_upload, compute_hash_and_save, open_text_stre
 from ..services.mapping import auto_map_headers
 
 router = APIRouter()
+
+
+def normalize_supplier_name(name: str) -> str:
+    """Normalize supplier name for better matching"""
+    if not name:
+        return ""
+    
+    # Convert to lowercase
+    normalized = name.lower().strip()
+    
+    # Remove common company suffixes and legal terms
+    suffixes_to_remove = [
+        r'\b(pty\s+)?ltd\.?\b',
+        r'\b(pty\s+)?limited\.?\b', 
+        r'\binc\.?\b',
+        r'\bincorporated\.?\b',
+        r'\bcorp\.?\b',
+        r'\bcorporation\.?\b',
+        r'\bco\.?\b',
+        r'\bcompany\.?\b',
+        r'\bgmbh\.?\b',
+        r'\bag\.?\b',
+        r'\bs\.?a\.?\b',
+        r'\bs\.?r\.?l\.?\b',
+        r'\bllc\.?\b',
+        r'\bllp\.?\b',
+        r'\bplc\.?\b',
+        r'\bthe\b',  # Remove "The" at the beginning
+    ]
+    
+    for suffix in suffixes_to_remove:
+        normalized = re.sub(suffix, '', normalized)
+    
+    # Remove extra whitespace and punctuation
+    normalized = re.sub(r'[^\w\s]', ' ', normalized)
+    normalized = re.sub(r'\s+', ' ', normalized).strip()
+    
+    return normalized
+
+
+def calculate_supplier_similarity(name1: str, name2: str) -> float:
+    """Calculate similarity between two supplier names"""
+    if not name1 or not name2:
+        return 0.0
+    
+    # Normalize both names
+    norm1 = normalize_supplier_name(name1)
+    norm2 = normalize_supplier_name(name2)
+    
+    if not norm1 or not norm2:
+        return 0.0
+    
+    # Calculate multiple similarity metrics
+    ratio = fuzz.ratio(norm1, norm2)
+    token_sort_ratio = fuzz.token_sort_ratio(norm1, norm2)
+    token_set_ratio = fuzz.token_set_ratio(norm1, norm2)
+    
+    # Use the highest score
+    max_score = max(ratio, token_sort_ratio, token_set_ratio)
+    
+    return max_score / 100.0  # Convert to 0-1 scale
+
+
+def find_best_supplier_match(target_name: str, suppliers: List[SupplierData], 
+                           country: str = None, min_similarity: float = 0.8) -> Optional[SupplierData]:
+    """Find the best matching supplier using fuzzy matching"""
+    best_match = None
+    best_score = 0.0
+    
+    for supplier in suppliers:
+        # If country is specified, prefer matches in the same country
+        country_penalty = 0.0
+        if country and supplier.country.lower() != country.lower():
+            country_penalty = 0.1  # Small penalty for different countries
+        
+        # Calculate similarity score
+        similarity = calculate_supplier_similarity(target_name, supplier.supplier_name)
+        adjusted_score = similarity - country_penalty
+        
+        # Apply total-based bonus (prefer suppliers with more products)
+        total_bonus = min(supplier.total / 10000.0, 0.05)  # Max 5% bonus for high-volume suppliers
+        adjusted_score += total_bonus
+        
+        if adjusted_score >= min_similarity and adjusted_score > best_score:
+            best_score = adjusted_score
+            best_match = supplier
+    
+    return best_match
 
 
 @router.post("/projects/{project_id}/suppliers/upload")
@@ -241,7 +331,9 @@ def ai_match_suppliers(project_id: int, session: Session = Depends(get_session))
         supplier_name = supplier_group["supplier_name"]
         country = supplier_group["country"]
         
-        # Look for exact match: Country + Supplier name
+        print(f"DEBUG: Processing supplier: '{supplier_name}' in country: '{country}'")
+        
+        # First try exact match: Country + Supplier name
         exact_matches = [
             s for s in suppliers 
             if s.country.lower() == country.lower() and s.supplier_name.lower() == supplier_name.lower()
@@ -257,28 +349,57 @@ def ai_match_suppliers(project_id: int, session: Session = Depends(get_session))
                 "match_type": "exact_match",
                 "products_affected": len(supplier_group["products"])
             })
+            print(f"DEBUG: Exact match found: {best_match.supplier_name}")
         else:
-            # Look for supplier name match only (new country needed)
-            supplier_matches = [
-                s for s in suppliers 
-                if s.supplier_name.lower() == supplier_name.lower()
-            ]
+            # Try fuzzy matching with same country first
+            fuzzy_match_same_country = find_best_supplier_match(
+                supplier_name, suppliers, country=country, min_similarity=0.8
+            )
             
-            if supplier_matches:
-                # If multiple matches, prioritize by highest total
-                best_match = max(supplier_matches, key=lambda x: x.total)
-                new_country_needed.append({
-                    "supplier_name": supplier_name,
-                    "current_country": country,
-                    "matched_supplier": best_match,
-                    "products_affected": len(supplier_group["products"])
-                })
+            if fuzzy_match_same_country:
+                # Check if it's really a good match (high similarity)
+                similarity = calculate_supplier_similarity(supplier_name, fuzzy_match_same_country.supplier_name)
+                if similarity >= 0.9:
+                    matched_results.append({
+                        "supplier_name": supplier_name,
+                        "country": country,
+                        "matched_supplier": fuzzy_match_same_country,
+                        "match_type": "fuzzy_match_same_country",
+                        "products_affected": len(supplier_group["products"])
+                    })
+                    print(f"DEBUG: Fuzzy match (same country) found: {fuzzy_match_same_country.supplier_name} (similarity: {similarity:.2f})")
+                else:
+                    # Similar name but not confident enough - treat as new country needed
+                    new_country_needed.append({
+                        "supplier_name": supplier_name,
+                        "current_country": country,
+                        "matched_supplier": fuzzy_match_same_country,
+                        "products_affected": len(supplier_group["products"])
+                    })
+                    print(f"DEBUG: Fuzzy match (different confidence) found: {fuzzy_match_same_country.supplier_name} (similarity: {similarity:.2f})")
             else:
-                new_supplier_needed.append({
-                    "supplier_name": supplier_name,
-                    "country": country,
-                    "products_affected": len(supplier_group["products"])
-                })
+                # Try fuzzy matching without country restriction
+                fuzzy_match_any_country = find_best_supplier_match(
+                    supplier_name, suppliers, country=None, min_similarity=0.85
+                )
+                
+                if fuzzy_match_any_country:
+                    similarity = calculate_supplier_similarity(supplier_name, fuzzy_match_any_country.supplier_name)
+                    new_country_needed.append({
+                        "supplier_name": supplier_name,
+                        "current_country": country,
+                        "matched_supplier": fuzzy_match_any_country,
+                        "products_affected": len(supplier_group["products"])
+                    })
+                    print(f"DEBUG: Fuzzy match (any country) found: {fuzzy_match_any_country.supplier_name} (similarity: {similarity:.2f})")
+                else:
+                    # No match found at all
+                    new_supplier_needed.append({
+                        "supplier_name": supplier_name,
+                        "country": country,
+                        "products_affected": len(supplier_group["products"])
+                    })
+                    print(f"DEBUG: No match found for: {supplier_name}")
     
     return {
         "matched_suppliers": matched_results,
@@ -288,6 +409,47 @@ def ai_match_suppliers(project_id: int, session: Session = Depends(get_session))
             "total_matched": len(matched_results),
             "new_country_needed": len(new_country_needed),
             "new_supplier_needed": len(new_supplier_needed)
+        }
+    }
+
+
+@router.get("/projects/{project_id}/suppliers/test-matching")
+def test_supplier_matching(project_id: int, session: Session = Depends(get_session)) -> Dict[str, Any]:
+    """Test the supplier matching logic with sample data"""
+    p = session.get(Project, project_id)
+    if not p:
+        raise HTTPException(status_code=404, detail="Projekt saknas.")
+    
+    # Test cases
+    test_cases = [
+        ("AMPOL AUSTRALIA PETROLEUM PTY LTD", "AMPOL AUSTRALIA PTY LTD"),
+        ("Microsoft Corporation", "Microsoft Inc."),
+        ("Apple Inc.", "Apple Computer Inc."),
+        ("Google LLC", "Google Inc."),
+        ("3M Company", "Minnesota Mining and Manufacturing Company"),
+    ]
+    
+    results = []
+    
+    for name1, name2 in test_cases:
+        similarity = calculate_supplier_similarity(name1, name2)
+        norm1 = normalize_supplier_name(name1)
+        norm2 = normalize_supplier_name(name2)
+        
+        results.append({
+            "name1": name1,
+            "name2": name2,
+            "normalized1": norm1,
+            "normalized2": norm2,
+            "similarity": similarity,
+            "would_match": similarity >= 0.8
+        })
+    
+    return {
+        "test_results": results,
+        "normalization_examples": {
+            "original": "AMPOL AUSTRALIA PETROLEUM PTY LTD",
+            "normalized": normalize_supplier_name("AMPOL AUSTRALIA PETROLEUM PTY LTD")
         }
     }
 
