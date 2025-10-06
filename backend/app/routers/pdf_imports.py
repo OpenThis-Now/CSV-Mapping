@@ -23,26 +23,29 @@ def _remove_duplicate_columns(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
     
+    print(f"Original columns: {list(df.columns)}")
+    
     # Find duplicate column names
     seen_columns = {}
     columns_to_keep = []
     columns_to_remove = []
     
-    for col in df.columns:
+    for i, col in enumerate(df.columns):
         if col in seen_columns:
             # This is a duplicate column
-            columns_to_remove.append(col)
-            print(f"Removing duplicate column: {col}")
+            columns_to_remove.append(i)
+            print(f"Removing duplicate column at index {i}: '{col}'")
         else:
             # First occurrence of this column name
-            seen_columns[col] = True
-            columns_to_keep.append(col)
+            seen_columns[col] = i
+            columns_to_keep.append(i)
     
     # Keep only the first occurrence of each column
-    result_df = df[columns_to_keep].copy()
+    result_df = df.iloc[:, columns_to_keep].copy()
     
-    print(f"Removed {len(columns_to_remove)} duplicate columns: {columns_to_remove}")
-    print(f"Kept {len(columns_to_keep)} unique columns: {columns_to_keep}")
+    print(f"Removed {len(columns_to_remove)} duplicate columns at indices: {columns_to_remove}")
+    print(f"Kept {len(columns_to_keep)} unique columns at indices: {columns_to_keep}")
+    print(f"Final columns: {list(result_df.columns)}")
     
     return result_df
 
@@ -298,7 +301,9 @@ def combine_import_files(project_id: int, req: CombineImportsRequest, session: S
             print(f"Unified DataFrame: sample data = {combined_df.head(3).to_dict('records')}")
             
             # Remove duplicate columns (keep all products, just deduplicate columns)
+            print(f"BEFORE deduplication - columns: {list(combined_df.columns)}")
             combined_df = _remove_duplicate_columns(combined_df)
+            print(f"AFTER deduplication - columns: {list(combined_df.columns)}")
             print(f"After column deduplication: shape = {combined_df.shape}")
             
             # Skapa ny CSV-fil
