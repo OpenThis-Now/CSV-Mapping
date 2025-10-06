@@ -48,3 +48,63 @@ export type AiSuggestionItem = {
   id?: number;
   customer_row_index: number; rank: number; database_fields_json: Record<string, string>; confidence: number; rationale: string; source: string;
 };
+
+export type SupplierData = {
+  id: number;
+  supplier_name: string;
+  company_id: string;
+  country: string;
+  total: number;
+  created_at: string;
+};
+
+export type SupplierMappingSummary = {
+  supplier_summary: Array<{
+    supplier_name: string;
+    country: string;
+    product_count: number;
+    products: Array<{
+      id: number;
+      customer_row_index: number;
+      decision: string;
+      reason: string;
+    }>;
+  }>;
+  unmatched_suppliers: Array<{
+    supplier_name: string;
+    product_count: number;
+    products: Array<{
+      id: number;
+      customer_row_index: number;
+      decision: string;
+      reason: string;
+    }>;
+  }>;
+  total_unmatched_products: number;
+};
+
+export type SupplierMatchResult = {
+  matched_suppliers: Array<{
+    supplier_name: string;
+    country: string;
+    matched_supplier: SupplierData;
+    match_type: string;
+    products_affected: number;
+  }>;
+  new_country_needed: Array<{
+    supplier_name: string;
+    current_country: string;
+    matched_supplier: SupplierData;
+    products_affected: number;
+  }>;
+  new_supplier_needed: Array<{
+    supplier_name: string;
+    country: string;
+    products_affected: number;
+  }>;
+  summary: {
+    total_matched: number;
+    new_country_needed: number;
+    new_supplier_needed: number;
+  };
+};

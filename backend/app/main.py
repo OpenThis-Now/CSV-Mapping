@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import settings, ensure_storage_dirs
 from .db import create_db_and_tables
 from .utils.logging import install_logging, RequestIDMiddleware
-from .routers import databases, projects, imports, match, approve, ai, export, projects_list, project_databases, pdf_imports, url_enhancement, rejected_products
+from .routers import databases, projects, imports, match, approve, ai, export, projects_list, project_databases, pdf_imports, url_enhancement, rejected_products, suppliers
 from .version import __version__
 
 
@@ -59,6 +59,7 @@ app.include_router(project_databases.router, prefix="/api", tags=["project-datab
 app.include_router(pdf_imports.router, prefix="/api", tags=["pdf-imports"])
 app.include_router(url_enhancement.router, prefix="/api", tags=["url-enhancement"])
 app.include_router(rejected_products.router, prefix="/api", tags=["rejected-products"])
+app.include_router(suppliers.router, prefix="/api", tags=["suppliers"])
 
 
 @app.get("/api/health")

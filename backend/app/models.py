@@ -139,3 +139,13 @@ class PDFProcessingRun(SQLModel, table=True):
     finished_at: Optional[datetime] = None
     error_message: Optional[str] = Field(default=None, sa_column=Column(Text))
     current_file: Optional[str] = Field(default=None)
+
+
+class SupplierData(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    project_id: int = Field(foreign_key="project.id", index=True)
+    supplier_name: str = Field(index=True)
+    company_id: str = Field(index=True)
+    country: str = Field(index=True)
+    total: int = Field(default=0)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
