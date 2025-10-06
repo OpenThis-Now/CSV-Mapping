@@ -158,6 +158,7 @@ def get_rejected_products(project_id: int, session: Session = Depends(get_sessio
         # Auto-update status based on available data
         new_status = update_product_status_based_on_data(existing_data)
         if existing_data.status != new_status:
+            print(f"DEBUG: Updating product {existing_data.id} status from '{existing_data.status}' to '{new_status}'")
             existing_data.status = new_status
             session.add(existing_data)
         
@@ -222,6 +223,9 @@ def get_rejected_products(project_id: int, session: Session = Depends(get_sessio
             "customer_data": result.customer_fields_json,
             "reason": result.reason
         })
+    
+    # Commit any status updates
+    session.commit()
     
     return products
 
