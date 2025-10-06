@@ -17,15 +17,15 @@ def suggest_with_openai(prompt: str, max_items: int = 3, api_key_index: int = 0)
     # Support multiple API keys for parallel processing
     api_keys = [
         settings.OPENAI_API_KEY,
-        getattr(settings, 'OPENAI_API_KEY_2', None),
-        getattr(settings, 'OPENAI_API_KEY_3', None),
-        getattr(settings, 'OPENAI_API_KEY_4', None),
-        getattr(settings, 'OPENAI_API_KEY_5', None),
-        getattr(settings, 'OPENAI_API_KEY_6', None),
-        getattr(settings, 'OPENAI_API_KEY_7', None),
-        getattr(settings, 'OPENAI_API_KEY_8', None),
-        getattr(settings, 'OPENAI_API_KEY_9', None),
-        getattr(settings, 'OPENAI_API_KEY_10', None),
+        getattr(settings, 'OPENAI_API_KEY2', None),
+        getattr(settings, 'OPENAI_API_KEY3', None),
+        getattr(settings, 'OPENAI_API_KEY4', None),
+        getattr(settings, 'OPENAI_API_KEY5', None),
+        getattr(settings, 'OPENAI_API_KEY6', None),
+        getattr(settings, 'OPENAI_API_KEY7', None),
+        getattr(settings, 'OPENAI_API_KEY8', None),
+        getattr(settings, 'OPENAI_API_KEY9', None),
+        getattr(settings, 'OPENAI_API_KEY10', None),
     ]
     
     # Filter out None keys and cycle through available keys

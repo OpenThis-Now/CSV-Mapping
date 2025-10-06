@@ -141,15 +141,15 @@ def get_available_api_keys() -> int:
     
     api_keys = [
         settings.OPENAI_API_KEY,
-        getattr(settings, 'OPENAI_API_KEY_2', None),
-        getattr(settings, 'OPENAI_API_KEY_3', None),
-        getattr(settings, 'OPENAI_API_KEY_4', None),
-        getattr(settings, 'OPENAI_API_KEY_5', None),
-        getattr(settings, 'OPENAI_API_KEY_6', None),
-        getattr(settings, 'OPENAI_API_KEY_7', None),
-        getattr(settings, 'OPENAI_API_KEY_8', None),
-        getattr(settings, 'OPENAI_API_KEY_9', None),
-        getattr(settings, 'OPENAI_API_KEY_10', None),
+        getattr(settings, 'OPENAI_API_KEY2', None),
+        getattr(settings, 'OPENAI_API_KEY3', None),
+        getattr(settings, 'OPENAI_API_KEY4', None),
+        getattr(settings, 'OPENAI_API_KEY5', None),
+        getattr(settings, 'OPENAI_API_KEY6', None),
+        getattr(settings, 'OPENAI_API_KEY7', None),
+        getattr(settings, 'OPENAI_API_KEY8', None),
+        getattr(settings, 'OPENAI_API_KEY9', None),
+        getattr(settings, 'OPENAI_API_KEY10', None),
     ]
     
     available_keys = [key for key in api_keys if key]
