@@ -18,13 +18,14 @@ from ..models import ImportFile, Project, URLEnhancementRun
 from ..schemas import ImportUploadResponse
 from ..services.files import detect_csv_separator, open_text_stream
 from ..services.pdf_processor import extract_pdf_data_with_ai, separate_market_and_legislation, adjust_market_by_language
+from ..services.parallel_url_processor import process_urls_optimized
 
 router = APIRouter()
 log = logging.getLogger("app.url_enhancement")
 
 
-def _process_urls_in_background(project_id: int, import_id: int, enhancement_run_id: int):
-    """Background task to process URLs and update enhancement run status."""
+def _process_urls_in_background_optimized(project_id: int, import_id: int, enhancement_run_id: int):
+    """Optimized background task to process URLs in parallel."""
     from ..db import get_session
     
     session = next(get_session())
@@ -51,23 +52,47 @@ def _process_urls_in_background(project_id: int, import_id: int, enhancement_run
         market_column = imp.columns_map_json.get("market", "market")
         language_column = imp.columns_map_json.get("language", "language")
         
+        # Extract URLs for parallel processing
+        urls_to_process = []
+        url_row_indices = []
+        
+        for row_idx, row in enumerate(rows):
+            url = row.get(url_column, "").strip()
+            if url and url.startswith(("http://", "https://")):
+                urls_to_process.append(url)
+                url_row_indices.append(row_idx)
+        
+        log.info(f"Found {len(urls_to_process)} URLs to process in parallel")
+        
+        # Process URLs in parallel
+        start_time = datetime.now()
+        pdf_data_results = process_urls_optimized(urls_to_process)
+        end_time = datetime.now()
+        
+        log.info(f"Parallel URL processing completed in {(end_time - start_time).total_seconds():.2f} seconds")
+        
+        # Update enhancement run statistics
+        successful = sum(1 for result in pdf_data_results if result is not None)
+        failed = len(pdf_data_results) - successful
+        
+        enhancement_run.successful_urls = successful
+        enhancement_run.failed_urls = failed
+        enhancement_run.processed_urls = len(pdf_data_results)
+        
+        # Process results and update rows
         enhanced_rows = []
+        url_result_index = 0
         
         for row_idx, row in enumerate(rows):
             enhanced_row = row.copy()
             
-            # Check if this row has a URL
+            # Check if this row had a URL
             url = row.get(url_column, "").strip()
             if url and url.startswith(("http://", "https://")):
-                try:
-                    log.info(f"Processing URL {row_idx + 1}/{enhancement_run.total_urls}: {url}")
+                if url_result_index < len(pdf_data_results):
+                    pdf_item = pdf_data_results[url_result_index]
                     
-                    # Extract PDF data with timeout protection
-                    pdf_data = extract_pdf_data_with_ai(url)
-                    
-                    if pdf_data and len(pdf_data) > 0:
-                        pdf_item = pdf_data[0]
-                        
+                    if pdf_item:
                         # Update fields based on extracted data
                         if pdf_item.get("product_name", {}).get("value"):
                             enhanced_row[product_column] = pdf_item["product_name"]["value"]
@@ -92,24 +117,8 @@ def _process_urls_in_background(project_id: int, import_id: int, enhancement_run
                         
                         if pdf_item.get("language", {}).get("value"):
                             enhanced_row[language_column] = pdf_item["language"]["value"]
-                        
-                        enhancement_run.successful_urls += 1
-                        log.info(f"Successfully processed URL {row_idx + 1}: {url}")
-                    else:
-                        enhancement_run.failed_urls += 1
-                        log.warning(f"No data extracted from URL {row_idx + 1}: {url}")
-                        
-                except Exception as e:
-                    log.error(f"Error processing URL {url}: {str(e)}")
-                    enhancement_run.failed_urls += 1
                     
-                enhancement_run.processed_urls += 1
-                session.add(enhancement_run)
-                session.commit()
-                
-                # Add small delay to prevent overwhelming the server
-                import time
-                time.sleep(0.5)
+                    url_result_index += 1
             
             enhanced_rows.append(enhanced_row)
         
@@ -234,9 +243,9 @@ def start_url_enhancement(project_id: int, session: Session = Depends(get_sessio
         session.commit()
         session.refresh(enhancement_run)
         
-        # Start background processing
+        # Start optimized background processing
         thread = threading.Thread(
-            target=_process_urls_in_background,
+            target=_process_urls_in_background_optimized,
             args=(project_id, imp.id, enhancement_run.id)
         )
         thread.daemon = True

@@ -15,6 +15,7 @@ from ..schemas import ImportUploadResponse, CombineImportsRequest
 from ..services.files import check_upload, compute_hash_and_save, open_text_stream
 from ..services.mapping import auto_map_headers
 from ..services.pdf_processor import process_pdf_files, create_csv_from_pdf_data
+from ..services.parallel_pdf_processor import process_pdf_files_optimized
 
 router = APIRouter()
 log = logging.getLogger("app.pdf_imports")
@@ -45,9 +46,9 @@ def upload_pdf_files(project_id: int, files: List[UploadFile] = File(...), sessi
             _, pdf_path = compute_hash_and_save(Path(settings.TMP_DIR), file)
             pdf_paths.append(pdf_path)
         
-        # Bearbeta PDF:er med AI
-        print(f"Processing {len(pdf_paths)} PDF files...")
-        pdf_data = process_pdf_files(pdf_paths)
+        # Bearbeta PDF:er med AI (parallellt för snabbare bearbetning)
+        print(f"Processing {len(pdf_paths)} PDF files in parallel...")
+        pdf_data = process_pdf_files_optimized(pdf_paths)
         
         # Skapa CSV från extraherade data
         csv_filename = f"pdf_import_{project_id}_{Path(files[0].filename).stem}.csv"

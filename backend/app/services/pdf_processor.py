@@ -174,7 +174,7 @@ PDF TEXT TO ANALYZE:
     return prompt.replace('ä', 'a').replace('ö', 'o').replace('å', 'a').replace('–', '-').replace('—', '-').replace('…', '...').replace('•', '*').replace('≤', '<=').replace('≥', '>=').replace('é', 'e').replace('ó', 'o').replace('í', 'i')
 
 
-def extract_product_info_with_ai(text: str, filename: str) -> Dict[str, Any]:
+def extract_product_info_with_ai(text: str, filename: str, api_key_index: int = 0) -> Dict[str, Any]:
     """Använd AI för att extrahera produktinformation från PDF-text"""
     if not text or len(text.strip()) < 50:
         print(f"Text too short or empty for {filename}: {len(text) if text else 0} characters")
@@ -193,7 +193,7 @@ def extract_product_info_with_ai(text: str, filename: str) -> Dict[str, Any]:
         # Ensure prompt is properly encoded
         prompt = prompt.encode('utf-8').decode('utf-8')
         print(f"Calling OpenAI API for {filename}...")
-        result = suggest_with_openai(prompt, max_items=1)
+        result = suggest_with_openai(prompt, max_items=1, api_key_index=api_key_index)
         
         print(f"AI API response for {filename}: {result}")
         
@@ -563,7 +563,7 @@ def process_pdf_files(pdf_files: List[Path]) -> List[Dict[str, Any]]:
     return all_products
 
 
-def extract_pdf_data_with_ai(url: str) -> List[Dict[str, Any]]:
+def extract_pdf_data_with_ai(url: str, api_key_index: int = 0) -> List[Dict[str, Any]]:
     """Download PDF from URL and extract data using AI."""
     try:
         # Download PDF from URL with shorter timeout and better error handling
@@ -590,7 +590,7 @@ def extract_pdf_data_with_ai(url: str) -> List[Dict[str, Any]]:
                 return []
             
             # Use AI to extract structured data
-            ai_result = extract_product_info_with_ai(text, Path(url).name)
+            ai_result = extract_product_info_with_ai(text, Path(url).name, api_key_index)
             if not ai_result:
                 print(f"AI extraction failed for URL: {url}")
                 return []

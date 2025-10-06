@@ -21,6 +21,11 @@ def suggest_with_openai(prompt: str, max_items: int = 3, api_key_index: int = 0)
         getattr(settings, 'OPENAI_API_KEY_3', None),
         getattr(settings, 'OPENAI_API_KEY_4', None),
         getattr(settings, 'OPENAI_API_KEY_5', None),
+        getattr(settings, 'OPENAI_API_KEY_6', None),
+        getattr(settings, 'OPENAI_API_KEY_7', None),
+        getattr(settings, 'OPENAI_API_KEY_8', None),
+        getattr(settings, 'OPENAI_API_KEY_9', None),
+        getattr(settings, 'OPENAI_API_KEY_10', None),
     ]
     
     # Filter out None keys and cycle through available keys
