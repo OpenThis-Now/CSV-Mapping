@@ -228,13 +228,11 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
 
   const getStatusBadge = (status: string) => {
     const badges = {
-      needs_data: "bg-yellow-100 text-yellow-800 border-yellow-300",
       complete: "bg-green-100 text-green-800 border-green-300",
-      sent: "bg-blue-100 text-blue-800 border-blue-300",
       ready_for_db_import: "bg-green-100 text-green-800 border-green-300",
       pdf_companyid_missing: "bg-red-100 text-red-800 border-red-300",
       pdf_missing: "bg-orange-100 text-orange-800 border-orange-300",
-      companyid_missing: "bg-amber-100 text-amber-800 border-amber-300",
+      companyid_missing: "bg-orange-100 text-orange-800 border-orange-300",
       request_worklist: "bg-green-100 text-green-800 border-green-300" // Legacy support
     };
     return badges[status as keyof typeof badges] || "bg-gray-100 text-gray-800 border-gray-300";
@@ -242,9 +240,7 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
 
   const getStatusText = (status: string) => {
     const texts = {
-      needs_data: "Needs Data",
       complete: "Complete",
-      sent: "Sent",
       ready_for_db_import: "Ready for DB import",
       pdf_companyid_missing: "PDF & CompanyID missing",
       pdf_missing: "PDF missing",
@@ -434,13 +430,11 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
                           Status
                         </label>
                         <select
-                          value={editData.status || 'needs_data'}
+                          value={editData.status || 'pdf_companyid_missing'}
                           onChange={(e) => setEditData({...editData, status: e.target.value as any})}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
-                          <option value="needs_data">Needs Data</option>
                           <option value="complete">Complete</option>
-                          <option value="sent">Sent</option>
                           <option value="ready_for_db_import">Ready for DB import</option>
                           <option value="pdf_companyid_missing">PDF & CompanyID missing</option>
                           <option value="pdf_missing">PDF missing</option>
