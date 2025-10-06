@@ -38,6 +38,17 @@ function filterProductsByQuery(products: RejectedProduct[] = [], q = "") {
   return products.filter((p) => p.product_name.toLowerCase().includes(query));
 }
 
+function getStatusText(status: string) {
+  const texts = {
+    ready_for_db_import: "Ready for DB import",
+    pdf_companyid_missing: "PDF & CompanyID missing",
+    pdf_missing: "PDF missing",
+    companyid_missing: "CompanyID missing",
+    request_worklist: "Ready for DB import" // Legacy support
+  };
+  return texts[status as keyof typeof texts] || status;
+}
+
 /***********************************
  * UI Components
  ***********************************/
@@ -524,16 +535,6 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
     }
   };
 
-  const getStatusText = (status: string) => {
-    const texts = {
-      ready_for_db_import: "Ready for DB import",
-      pdf_companyid_missing: "PDF & CompanyID missing",
-      pdf_missing: "PDF missing",
-      companyid_missing: "CompanyID missing",
-      request_worklist: "Ready for DB import" // Legacy support
-    };
-    return texts[status as keyof typeof texts] || status;
-  };
 
   const filtered = useMemo(() => filterProductsByQuery(products, query), [products, query]);
 
