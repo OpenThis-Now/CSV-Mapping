@@ -46,6 +46,20 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
     try {
       const res = await api.get(`/projects/${projectId}/rejected-products`);
       setProducts(res.data);
+      
+      // Automatically link PDFs from customer import after loading products
+      try {
+        const linkRes = await api.post(`/projects/${projectId}/rejected-products/link-pdfs`);
+        if (linkRes.data.linked_count > 0) {
+          showToast(`Automatically linked ${linkRes.data.linked_count} PDFs from customer import`, 'success');
+          // Reload products to show updated PDF links and status
+          const updatedRes = await api.get(`/projects/${projectId}/rejected-products`);
+          setProducts(updatedRes.data);
+        }
+      } catch (linkError) {
+        // Silently handle link errors - not critical for main functionality
+        console.log("Auto-linking PDFs failed (non-critical):", linkError);
+      }
     } catch (error) {
       console.error("Failed to load rejected products:", error);
       showToast("Failed to load rejected products", 'error');
@@ -182,17 +196,6 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
     }
   };
 
-  const linkPdfsFromImport = async () => {
-    try {
-      const res = await api.post(`/projects/${projectId}/rejected-products/link-pdfs`);
-      showToast(res.data.message, 'success');
-      // Reload products to show updated PDF links
-      await loadProducts();
-    } catch (error) {
-      console.error("Link PDFs failed:", error);
-      showToast("Failed to link PDFs", 'error');
-    }
-  };
 
   const uploadSuppliersCSV = async (file: File) => {
     setUploadingSuppliers(true);
@@ -307,12 +310,6 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
             className="px-4 py-2 bg-purple-100 text-purple-800 border border-purple-200 rounded hover:bg-purple-200 text-sm"
           >
             Export Ready for DB import (CSV + ZIP)
-          </button>
-          <button
-            onClick={linkPdfsFromImport}
-            className="px-4 py-2 bg-blue-100 text-blue-800 border border-blue-200 rounded hover:bg-blue-200 text-sm"
-          >
-            Link PDFs from Customer Import
           </button>
         </div>
       </div>
