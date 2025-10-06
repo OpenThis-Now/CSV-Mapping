@@ -75,14 +75,22 @@ def upload_pdf_files(project_id: int, files: List[UploadFile] = File(...), sessi
             if i < len(pdf_data):
                 pdf_info = pdf_data[i]
             
+            # Extract values from PDF info (which may be dicts with value/confidence/evidence)
+            def extract_value(field):
+                if field is None:
+                    return None
+                if isinstance(field, dict) and "value" in field:
+                    return field["value"]
+                return field
+            
             # Skapa ImportedPdf-post
             imported_pdf = ImportedPdf(
                 project_id=project_id,
                 filename=original_filename,
                 stored_filename=stored_filename,
-                product_name=pdf_info.get("product_name") if pdf_info else None,
-                supplier_name=pdf_info.get("supplier") if pdf_info else None,
-                article_number=pdf_info.get("article_number") if pdf_info else None,
+                product_name=extract_value(pdf_info.get("product_name")) if pdf_info else None,
+                supplier_name=extract_value(pdf_info.get("supplier")) if pdf_info else None,
+                article_number=extract_value(pdf_info.get("article_number")) if pdf_info else None,
                 customer_row_index=None  # Will be set when CSV is processed
             )
             session.add(imported_pdf)
