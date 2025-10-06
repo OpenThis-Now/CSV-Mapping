@@ -41,18 +41,26 @@ def process_urls_parallel(urls: List[str], max_workers: int = 10) -> List[Option
     
     # Create tasks with round-robin API key assignment
     tasks = []
+    api_key_usage = {}
     for i, url in enumerate(urls):
         api_key_index = i % available_keys  # Distribute across available API keys
         tasks.append((url, api_key_index))
+        api_key_usage[api_key_index] = api_key_usage.get(api_key_index, 0) + 1
+    
+    log.info(f"API key distribution: {api_key_usage}")
     
     # Process in parallel using ThreadPoolExecutor
     results = []
+    log.info(f"Submitting {len(tasks)} tasks to ThreadPoolExecutor with {max_workers} workers")
+    
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         # Submit all tasks
         future_to_task = {
             executor.submit(process_single_url_with_ai, url, api_key_index): (url, api_key_index)
             for url, api_key_index in tasks
         }
+        
+        log.info(f"All {len(future_to_task)} tasks submitted, waiting for completion...")
         
         # Collect results as they complete
         for future in concurrent.futures.as_completed(future_to_task):
