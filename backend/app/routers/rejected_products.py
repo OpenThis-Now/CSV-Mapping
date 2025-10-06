@@ -509,21 +509,20 @@ def _auto_assign_pdf_to_product(pdf_filename: str, project_id: int, session: Ses
 
 @router.get("/projects/{project_id}/rejected-products/export-csv")
 def export_rejected_products_csv(project_id: int, session: Session = Depends(get_session)) -> Dict[str, str]:
-    """Export completed rejected products data as CSV"""
+    """Export all rejected products data as CSV"""
     p = session.get(Project, project_id)
     if not p:
         raise HTTPException(status_code=404, detail="Projekt saknas.")
     
-    # Get completed products
-    completed_products = session.exec(
+    # Get all rejected products (not just completed ones)
+    all_products = session.exec(
         select(RejectedProductData).where(
-            RejectedProductData.project_id == project_id,
-            RejectedProductData.status == "complete"
+            RejectedProductData.project_id == project_id
         )
     ).all()
     
-    if not completed_products:
-        return {"message": "Inga completed products att exportera.", "count": "0"}
+    if not all_products:
+        return {"message": "Inga rejected products att exportera.", "count": "0"}
     
     # Create export directory
     export_dir = Path(settings.STORAGE_ROOT) / "rejected_exports" / f"project_{project_id}"
@@ -539,7 +538,7 @@ def export_rejected_products_csv(project_id: int, session: Session = Depends(get
         # Get all unique field names from customer data
         all_customer_fields = set()
         all_db_fields = set()
-        for product in completed_products:
+        for product in all_products:
             match_result = session.get(MatchResult, product.match_result_id)
             if match_result:
                 all_customer_fields.update(match_result.customer_fields_json.keys())
@@ -559,7 +558,7 @@ def export_rejected_products_csv(project_id: int, session: Session = Depends(get
         
         writer.writerow(header)
         
-        for product in completed_products:
+        for product in all_products:
             match_result = session.get(MatchResult, product.match_result_id)
             if match_result:
                 row = []
@@ -594,7 +593,7 @@ def export_rejected_products_csv(project_id: int, session: Session = Depends(get
         "message": "CSV export completed successfully.",
         "filename": csv_filename,
         "file_path": str(csv_path),
-        "count": str(len(completed_products))
+        "count": str(len(all_products))
     }
 
 
@@ -605,16 +604,15 @@ def export_worklist_products(project_id: int, session: Session = Depends(get_ses
     if not p:
         raise HTTPException(status_code=404, detail="Projekt saknas.")
     
-    # Get worklist products
+    # Get all rejected products for worklist export
     worklist_products = session.exec(
         select(RejectedProductData).where(
-            RejectedProductData.project_id == project_id,
-            RejectedProductData.status.in_(["request_worklist", "ready_for_db_import"])
+            RejectedProductData.project_id == project_id
         )
     ).all()
     
     if not worklist_products:
-        return {"message": "Inga worklist products att exportera.", "count": "0"}
+        return {"message": "Inga rejected products att exportera.", "count": "0"}
     
     # Create export directory
     export_dir = Path(settings.STORAGE_ROOT) / "rejected_exports" / f"project_{project_id}"
