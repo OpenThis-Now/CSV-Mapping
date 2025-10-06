@@ -94,6 +94,7 @@ SCOPE & RULES
 - If a field is not present in pages 1–3, set its "value" to null and include a brief reason in the evidence snippet (e.g., "not on p1–3").
 - Do NOT guess or hallucinate. Lower confidence if inference is needed.
 - Evidence.snippet should be a SHORT, verbatim fragment (≤200 characters) containing the cue that justified the value.
+- IMPORTANT: Use filename patterns to help determine market (e.g., "sweden_ab" = Swedish market, "germany" = German market).
 
 DEFINITIONS & SIGNALS
 A) product_name
@@ -111,13 +112,19 @@ C) company_name
 
 D) authored_market (regulatory market the SDS was authored for)
    - CRITICAL: Focus on regulatory framework and market indicators, NOT supplier location. A German supplier can write SDS for US market.
+   - PRIORITY ORDER for market detection:
+     1. Regulatory framework references (CLP, REACH, OSHA, WHMIS, etc.)
+     2. Language of the document (Swedish = Sweden, German = Germany, etc.)
+     3. Emergency phone numbers and addresses (country codes, postal codes)
+     4. Company subsidiary location (e.g., "Merck Life Science AB" = Swedish subsidiary)
+     5. URL patterns (e.g., "sweden_ab" in filename = Swedish market)
    - Determine using explicit regulatory references and market indicators:
      • EU/EEA countries: Look for regulatory framework + market language/emergency numbers:
-       - Germany: "Regulation (EC) No 1272/2008 (CLP)" + German language sections + German emergency numbers
-       - France: "Regulation (EC) No 1272/2008 (CLP)" + French language sections + French emergency numbers  
-       - Sweden: "Regulation (EC) No 1272/2008 (CLP)" + Swedish language sections + Swedish emergency numbers
-       - Netherlands: "Regulation (EC) No 1272/2008 (CLP)" + Dutch language sections + Dutch emergency numbers
-       - UK: "GB-CLP" or "Regulation (EC) No 1272/2008 (CLP)" + English language + UK emergency numbers
+       - Sweden: "Regulation (EC) No 1272/2008 (CLP)" + Swedish language + Swedish emergency numbers + "SE-" postal codes + "sweden_ab" in URL
+       - Germany: "Regulation (EC) No 1272/2008 (CLP)" + German language sections + German emergency numbers + "DE-" postal codes
+       - France: "Regulation (EC) No 1272/2008 (CLP)" + French language sections + French emergency numbers + "FR-" postal codes
+       - Netherlands: "Regulation (EC) No 1272/2008 (CLP)" + Dutch language sections + Dutch emergency numbers + "NL-" postal codes
+       - UK: "GB-CLP" or "Regulation (EC) No 1272/2008 (CLP)" + English language + UK emergency numbers + "GB-" postal codes
      • USA (OSHA HazCom 2012): "29 CFR 1910.1200", "Hazard(s) Identification" wording, NFPA/HMIS tables, US emergency numbers.
      • Canada (WHMIS): "WHMIS", "HPR", "SOR/2015-17", bilingual EN/FR sections, Canadian emergency numbers.
      • Australia/NZ: "GHS Revision x (AU)", "SUSMP/Poisons Standard", "HSNO", Australian/NZ emergency numbers.
@@ -201,13 +208,13 @@ def extract_product_info_with_ai(text: str, filename: str, api_key_index: int = 
             print(f"AI extraction successful for {filename}")
             ai_result = result[0]
             
-            # Justera marknad baserat på språk (t.ex. EU + Swedish -> Sweden)
+            # Justera marknad baserat på språk och filename (t.ex. EU + Swedish -> Sweden)
             if ai_result.get("authored_market", {}).get("value") and ai_result.get("language", {}).get("value"):
                 market_value = ai_result["authored_market"]["value"]
                 language_value = ai_result["language"]["value"]
-                adjusted_market = adjust_market_by_language(market_value, language_value)
+                adjusted_market = adjust_market_by_language(market_value, language_value, filename)
                 if adjusted_market != market_value:
-                    print(f"AI: Adjusted market from '{market_value}' to '{adjusted_market}' based on language '{language_value}'")
+                    print(f"AI: Adjusted market from '{market_value}' to '{adjusted_market}' based on language '{language_value}' and filename '{filename}'")
                     ai_result["authored_market"]["value"] = adjusted_market
             
             return ai_result
@@ -350,11 +357,11 @@ def simple_text_extraction(text: str, filename: str) -> Dict[str, Any]:
     if not language:
         language = "English"
     
-    # Justera marknad baserat på språk (t.ex. EU + Swedish -> Sweden)
+    # Justera marknad baserat på språk och filename (t.ex. EU + Swedish -> Sweden)
     if authored_market and language:
-        adjusted_market = adjust_market_by_language(authored_market, language)
+        adjusted_market = adjust_market_by_language(authored_market, language, filename)
         if adjusted_market != authored_market:
-            print(f"Adjusted market from '{authored_market}' to '{adjusted_market}' based on language '{language}'")
+            print(f"Adjusted market from '{authored_market}' to '{adjusted_market}' based on language '{language}' and filename '{filename}'")
             authored_market = adjusted_market
     
     # Determine extraction status
@@ -387,8 +394,8 @@ def create_fallback_entry(filename: str) -> Dict[str, Any]:
     }
 
 
-def adjust_market_by_language(market: str, language: str) -> str:
-    """Justera marknad baserat på språk - t.ex. EU + Swedish -> Sweden"""
+def adjust_market_by_language(market: str, language: str, filename: str = "") -> str:
+    """Justera marknad baserat på språk och filename - t.ex. EU + Swedish -> Sweden"""
     if not market or not language:
         return market
     
@@ -418,12 +425,30 @@ def adjust_market_by_language(market: str, language: str) -> str:
         "Lithuanian": "Lithuania",
     }
     
+    # Check filename patterns first (highest priority)
+    if filename:
+        filename_lower = filename.lower()
+        if "sweden_ab" in filename_lower or "swedish" in filename_lower:
+            return "Sweden"
+        elif "germany" in filename_lower or "german" in filename_lower:
+            return "Germany"
+        elif "france" in filename_lower or "french" in filename_lower:
+            return "France"
+        elif "canada" in filename_lower or "canadian" in filename_lower:
+            return "Canada"
+        elif "usa" in filename_lower or "us_" in filename_lower:
+            return "USA"
+    
     # Om marknaden innehåller EU eller är EU och språket matchar ett EU-land, ändra till det specifika landet
     if ("EU" in market.upper() or market.upper() == "EU") and language in language_to_country:
         return language_to_country[language]
     
     # Om marknaden är otydlig (t.ex. "us Chemicals Code of Practice") men språket är Swedish, ändra till Sweden
     if language == "Swedish" and any(indicator in market.lower() for indicator in ["chemical", "code", "practice", "regulation", "clp", "reach"]):
+        return "Sweden"
+    
+    # Special case: If language is Swedish but market is Germany/Canada, likely wrong - should be Sweden
+    if language == "Swedish" and market in ["Germany", "Canada", "USA"]:
         return "Sweden"
     
     return market

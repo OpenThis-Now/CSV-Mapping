@@ -81,7 +81,7 @@ def _process_urls_in_background_optimized(project_id: int, import_id: int, enhan
         
         # Process URLs in batches to update progress
         # Use larger batches for better parallelization
-        batch_size = min(10, len(urls_to_process))  # Process up to 10 URLs at a time
+        batch_size = min(20, len(urls_to_process))  # Process up to 20 URLs at a time
         pdf_data_results = []
         
         for i in range(0, len(urls_to_process), batch_size):

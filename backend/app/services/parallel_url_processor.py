@@ -35,8 +35,8 @@ def process_urls_parallel(urls: List[str], max_workers: int = 10) -> List[Option
     available_keys = get_available_api_keys()
     if available_keys < max_workers:
         # Use more workers per API key for better throughput
-        # With 1 API key, use up to 5 workers for better concurrency
-        max_workers = min(available_keys * 5, len(urls), 20)  # Up to 5 workers per API key
+        # With multiple API keys, use up to 10 workers per API key for maximum concurrency
+        max_workers = min(available_keys * 10, len(urls), 100)  # Up to 10 workers per API key
     
     log.info(f"Starting parallel processing of {len(urls)} URLs with {max_workers} workers using {available_keys} API keys")
     
