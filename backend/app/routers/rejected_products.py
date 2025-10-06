@@ -33,7 +33,7 @@ def update_product_status_based_on_data(product: RejectedProductData) -> str:
     elif not has_company_id:
         return "companyid_missing"
     else:
-        return "needs_data"
+        return "pdf_companyid_missing"  # Default fallback
 
 
 def auto_link_pdf_from_import(product: RejectedProductData, session: Session) -> bool:
@@ -359,8 +359,6 @@ def update_rejected_product(
         product.status = update_product_status_based_on_data(product)
     else:
         product.status = data["status"]
-        if data["status"] == "complete":
-            product.completed_at = datetime.utcnow()
     
     session.add(product)
     session.commit()

@@ -252,7 +252,6 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
 
   const getStatusBadge = (status: string) => {
     const badges = {
-      complete: "bg-green-100 text-green-800 border-green-300",
       ready_for_db_import: "bg-green-100 text-green-800 border-green-300",
       pdf_companyid_missing: "bg-red-100 text-red-800 border-red-300",
       pdf_missing: "bg-orange-100 text-orange-800 border-orange-300",
@@ -264,7 +263,6 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
 
   const getStatusText = (status: string) => {
     const texts = {
-      complete: "Complete",
       ready_for_db_import: "Ready for DB import",
       pdf_companyid_missing: "PDF & CompanyID missing",
       pdf_missing: "PDF missing",
@@ -464,7 +462,6 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
                           onChange={(e) => setEditData({...editData, status: e.target.value as any})}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
-                          <option value="complete">Complete</option>
                           <option value="ready_for_db_import">Ready for DB import</option>
                           <option value="pdf_companyid_missing">PDF & CompanyID missing</option>
                           <option value="pdf_missing">PDF missing</option>
