@@ -93,6 +93,10 @@ SCOPE & RULES
 - Prefer Section 1 ("Identification") and headers/footers on p.1 for product & supplier fields.
 - If a field is not present in pages 1–3, set its "value" to null and include a brief reason in the evidence snippet (e.g., "not on p1–3").
 - Do NOT guess or hallucinate. Lower confidence if inference is needed.
+- IMPORTANT: Try to extract SOMETHING for each field. Only use null if absolutely nothing can be found.
+- For company_name: Look in headers, footers, logos, and any company mentions throughout the document.
+- For product_name: Look for any product identifiers, trade names, or chemical names.
+- For article_number: Look for any numbers, codes, or identifiers that could be product codes.
 - Evidence.snippet should be a SHORT, verbatim fragment (≤200 characters) containing the cue that justified the value.
 - IMPORTANT: Use filename patterns to help determine market (e.g., "sweden_ab" = Swedish market, "germany" = German market).
 - CRITICAL: Read CAREFULLY and THOROUGHLY. Do not rush. Look for ALL possible indicators before making decisions.
@@ -397,9 +401,13 @@ def simple_text_extraction(text: str, filename: str) -> Dict[str, Any]:
             print(f"Adjusted market from '{authored_market}' to '{adjusted_market}' based on language '{language}' and filename '{filename}'")
             authored_market = adjusted_market
     
-    # Determine extraction status
+    # Determine extraction status - be more lenient
     extracted_fields = [product_name, article_number, company_name]
     status = "success" if any(extracted_fields) else "partial"
+    
+    # If we have at least product name, consider it a success
+    if product_name and len(product_name.strip()) > 2:
+        status = "success"
     
     print(f"Simple extraction results for {filename}: product={product_name}, article={article_number}, company={company_name}, market={authored_market}, language={language}, status={status}")
     
@@ -559,13 +567,18 @@ def create_csv_from_pdf_data(pdf_data: List[Dict[str, Any]], output_path: Path) 
             # Separera marknad och lagstiftning
             market, legislation = separate_market_and_legislation(market_value)
             
+            # Handle null values better - convert None to empty string
+            def safe_get_value(field_data, default=""):
+                value = field_data.get("value") if field_data else None
+                return str(value) if value is not None else default
+            
             row = {
-                "product": item.get("product_name", {}).get("value", ""),
-                "vendor": item.get("company_name", {}).get("value", ""),
-                "sku": item.get("article_number", {}).get("value", ""),
+                "product": safe_get_value(item.get("product_name")),
+                "vendor": safe_get_value(item.get("company_name")),
+                "sku": safe_get_value(item.get("article_number")),
                 "market": market,
                 "legislation": legislation,
-                "language": item.get("language", {}).get("value", ""),
+                "language": safe_get_value(item.get("language")),
                 "filename": item.get("filename", ""),
                 "extraction_status": item.get("extraction_status", "unknown")
             }
