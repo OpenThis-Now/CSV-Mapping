@@ -597,19 +597,6 @@ def export_worklist_products(project_id: int, session: Session = Depends(get_ses
         )
     ).all()
     
-    # Debug logging - check all products first
-    all_products = session.exec(
-        select(RejectedProductData).where(RejectedProductData.project_id == project_id)
-    ).all()
-    print(f"DEBUG: Total products in project {project_id}: {len(all_products)}")
-    for product in all_products:
-        print(f"DEBUG: Product {product.id} - Status: '{product.status}', PDF: {product.pdf_filename}, CompanyID: {product.company_id}")
-    
-    # Debug logging - worklist products
-    print(f"DEBUG: Found {len(worklist_products)} worklist products")
-    for product in worklist_products:
-        print(f"DEBUG: Worklist Product {product.id} - Status: {product.status}, PDF: {product.pdf_filename}, CompanyID: {product.company_id}")
-    
     if not worklist_products:
         return {"message": "Inga worklist products att exportera.", "count": "0"}
     
@@ -728,6 +715,8 @@ def link_pdfs_from_customer_import(project_id: int, session: Session = Depends(g
     linked_count = 0
     for product in rejected_products:
         if auto_link_pdf_from_import(product, session):
+            # Auto-update status based on available data after linking PDF
+            product.status = update_product_status_based_on_data(product)
             session.add(product)
             linked_count += 1
     
