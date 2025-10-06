@@ -81,21 +81,36 @@ function AppContent() {
       <header className="sticky top-0 z-20 bg-white border-b">
         <div className="max-w-6xl mx-auto flex items-center gap-3 p-3">
           <div className="flex items-center gap-3">
-            {/* Mapping Bridge Logo */}
-            <img 
-              src="/images/mapping-bridge-logo.png" 
-              alt="Mapping Bridge Logo" 
-              className="h-8 w-auto"
-              onError={(e) => {
-                // Fallback to text if image fails to load
-                const target = e.target as HTMLImageElement;
-                target.style.display = 'none';
-                const fallback = document.createElement('div');
-                fallback.className = 'text-lg font-medium text-gray-700';
-                fallback.textContent = 'Mapping Bridge';
-                target.parentNode?.insertBefore(fallback, target);
-              }}
-            />
+            {/* Mapping Bridge Logo - Custom SVG based on your design */}
+            <svg 
+              width="120" 
+              height="32" 
+              viewBox="0 0 120 32" 
+              className="text-gray-700"
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth="1.2" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+            >
+              {/* Bridge Icon - Left side */}
+              <g transform="translate(0, 8)">
+                {/* Left tower */}
+                <line x1="8" y1="4" x2="8" y2="12" />
+                {/* Right tower */}
+                <line x1="24" y1="4" x2="24" y2="12" />
+                {/* Curved suspension cables */}
+                <path d="M8 4 Q16 1 24 4" />
+                {/* Bridge deck */}
+                <line x1="8" y1="12" x2="24" y2="12" />
+              </g>
+              
+              {/* Text - Right side */}
+              <g transform="translate(32, 0)" fill="currentColor" className="text-gray-700">
+                <text x="0" y="12" fontSize="12" fontFamily="sans-serif" fontWeight="500">Mapping</text>
+                <text x="0" y="26" fontSize="12" fontFamily="sans-serif" fontWeight="500">Bridge</text>
+              </g>
+            </svg>
           </div>
           <nav className="ml-6 flex gap-2">
             <button 
