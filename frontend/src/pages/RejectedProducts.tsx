@@ -703,10 +703,23 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
 
   const downloadFile = async (url: string, filename: string) => {
     try {
-      const response = await fetch(url);
+      // Get the base URL from the API instance
+      const baseURL = api.defaults.baseURL;
+      const fullUrl = url.startsWith('/api/') ? `${baseURL}${url.replace('/api', '')}` : url;
+      
+      console.log('Downloading from:', fullUrl);
+      
+      const response = await fetch(fullUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/octet-stream, application/zip, application/csv, */*',
+        },
+      });
+      
       if (!response.ok) {
-        throw new Error('Download failed');
+        throw new Error(`Download failed: ${response.status} ${response.statusText}`);
       }
+      
       const blob = await response.blob();
       const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -730,7 +743,7 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
       } else {
         showToast(`CSV export completed: ${res.data.count} products exported`, 'success');
         // Download the CSV file
-        const downloadUrl = `/api/projects/${projectId}/rejected-products/download/${res.data.filename}`;
+        const downloadUrl = `/projects/${projectId}/rejected-products/download/${res.data.filename}`;
         await downloadFile(downloadUrl, res.data.filename);
       }
     } catch (error) {
@@ -747,7 +760,7 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
       } else {
         showToast(`Worklist export completed: ${res.data.count} products exported (CSV + ZIP)`, 'success');
         // Download the ZIP file (contains both CSV and PDFs)
-        const downloadUrl = `/api/projects/${projectId}/rejected-products/download/${res.data.zip_filename}`;
+        const downloadUrl = `/projects/${projectId}/rejected-products/download/${res.data.zip_filename}`;
         await downloadFile(downloadUrl, res.data.zip_filename);
       }
     } catch (error) {
