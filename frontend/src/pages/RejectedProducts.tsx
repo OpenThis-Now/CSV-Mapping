@@ -231,7 +231,11 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
       needs_data: "bg-yellow-100 text-yellow-800 border-yellow-300",
       complete: "bg-green-100 text-green-800 border-green-300",
       sent: "bg-blue-100 text-blue-800 border-blue-300",
-      request_worklist: "bg-purple-100 text-purple-800 border-purple-300"
+      ready_for_db_import: "bg-green-100 text-green-800 border-green-300",
+      pdf_companyid_missing: "bg-red-100 text-red-800 border-red-300",
+      pdf_missing: "bg-orange-100 text-orange-800 border-orange-300",
+      companyid_missing: "bg-amber-100 text-amber-800 border-amber-300",
+      request_worklist: "bg-green-100 text-green-800 border-green-300" // Legacy support
     };
     return badges[status as keyof typeof badges] || "bg-gray-100 text-gray-800 border-gray-300";
   };
@@ -241,7 +245,11 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
       needs_data: "Needs Data",
       complete: "Complete",
       sent: "Sent",
-      request_worklist: "Request Worklist"
+      ready_for_db_import: "Ready for DB import",
+      pdf_companyid_missing: "PDF & CompanyID missing",
+      pdf_missing: "PDF missing",
+      companyid_missing: "CompanyID missing",
+      request_worklist: "Ready for DB import" // Legacy support
     };
     return texts[status as keyof typeof texts] || status;
   };
@@ -280,7 +288,7 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
             onClick={exportWorklist}
             className="px-4 py-2 bg-purple-100 text-purple-800 border border-purple-200 rounded hover:bg-purple-200 text-sm"
           >
-            Export Request Worklist (CSV + ZIP)
+            Export Ready for DB import (CSV + ZIP)
           </button>
         </div>
       </div>
@@ -433,7 +441,10 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
                           <option value="needs_data">Needs Data</option>
                           <option value="complete">Complete</option>
                           <option value="sent">Sent</option>
-                          <option value="request_worklist">Request Worklist</option>
+                          <option value="ready_for_db_import">Ready for DB import</option>
+                          <option value="pdf_companyid_missing">PDF & CompanyID missing</option>
+                          <option value="pdf_missing">PDF missing</option>
+                          <option value="companyid_missing">CompanyID missing</option>
                         </select>
                       </div>
                     </div>

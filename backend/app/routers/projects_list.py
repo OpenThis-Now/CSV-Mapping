@@ -64,7 +64,7 @@ def get_project_stats(project_id: int, session: Session = Depends(get_session)) 
     worklist_results = session.exec(
         select(RejectedProductData)
         .where(RejectedProductData.project_id == project_id)
-        .where(RejectedProductData.status == "request_worklist")
+        .where(RejectedProductData.status.in_(["request_worklist", "ready_for_db_import"]))
     ).all()
     worklist_count = len(worklist_results)
     

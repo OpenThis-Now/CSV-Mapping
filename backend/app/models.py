@@ -111,7 +111,7 @@ class RejectedProductData(SQLModel, table=True):
     company_id: Optional[str] = Field(default=None, index=True)
     pdf_filename: Optional[str] = Field(default=None)
     pdf_source: Optional[str] = Field(default=None)  # existing, uploaded, zip_extracted
-    status: str = Field(default="needs_data", index=True)  # needs_data, complete, sent, request_worklist
+    status: str = Field(default="needs_data", index=True)  # needs_data, complete, sent, ready_for_db_import, pdf_companyid_missing, pdf_missing, companyid_missing
     created_at: datetime = Field(default_factory=datetime.utcnow)
     completed_at: Optional[datetime] = None
     notes: Optional[str] = Field(default=None, sa_column=Column(Text))

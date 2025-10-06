@@ -19,6 +19,23 @@ from rapidfuzz import fuzz
 router = APIRouter()
 
 
+def update_product_status_based_on_data(product: RejectedProductData) -> str:
+    """Update product status based on PDF and CompanyID availability"""
+    has_pdf = bool(product.pdf_filename and product.pdf_filename.strip())
+    has_company_id = bool(product.company_id and product.company_id.strip())
+    
+    if has_pdf and has_company_id:
+        return "ready_for_db_import"
+    elif not has_pdf and not has_company_id:
+        return "pdf_companyid_missing"
+    elif not has_pdf:
+        return "pdf_missing"
+    elif not has_company_id:
+        return "companyid_missing"
+    else:
+        return "needs_data"
+
+
 @router.get("/projects/{project_id}/rejected-products")
 def get_rejected_products(project_id: int, session: Session = Depends(get_session)) -> List[Dict[str, Any]]:
     """Get all rejected products for a project"""
@@ -53,6 +70,12 @@ def get_rejected_products(project_id: int, session: Session = Depends(get_sessio
             session.add(existing_data)
             session.commit()
             session.refresh(existing_data)
+        
+        # Auto-update status based on available data
+        new_status = update_product_status_based_on_data(existing_data)
+        if existing_data.status != new_status:
+            existing_data.status = new_status
+            session.add(existing_data)
         
         # Try to auto-match company ID from database
         company_id = existing_data.company_id
@@ -261,8 +284,10 @@ def update_rejected_product(
     if "notes" in data:
         product.notes = data["notes"]
     
-    # Update status
-    if "status" in data:
+    # Auto-update status based on data availability (unless manually overridden)
+    if "status" not in data:
+        product.status = update_product_status_based_on_data(product)
+    else:
         product.status = data["status"]
         if data["status"] == "complete":
             product.completed_at = datetime.utcnow()
@@ -302,6 +327,10 @@ def upload_pdf_for_product(
     # Update product data
     product.pdf_filename = pdf_filename
     product.pdf_source = "uploaded"
+    
+    # Auto-update status based on available data
+    product.status = update_product_status_based_on_data(product)
+    
     session.add(product)
     session.commit()
     
@@ -355,6 +384,10 @@ def upload_zip_with_pdfs(
                     if product:
                         product.pdf_filename = final_filename
                         product.pdf_source = "zip_extracted"
+                        
+                        # Auto-update status based on available data
+                        product.status = update_product_status_based_on_data(product)
+                        
                         session.add(product)
                         assigned_count += 1
     
@@ -490,7 +523,7 @@ def export_worklist_products(project_id: int, session: Session = Depends(get_ses
     worklist_products = session.exec(
         select(RejectedProductData).where(
             RejectedProductData.project_id == project_id,
-            RejectedProductData.status == "request_worklist"
+            RejectedProductData.status.in_(["request_worklist", "ready_for_db_import"])
         )
     ).all()
     
