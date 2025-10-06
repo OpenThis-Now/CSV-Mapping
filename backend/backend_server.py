@@ -11,7 +11,7 @@ from datetime import datetime
 import os
 import pickle
 
-app = FastAPI(title="CSV Match Assistant")
+app = FastAPI(title="Mapping Bridge")
 
 # Add CORS middleware
 app.add_middleware(

@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-app = FastAPI(title="CSV Match Assistant")
+app = FastAPI(title="Mapping Bridge")
 
 # Add CORS middleware
 app.add_middleware(

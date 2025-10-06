@@ -21,15 +21,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     ensure_storage_dirs()
     create_db_and_tables()
     logging.getLogger("app").info(
-        "CSV Match Assistant starting", extra={"event": "startup", "version": __version__}
+        "Mapping Bridge starting", extra={"event": "startup", "version": __version__}
     )
     yield
     # Shutdown
-    logging.getLogger("app").info("CSV Match Assistant shutdown", extra={"event": "shutdown"})
+    logging.getLogger("app").info("Mapping Bridge shutdown", extra={"event": "shutdown"})
 
 
 app = FastAPI(
-    title="CSV Match Assistant",
+    title="Mapping Bridge",
     version=__version__,
     lifespan=lifespan,
     docs_url="/api/docs",

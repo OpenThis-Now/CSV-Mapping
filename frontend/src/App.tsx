@@ -80,7 +80,7 @@ function AppContent() {
     <div className="min-h-screen">
       <header className="sticky top-0 z-20 bg-white border-b">
         <div className="max-w-6xl mx-auto flex items-center gap-3 p-3">
-          <div className="text-xl font-semibold">CSV Match Assistant</div>
+          <div className="text-xl font-semibold">Mapping Bridge</div>
           <nav className="ml-6 flex gap-2">
             <button 
               className={`chip ${view === "projects" ? "bg-blue-100 border-blue-300 text-blue-800" : ""}`}
