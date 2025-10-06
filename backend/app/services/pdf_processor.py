@@ -107,17 +107,21 @@ B) article_number
    - DO NOT return CAS numbers, REACH registration numbers, UFI codes, or batch/lot numbers as the article number unless the text explicitly labels them as such.
 
 C) company_name
-   - Synonyms: "Manufacturer", "Supplier", "Responsible person", "Importeur/Importer", "Distributör/Distributor".
+   - Synonyms: "Manufacturer", "Supplier", "Responsible person", "Importeur/Importer", "Distributör/Distributor", "Company", "Företag", "Unternehmen".
    - Prefer the legal entity name listed in Section 1.3 (EU) or Section 1 "Supplier/Manufacturer" block (US/CA).
+   - Look for company names in headers, footers, and Section 1 "Details of the supplier" blocks.
+   - Common patterns: "Company Name Ltd", "Company Name GmbH", "Company Name AB", "Company Name SE & Co. KG".
+   - If multiple company names appear, prefer the main manufacturer/supplier (usually the first or most prominent one).
 
 D) authored_market (regulatory market the SDS was authored for)
    - CRITICAL: Focus on regulatory framework and market indicators, NOT supplier location. A German supplier can write SDS for US market.
    - PRIORITY ORDER for market detection:
-     1. Regulatory framework references (CLP, REACH, OSHA, WHMIS, etc.)
+     1. Regulatory framework references (CLP, REACH, OSHA, WHMIS, WHS, etc.)
      2. Language of the document (Swedish = Sweden, German = Germany, etc.)
      3. Emergency phone numbers and addresses (country codes, postal codes)
      4. Company subsidiary location (e.g., "Merck Life Science AB" = Swedish subsidiary)
      5. URL patterns (e.g., "sweden_ab" in filename = Swedish market)
+   - CRITICAL: Focus on REGULATORY FRAMEWORK, not supplier location. A German company can make SDS for Australian market.
    - Determine using explicit regulatory references and market indicators:
      • EU/EEA countries: Look for regulatory framework + market language/emergency numbers:
        - Sweden: "Regulation (EC) No 1272/2008 (CLP)" + Swedish language + Swedish emergency numbers + "SE-" postal codes + "sweden_ab" in URL
@@ -127,7 +131,7 @@ D) authored_market (regulatory market the SDS was authored for)
        - UK: "GB-CLP" or "Regulation (EC) No 1272/2008 (CLP)" + English language + UK emergency numbers + "GB-" postal codes
      • USA (OSHA HazCom 2012): "29 CFR 1910.1200", "Hazard(s) Identification" wording, NFPA/HMIS tables, US emergency numbers.
      • Canada (WHMIS): "WHMIS", "HPR", "SOR/2015-17", bilingual EN/FR sections, Canadian emergency numbers.
-     • Australia/NZ: "GHS Revision x (AU)", "SUSMP/Poisons Standard", "HSNO", Australian/NZ emergency numbers.
+     • Australia/NZ: "GHS Revision x (AU)", "SUSMP/Poisons Standard", "HSNO", "WHS Regulations", "Work Health and Safety", Australian/NZ emergency numbers.
    - Key indicators (in order of importance):
      1. Regulatory citations (CLP/REACH, OSHA, WHMIS, etc.)
      2. Emergency contact numbers (country codes indicate target market)
@@ -299,21 +303,42 @@ def simple_text_extraction(text: str, filename: str) -> Dict[str, Any]:
         r'(?:Manufacturer|Supplier|Company|Responsible person|Importeur|Importer|Distributör|Distributor)[:\s]+([^\n\r]+?)(?:\n|$)',
         r'(?:Hersteller|Lieferant|Unternehmen|Verantwortliche Person)[:\s]+([^\n\r]+?)(?:\n|$)',
         r'(?:Fabricant|Fournisseur|Société|Personne responsable)[:\s]+([^\n\r]+?)(?:\n|$)',
-        r'^([A-Z][A-Za-z\s&]+(?:Inc|Ltd|AB|GmbH|Co|Corp|Company|Limited))',  # Company names at start of line
-        r'(?:CRC|3M|BASF|Dow|DuPont|Henkel|AkzoNobel)\s+([A-Za-z\s&]+)',  # Known manufacturers
+        r'^([A-Z][A-Za-z\s&]+(?:Inc|Ltd|AB|GmbH|Co|Corp|Company|Limited|SE\s*&\s*Co\.\s*KG))',  # Company names at start of line
+        r'(?:CRC|3M|BASF|Dow|DuPont|Henkel|AkzoNobel|Kärcher|Karcher)\s+([A-Za-z\s&\.]+)',  # Known manufacturers including Kärcher
+        r'([A-Z][A-Za-z\s&\.]+(?:SE\s*&\s*Co\.\s*KG|GmbH|AB|Ltd|Inc|Corp))',  # German company patterns like "Alfred Kärcher SE & Co. KG"
+        r'([A-Z][A-Za-z\s\-]+(?:Str\.|Street|Avenue|Road)[\s\w\-,]+)',  # Company with address pattern
     ]
     
     for pattern in company_patterns:
         company_match = re.search(pattern, text, re.IGNORECASE)
         if company_match:
             candidate = company_match.group(1).strip()
-            # Filter out common false positives and section headers
-            if not any(skip in candidate.lower() for skip in ['section', 'identification', 'safety', 'data', 'sheet', 'page', 'revision']):
+            # Filter out common false positives and section headers, but be less restrictive
+            if (not any(skip in candidate.lower() for skip in ['section', 'identification', 'safety', 'data', 'sheet', 'page', 'revision']) and
+                len(candidate) > 3 and  # Must be at least 3 characters
+                not candidate.isdigit()):  # Not just numbers
                 company_name = candidate
                 break
     
-    # Först försök hitta länder från företagsnamn eller språk (högre prioritet)
-    if re.search(r'Sweden|Sverige', text, re.IGNORECASE):
+    # Först försök hitta länder från regulatoriska ramverk (högsta prioritet)
+    if re.search(r'WHS\s+Regulations|Work\s+Health\s+and\s+Safety', text, re.IGNORECASE):
+        authored_market = "Australia"
+    elif re.search(r'WHMIS|HPR|SOR/2015-17', text, re.IGNORECASE):
+        authored_market = "Canada"
+    elif re.search(r'OSHA|29\s+CFR\s+1910\.1200|Hazard\(s\)\s+Identification', text, re.IGNORECASE):
+        authored_market = "USA"
+    elif re.search(r'Regulation\s+\(EC\)\s+No\s+1272/2008|CLP|REACH', text, re.IGNORECASE):
+        # EU regulatory framework - determine specific country
+        if re.search(r'Sweden|Sverige|SE-', text, re.IGNORECASE):
+            authored_market = "Sweden"
+        elif re.search(r'Germany|Deutschland|DE-', text, re.IGNORECASE):
+            authored_market = "Germany"
+        elif re.search(r'France|Français|FR-', text, re.IGNORECASE):
+            authored_market = "France"
+        else:
+            authored_market = "EU (CLP/REACH)"
+    # Fallback to country names if no regulatory framework found
+    elif re.search(r'Sweden|Sverige', text, re.IGNORECASE):
         authored_market = "Sweden"
     elif re.search(r'Germany|Deutschland', text, re.IGNORECASE):
         authored_market = "Germany"
@@ -323,6 +348,8 @@ def simple_text_extraction(text: str, filename: str) -> Dict[str, Any]:
         authored_market = "Canada"
     elif re.search(r'USA|United States|American', text, re.IGNORECASE):
         authored_market = "USA"
+    elif re.search(r'Australia|Australian', text, re.IGNORECASE):
+        authored_market = "Australia"
     else:
         # Om inget land hittats, leta efter andra marknad patterns
         market_patterns = [
