@@ -32,33 +32,25 @@ def process_single_pdf_with_ai(pdf_path: Path, api_key_index: int = 0) -> Dict[s
         # Try AI extraction with specific API key
         try:
             ai_result = extract_product_info_with_ai(text, pdf_path.name, api_key_index)
-            return {
-                "filename": pdf_path.name,
-                "success": True,
-                "text_length": len(text),
-                "simple_extraction": simple_result,
-                "ai_extraction": ai_result,
-                "api_key_index": api_key_index
-            }
+            # Return in the format expected by create_csv_from_pdf_data
+            return ai_result
         except Exception as ai_error:
             log.warning(f"AI extraction failed for {pdf_path.name} with key {api_key_index}: {ai_error}")
-            return {
-                "filename": pdf_path.name,
-                "success": True,
-                "text_length": len(text),
-                "simple_extraction": simple_result,
-                "ai_extraction": None,
-                "ai_error": str(ai_error),
-                "api_key_index": api_key_index
-            }
+            # Return simple extraction result in the expected format
+            return simple_result
             
     except Exception as e:
         log.error(f"Error processing PDF {pdf_path.name}: {e}")
+        # Return a fallback result in the expected format
         return {
             "filename": pdf_path.name,
-            "success": False,
-            "error": str(e),
-            "api_key_index": api_key_index
+            "product_name": {"value": ""},
+            "company_name": {"value": ""},
+            "article_number": {"value": ""},
+            "authored_market": {"value": ""},
+            "language": {"value": ""},
+            "extraction_status": "failed",
+            "error": str(e)
         }
 
 
@@ -88,7 +80,7 @@ def process_pdf_files_parallel(pdf_paths: List[Path], max_workers: int = 10) -> 
                 result = future.result()
                 results.append(result)
                 
-                if result["success"]:
+                if result.get("extraction_status") != "failed":
                     log.info(f"Completed: {result['filename']} (API key {api_key_index})")
                 else:
                     log.error(f"Failed: {result['filename']} - {result.get('error', 'Unknown error')}")
@@ -97,15 +89,19 @@ def process_pdf_files_parallel(pdf_paths: List[Path], max_workers: int = 10) -> 
                 log.error(f"Exception processing {pdf_path.name}: {e}")
                 results.append({
                     "filename": pdf_path.name,
-                    "success": False,
-                    "error": f"Exception: {str(e)}",
-                    "api_key_index": api_key_index
+                    "product_name": {"value": ""},
+                    "company_name": {"value": ""},
+                    "article_number": {"value": ""},
+                    "authored_market": {"value": ""},
+                    "language": {"value": ""},
+                    "extraction_status": "failed",
+                    "error": f"Exception: {str(e)}"
                 })
     
     # Sort results by original order
     results.sort(key=lambda x: pdf_paths.index(Path(x["filename"])) if Path(x["filename"]) in pdf_paths else 999)
     
-    successful = sum(1 for r in results if r["success"])
+    successful = sum(1 for r in results if r.get("extraction_status") != "failed")
     failed = len(results) - successful
     
     log.info(f"Parallel PDF processing completed: {successful} successful, {failed} failed")
@@ -154,7 +150,7 @@ async def process_pdf_files_async(pdf_paths: List[Path], max_concurrent: int = 1
         else:
             processed_results.append(result)
     
-    successful = sum(1 for r in processed_results if r["success"])
+    successful = sum(1 for r in processed_results if r.get("extraction_status") != "failed")
     failed = len(processed_results) - successful
     
     log.info(f"Async PDF processing completed: {successful} successful, {failed} failed")
@@ -201,5 +197,15 @@ def process_pdf_files_optimized(pdf_paths: List[Path]) -> List[Dict[str, Any]]:
     
     duration = (end_time - start_time).total_seconds()
     log.info(f"PDF processing completed in {duration:.2f} seconds")
+    
+    # Debug: Log sample results
+    for i, result in enumerate(results[:3]):  # Log first 3 results
+        log.info(f"Sample result {i+1}: {result.get('filename', 'unknown')} - status: {result.get('extraction_status', 'unknown')}")
+        if result.get('product_name', {}).get('value'):
+            log.info(f"  Product: {result['product_name']['value']}")
+        if result.get('company_name', {}).get('value'):
+            log.info(f"  Company: {result['company_name']['value']}")
+        if result.get('article_number', {}).get('value'):
+            log.info(f"  Article: {result['article_number']['value']}")
     
     return results

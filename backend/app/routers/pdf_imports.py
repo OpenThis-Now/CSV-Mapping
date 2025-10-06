@@ -48,7 +48,12 @@ def upload_pdf_files(project_id: int, files: List[UploadFile] = File(...), sessi
         
         # Bearbeta PDF:er med AI (parallellt för snabbare bearbetning)
         print(f"Processing {len(pdf_paths)} PDF files in parallel...")
-        pdf_data = process_pdf_files_optimized(pdf_paths)
+        try:
+            pdf_data = process_pdf_files_optimized(pdf_paths)
+        except Exception as e:
+            print(f"Parallel processing failed, falling back to sequential: {e}")
+            # Fallback to original sequential processing
+            pdf_data = process_pdf_files(pdf_paths)
         
         # Skapa CSV från extraherade data
         csv_filename = f"pdf_import_{project_id}_{Path(files[0].filename).stem}.csv"
