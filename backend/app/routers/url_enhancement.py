@@ -64,20 +64,52 @@ def _process_urls_in_background_optimized(project_id: int, import_id: int, enhan
         
         log.info(f"Found {len(urls_to_process)} URLs to process in parallel")
         
-        # Process URLs in parallel
+        # Process URLs in parallel with progress tracking
         start_time = datetime.now()
-        pdf_data_results = process_urls_optimized(urls_to_process)
-        end_time = datetime.now()
         
+        # Initialize counters
+        enhancement_run.processed_urls = 0
+        enhancement_run.successful_urls = 0
+        enhancement_run.failed_urls = 0
+        session.add(enhancement_run)
+        session.commit()
+        
+        # Process URLs in batches to update progress
+        batch_size = 5  # Process 5 URLs at a time
+        pdf_data_results = []
+        
+        for i in range(0, len(urls_to_process), batch_size):
+            # Check if process was cancelled
+            session.refresh(enhancement_run)
+            if enhancement_run.status != "running":
+                log.info(f"URL enhancement cancelled, stopping at batch {i//batch_size + 1}")
+                break
+                
+            batch_urls = urls_to_process[i:i + batch_size]
+            log.info(f"Processing batch {i//batch_size + 1}: {len(batch_urls)} URLs")
+            
+            # Process this batch
+            batch_results = process_urls_optimized(batch_urls)
+            pdf_data_results.extend(batch_results)
+            
+            # Update progress
+            enhancement_run.processed_urls = len(pdf_data_results)
+            enhancement_run.successful_urls = sum(1 for result in pdf_data_results if result is not None)
+            enhancement_run.failed_urls = len(pdf_data_results) - enhancement_run.successful_urls
+            
+            session.add(enhancement_run)
+            session.commit()
+            
+            log.info(f"Progress: {enhancement_run.processed_urls}/{len(urls_to_process)} URLs processed")
+        
+        end_time = datetime.now()
         log.info(f"Parallel URL processing completed in {(end_time - start_time).total_seconds():.2f} seconds")
         
-        # Update enhancement run statistics
-        successful = sum(1 for result in pdf_data_results if result is not None)
-        failed = len(pdf_data_results) - successful
-        
-        enhancement_run.successful_urls = successful
-        enhancement_run.failed_urls = failed
-        enhancement_run.processed_urls = len(pdf_data_results)
+        # Check if process was cancelled
+        session.refresh(enhancement_run)
+        if enhancement_run.status != "running":
+            log.info(f"URL enhancement was cancelled, not creating enhanced CSV")
+            return
         
         # Process results and update rows
         enhanced_rows = []
@@ -293,7 +325,7 @@ def get_url_enhancement_status(project_id: int, session: Session = Depends(get_s
     
     # Calculate stats
     queued = max(0, enhancement_run.total_urls - enhancement_run.processed_urls)
-    processing = 1 if enhancement_run.processed_urls < enhancement_run.total_urls else 0
+    processing = 1 if enhancement_run.processed_urls < enhancement_run.total_urls and enhancement_run.status == "running" else 0
     
     return {
         "has_active_enhancement": True,
@@ -306,6 +338,41 @@ def get_url_enhancement_status(project_id: int, session: Session = Depends(get_s
             "completed": enhancement_run.successful_urls,
             "errors": enhancement_run.failed_urls
         }
+    }
+
+
+@router.post("/projects/{project_id}/url-enhancement/cancel")
+def cancel_url_enhancement(project_id: int, session: Session = Depends(get_session)) -> dict[str, Any]:
+    """Cancel a running URL enhancement process."""
+    p = session.get(Project, project_id)
+    if not p:
+        raise HTTPException(status_code=404, detail="Projekt saknas.")
+    
+    if not p.active_import_id:
+        raise HTTPException(status_code=400, detail="Ingen aktiv importfil vald.")
+    
+    # Find the most recent running enhancement run
+    enhancement_run = session.exec(
+        select(URLEnhancementRun)
+        .where(URLEnhancementRun.project_id == project_id)
+        .where(URLEnhancementRun.import_file_id == p.active_import_id)
+        .where(URLEnhancementRun.status == "running")
+        .order_by(URLEnhancementRun.started_at.desc())
+    ).first()
+    
+    if not enhancement_run:
+        raise HTTPException(status_code=400, detail="Ingen pågående URL-förbättring hittades.")
+    
+    # Mark as cancelled
+    enhancement_run.status = "cancelled"
+    enhancement_run.finished_at = datetime.utcnow()
+    session.add(enhancement_run)
+    session.commit()
+    
+    return {
+        "status": "cancelled",
+        "message": "URL-förbättring avbruten",
+        "enhancement_run_id": enhancement_run.id
     }
 
 
