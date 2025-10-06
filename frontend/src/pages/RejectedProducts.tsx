@@ -155,6 +155,33 @@ function ProductRow({
   const [status, setStatus] = useState(product.status);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Update local state when product data changes (e.g., after PDF upload)
+  useEffect(() => {
+    setCompanyId(product.company_id || "");
+    setNotes(product.notes || "");
+    setStatus(product.status);
+    // Clear the selected file if a PDF is now linked
+    if (product.pdf_filename) {
+      setFile(null);
+    }
+  }, [product.company_id, product.notes, product.status, product.pdf_filename]);
+
+  // Auto-update status based on PDF and CompanyID availability
+  useEffect(() => {
+    const hasPdf = product.pdf_filename || file;
+    const hasCompanyId = companyId.trim() !== "";
+    
+    if (hasPdf && hasCompanyId) {
+      setStatus("ready_for_db_import");
+    } else if (hasPdf && !hasCompanyId) {
+      setStatus("companyid_missing");
+    } else if (!hasPdf && hasCompanyId) {
+      setStatus("pdf_missing");
+    } else {
+      setStatus("pdf_companyid_missing");
+    }
+  }, [product.pdf_filename, file, companyId]);
+
   const tone = toneFor(status);
   const statusText = getStatusText(status);
 
@@ -162,9 +189,7 @@ function ProductRow({
     setFile(f);
     setUploading(true);
     onUpload(product.id, f);
-    setTimeout(() => {
-      setUploading(false);
-    }, 800);
+    // Don't set uploading to false here - let the parent component handle it
   };
 
   const handleSave = () => {
@@ -219,15 +244,17 @@ function ProductRow({
             <div className="text-xs font-medium text-gray-700">Upload PDF</div>
             <div className="mt-2">
               <Dropzone onFile={handleUpload} />
-              {file && (
+              {/* Only show newly selected file if it's different from the linked PDF */}
+              {file && file.name !== product.pdf_filename && (
                 <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-xs">
                   <Paperclip className="h-3.5 w-3.5"/> {file.name}
-      </div>
+                </div>
               )}
+              {/* Show linked PDF */}
               {product.pdf_filename && (
                 <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-green-100 px-3 py-1 text-xs">
                   <Paperclip className="h-3.5 w-3.5"/> {product.pdf_filename}
-              </div>
+                </div>
               )}
             </div>
           </div>
@@ -646,6 +673,8 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
       
       const res = await api.post(`/projects/${projectId}/rejected-products/${productId}/upload-pdf`, formData);
       showToast("PDF uploaded successfully", 'success');
+      
+      // Reload products to get updated status and PDF filename
       await loadProducts();
     } catch (error) {
       console.error("Failed to upload PDF:", error);
