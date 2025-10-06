@@ -28,13 +28,30 @@ def suggest_with_openai(prompt: str, max_items: int = 3, api_key_index: int = 0)
         getattr(settings, 'OPENAI_API_KEY10', None),
     ]
     
-    # Filter out None keys and cycle through available keys
-    available_keys = [key for key in api_keys if key]
+    # Filter out None keys and clean them (remove newlines and whitespace)
+    available_keys = []
+    for key in api_keys:
+        if key:
+            # Clean the API key by removing newlines and extra whitespace
+            cleaned_key = key.strip().replace('\n', '').replace('\r', '')
+            if cleaned_key and len(cleaned_key) > 10:  # Basic validation
+                available_keys.append(cleaned_key)
+            else:
+                log.warning(f"Invalid API key found (too short or empty after cleaning): {key[:10]}...")
+    
     if not available_keys:
         raise RuntimeError("OPENAI_DISABLED")
     
     selected_key = available_keys[api_key_index % len(available_keys)]
-    client = OpenAI(api_key=selected_key)  # type: ignore
+    
+    # Log which API key is being used (first 10 chars for security)
+    log.info(f"Using API key {api_key_index % len(available_keys)}: {selected_key[:10]}...")
+    
+    try:
+        client = OpenAI(api_key=selected_key)  # type: ignore
+    except Exception as e:
+        log.error(f"Failed to create OpenAI client with key {api_key_index}: {e}")
+        raise
     model = settings.AI_MODEL
     resp = client.chat.completions.create(
         model=model,
