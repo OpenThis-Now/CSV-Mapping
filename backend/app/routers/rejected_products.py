@@ -11,7 +11,7 @@ from sqlmodel import Session, select
 
 from ..config import settings
 from ..db import get_session
-from ..models import MatchResult, Project, RejectedProductData, RejectedExport, DatabaseCatalog, ImportedPdf
+from ..models import MatchResult, MatchRun, Project, RejectedProductData, RejectedExport, DatabaseCatalog, ImportedPdf
 from ..services.files import detect_csv_separator, open_text_stream
 from ..services.mapping import auto_map_headers
 from rapidfuzz import fuzz
@@ -108,11 +108,11 @@ def get_rejected_products(project_id: int, session: Session = Depends(get_sessio
     if not p:
         raise HTTPException(status_code=404, detail="Projekt saknas.")
     
-    # Get rejected match results (both rejected and worklist items)
+    # Get rejected match results (both rejected and worklist items) for this project only
     rejected_results = session.exec(
         select(MatchResult)
         .where(MatchResult.match_run_id.in_(
-            select(MatchResult.match_run_id).where(MatchResult.decision.in_(["rejected", "auto_rejected"]))
+            select(MatchRun.id).where(MatchRun.project_id == project_id)
         ))
         .where(MatchResult.decision.in_(["rejected", "auto_rejected"]))
     ).all()
