@@ -658,9 +658,12 @@ def export_worklist_products(project_id: int, session: Session = Depends(get_ses
     zip_filename = f"worklist_pdfs_{timestamp}.zip"
     zip_path = export_dir / zip_filename
     
+    print(f"DEBUG: Creating ZIP file at: {zip_path}")
+    
     with zipfile.ZipFile(zip_path, 'w') as zip_file:
         # Add CSV to ZIP
         zip_file.write(csv_path, csv_filename)
+        print(f"DEBUG: Added CSV file: {csv_filename}")
         
         # Add PDFs to ZIP
         pdf_count = 0
@@ -670,10 +673,14 @@ def export_worklist_products(project_id: int, session: Session = Depends(get_ses
                 if pdf_path.exists():
                     zip_file.write(pdf_path, product.pdf_filename)
                     pdf_count += 1
+                    print(f"DEBUG: Added PDF: {product.pdf_filename}")
                 else:
                     print(f"WARNING: PDF file not found: {pdf_path}")
         
         print(f"DEBUG: Added {pdf_count} PDFs to ZIP file")
+    
+    print(f"DEBUG: ZIP file created successfully: {zip_path}")
+    print(f"DEBUG: ZIP file size: {zip_path.stat().st_size} bytes")
     
     # Create export record
     export_record = RejectedExport(
@@ -741,12 +748,18 @@ def download_export_file(
     # Create file path
     file_path = Path(settings.STORAGE_ROOT) / "rejected_exports" / f"project_{project_id}" / filename
     
+    print(f"DEBUG: Download request for file: {file_path}")
+    print(f"DEBUG: File exists: {file_path.exists()}")
+    
     if not file_path.exists():
+        print(f"DEBUG: File not found: {file_path}")
         raise HTTPException(status_code=404, detail="Fil saknas.")
+    
+    print(f"DEBUG: File size: {file_path.stat().st_size} bytes")
     
     from fastapi.responses import FileResponse
     return FileResponse(
         path=str(file_path),
         filename=filename,
-        media_type='application/octet-stream'
+        media_type='application/zip' if filename.endswith('.zip') else 'application/octet-stream'
     )
