@@ -48,6 +48,8 @@ def process_single_pdf_with_ai(pdf_path: Path, api_key_index: int = 0) -> Dict[s
             # Only use simple extraction as last resort
             log.warning(f"Using simple text extraction as last resort for {pdf_path.name}")
             simple_result = simple_text_extraction(text, pdf_path.name)
+            # Mark this as a fallback extraction
+            simple_result["extraction_status"] = "fallback_simple"
             return simple_result
             
     except Exception as e:

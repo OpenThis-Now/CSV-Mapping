@@ -422,7 +422,7 @@ def simple_text_extraction(text: str, filename: str) -> Dict[str, Any]:
         "authored_market": {"value": authored_market, "confidence": 0.8 if authored_market else 0.0, "evidence": {"snippet": f"Found in text: {authored_market or 'not found'}"}},
         "language": {"value": language, "confidence": 0.8 if language else 0.0, "evidence": {"snippet": f"Detected from content: {language}"}},
         "filename": filename,
-        "extraction_status": status
+        "extraction_status": "fallback_simple"  # Always mark simple extraction as fallback
     }
 
 

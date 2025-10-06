@@ -39,7 +39,17 @@ def process_single_url_with_ai(url: str, api_key_index: int = 0) -> Optional[Dic
             except Exception as fallback_error:
                 log.warning(f"Fallback AI extraction also failed for URL {url}: {fallback_error}")
         
-        return None
+        # If all AI attempts failed, return a fallback entry with clear status
+        log.warning(f"All AI extraction attempts failed for URL {url}")
+        return {
+            "filename": url.split("/")[-1] if "/" in url else url,
+            "product_name": {"value": None, "confidence": 0.0, "evidence": {"snippet": "AI extraction failed"}},
+            "article_number": {"value": None, "confidence": 0.0, "evidence": {"snippet": "AI extraction failed"}},
+            "company_name": {"value": None, "confidence": 0.0, "evidence": {"snippet": "AI extraction failed"}},
+            "authored_market": {"value": None, "confidence": 0.0, "evidence": {"snippet": "AI extraction failed"}},
+            "language": {"value": None, "confidence": 0.0, "evidence": {"snippet": "AI extraction failed"}},
+            "extraction_status": "ai_failed"
+        }
 
 
 def process_urls_parallel(urls: List[str], max_workers: int = 10) -> List[Optional[Dict[str, Any]]]:
