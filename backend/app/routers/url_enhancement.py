@@ -64,6 +64,11 @@ def _process_urls_in_background_optimized(project_id: int, import_id: int, enhan
         
         log.info(f"Found {len(urls_to_process)} URLs to process in parallel")
         
+        # Log available API keys for debugging
+        from ..services.parallel_url_processor import get_available_api_keys
+        available_keys = get_available_api_keys()
+        log.info(f"Available API keys for parallel processing: {available_keys}")
+        
         # Process URLs in parallel with progress tracking
         start_time = datetime.now()
         
@@ -75,7 +80,8 @@ def _process_urls_in_background_optimized(project_id: int, import_id: int, enhan
         session.commit()
         
         # Process URLs in batches to update progress
-        batch_size = 5  # Process 5 URLs at a time
+        # Use larger batches for better parallelization
+        batch_size = min(10, len(urls_to_process))  # Process up to 10 URLs at a time
         pdf_data_results = []
         
         for i in range(0, len(urls_to_process), batch_size):
@@ -88,7 +94,7 @@ def _process_urls_in_background_optimized(project_id: int, import_id: int, enhan
             batch_urls = urls_to_process[i:i + batch_size]
             log.info(f"Processing batch {i//batch_size + 1}: {len(batch_urls)} URLs")
             
-            # Process this batch
+            # Process this batch with parallel processing
             batch_results = process_urls_optimized(batch_urls)
             pdf_data_results.extend(batch_results)
             

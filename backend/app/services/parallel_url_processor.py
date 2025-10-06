@@ -31,12 +31,18 @@ def process_single_url_with_ai(url: str, api_key_index: int = 0) -> Optional[Dic
 
 def process_urls_parallel(urls: List[str], max_workers: int = 10) -> List[Optional[Dict[str, Any]]]:
     """Process multiple URLs in parallel using multiple API keys"""
-    log.info(f"Starting parallel processing of {len(urls)} URLs with {max_workers} workers")
+    # If we have fewer API keys than workers, use more workers per API key
+    available_keys = get_available_api_keys()
+    if available_keys < max_workers:
+        # Use more workers per API key for better throughput
+        max_workers = min(available_keys * 3, len(urls), 15)  # Up to 3 workers per API key
+    
+    log.info(f"Starting parallel processing of {len(urls)} URLs with {max_workers} workers using {available_keys} API keys")
     
     # Create tasks with round-robin API key assignment
     tasks = []
     for i, url in enumerate(urls):
-        api_key_index = i % max_workers  # Distribute across available API keys
+        api_key_index = i % available_keys  # Distribute across available API keys
         tasks.append((url, api_key_index))
     
     # Process in parallel using ThreadPoolExecutor
