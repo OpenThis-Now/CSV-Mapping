@@ -17,6 +17,62 @@ from ..services.mapping import auto_map_headers
 from ..services.pdf_processor import process_pdf_files, create_csv_from_pdf_data
 from ..services.parallel_pdf_processor import process_pdf_files_optimized
 
+
+def _group_similar_products(df: pd.DataFrame) -> pd.DataFrame:
+    """Group similar products based on product name, vendor, and SKU to avoid duplicates."""
+    if df.empty:
+        return df
+    
+    # Create a grouping key based on normalized product, vendor, and SKU
+    df['_group_key'] = (
+        df.get('product', '').str.lower().str.strip() + '|' +
+        df.get('vendor', '').str.lower().str.strip() + '|' +
+        df.get('sku', '').str.lower().str.strip()
+    )
+    
+    # Group by the key and combine data
+    grouped_data = []
+    
+    for group_key, group_df in df.groupby('_group_key'):
+        if len(group_df) == 1:
+            # Single product, keep as is
+            row = group_df.iloc[0].to_dict()
+            del row['_group_key']
+            grouped_data.append(row)
+        else:
+            # Multiple similar products, combine them
+            combined_row = {}
+            
+            # For each column, combine values from all rows in the group
+            for col in group_df.columns:
+                if col == '_group_key':
+                    continue
+                    
+                values = group_df[col].dropna().astype(str).tolist()
+                unique_values = list(set([v for v in values if v and v != 'nan']))
+                
+                if len(unique_values) == 1:
+                    # All values are the same
+                    combined_row[col] = unique_values[0]
+                elif len(unique_values) > 1:
+                    # Different values, combine them
+                    combined_row[col] = '; '.join(unique_values)
+                else:
+                    # No valid values
+                    combined_row[col] = ''
+            
+            grouped_data.append(combined_row)
+    
+    # Create new DataFrame from grouped data
+    result_df = pd.DataFrame(grouped_data)
+    
+    # Remove the temporary grouping key if it exists
+    if '_group_key' in result_df.columns:
+        result_df = result_df.drop('_group_key', axis=1)
+    
+    return result_df
+
+
 router = APIRouter()
 log = logging.getLogger("app.pdf_imports")
 
@@ -249,10 +305,23 @@ def combine_import_files(project_id: int, req: CombineImportsRequest, session: S
                 else:
                     unified_row['sku'] = ''
                 
-                # Lägg till övriga kolumner
+                # Lägg till övriga kolumner med deduplication
                 for col in df.columns:
                     if col not in ['product', 'vendor', 'sku', 'Product_name', 'Supplier_name', 'Article_number']:
-                        unified_row[col] = df[col].iloc[row_idx] if len(df) > row_idx else ''
+                        # Check if column already exists in unified_row
+                        if col in unified_row:
+                            # If it exists, combine values (e.g., "Sweden; Austria")
+                            existing_value = unified_row[col]
+                            new_value = df[col].iloc[row_idx] if len(df) > row_idx else ''
+                            if existing_value and new_value and existing_value != new_value:
+                                # Combine different values
+                                unified_row[col] = f"{existing_value}; {new_value}"
+                            elif new_value and not existing_value:
+                                # Use new value if existing is empty
+                                unified_row[col] = new_value
+                        else:
+                            # New column, add it
+                            unified_row[col] = df[col].iloc[row_idx] if len(df) > row_idx else ''
                 
                 # Lägg till källinformation
                 unified_row['_source_file'] = imp.original_name
@@ -266,6 +335,10 @@ def combine_import_files(project_id: int, req: CombineImportsRequest, session: S
             print(f"Unified DataFrame: columns = {list(combined_df.columns)}")
             print(f"Unified DataFrame: shape = {combined_df.shape}")
             print(f"Unified DataFrame: sample data = {combined_df.head(3).to_dict('records')}")
+            
+            # Group similar products to avoid duplicates
+            combined_df = _group_similar_products(combined_df)
+            print(f"After grouping: shape = {combined_df.shape}")
             
             # Skapa ny CSV-fil
             combined_filename = f"combined_import_{project_id}_{len(imports)}_files.csv"
