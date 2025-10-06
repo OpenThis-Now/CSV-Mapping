@@ -34,9 +34,9 @@ def process_urls_parallel(urls: List[str], max_workers: int = 10) -> List[Option
     # If we have fewer API keys than workers, use more workers per API key
     available_keys = get_available_api_keys()
     if available_keys < max_workers:
-        # Use more workers per API key for better throughput
-        # With multiple API keys, use up to 10 workers per API key for maximum concurrency
-        max_workers = min(available_keys * 10, len(urls), 100)  # Up to 10 workers per API key
+        # Use fewer workers per API key for better quality (reduce from 10 to 3)
+        # With multiple API keys, use up to 3 workers per API key for better quality
+        max_workers = min(available_keys * 3, len(urls), 30)  # Up to 3 workers per API key, max 30 total
     
     log.info(f"Starting parallel processing of {len(urls)} URLs with {max_workers} workers using {available_keys} API keys")
     
@@ -163,8 +163,8 @@ def process_urls_optimized(urls: List[str]) -> List[Optional[Dict[str, Any]]]:
     if available_keys == 0:
         raise RuntimeError("No API keys available")
     
-    # Use parallel processing with available API keys
-    max_workers = min(available_keys, len(urls), 10)  # Cap at 10 workers
+    # Use parallel processing with available API keys - prioritize quality over speed
+    max_workers = min(available_keys * 2, len(urls), 20)  # Up to 2 workers per API key, max 20 total
     
     log.info(f"Processing {len(urls)} URLs with {max_workers} workers using {available_keys} API keys")
     

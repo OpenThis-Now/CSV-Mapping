@@ -59,8 +59,8 @@ def process_pdf_files_parallel(pdf_paths: List[Path], max_workers: int = 10) -> 
     # Get available API keys and optimize workers
     available_keys = get_available_api_keys()
     if available_keys < max_workers:
-        # Use more workers per API key for better throughput
-        max_workers = min(available_keys * 5, len(pdf_paths), 50)  # Up to 5 workers per API key
+        # Use fewer workers per API key for better quality (reduce from 5 to 2)
+        max_workers = min(available_keys * 2, len(pdf_paths), 20)  # Up to 2 workers per API key, max 20 total
     
     log.info(f"Starting parallel processing of {len(pdf_paths)} PDF files with {max_workers} workers using {available_keys} API keys")
     
@@ -193,8 +193,8 @@ def process_pdf_files_optimized(pdf_paths: List[Path]) -> List[Dict[str, Any]]:
         raise RuntimeError("No API keys available")
     
     # Use parallel processing with available API keys
-    # With 10 API keys, use up to 5 workers per key for better throughput
-    max_workers = min(available_keys * 5, len(pdf_paths), 50)  # Up to 50 workers total
+    # With 10 API keys, use up to 2 workers per key for better quality
+    max_workers = min(available_keys * 2, len(pdf_paths), 20)  # Up to 20 workers total
     
     log.info(f"Processing {len(pdf_paths)} PDFs with {max_workers} workers using {available_keys} API keys")
     
