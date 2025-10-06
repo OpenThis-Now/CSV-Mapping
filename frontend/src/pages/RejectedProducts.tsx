@@ -1,6 +1,16 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import api, { SupplierData, SupplierMappingSummary, SupplierMatchResult } from "@/lib/api";
 import { useToast } from "@/contexts/ToastContext";
+import {
+  Upload,
+  Search,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Loader2,
+  Paperclip,
+  Filter,
+} from "lucide-react";
 
 interface RejectedProduct {
   id: number;
@@ -24,16 +34,16 @@ interface RejectedProductsProps {
 }
 
 /***********************************
- * Helper functions
+ * Pure helpers (simple, testable)
  ***********************************/
-function computeStatusTone(status = "") {
+export function computeStatusTone(status = "") {
   if (!status) return "gray";
   if (status.includes("missing")) return "amber";
   if (status === "ready_for_db_import") return "green";
   return "gray";
 }
 
-function filterProductsByQuery(products: RejectedProduct[] = [], q = "") {
+export function filterProductsByQuery(products: RejectedProduct[] = [], q = "") {
   const query = String(q).toLowerCase();
   return products.filter((p) => p.product_name.toLowerCase().includes(query));
 }
@@ -41,16 +51,16 @@ function filterProductsByQuery(products: RejectedProduct[] = [], q = "") {
 function getStatusText(status: string) {
   const texts = {
     ready_for_db_import: "Ready for DB import",
-    pdf_companyid_missing: "PDF & CompanyID missing",
-    pdf_missing: "PDF missing",
-    companyid_missing: "CompanyID missing",
+    pdf_companyid_missing: "PDF & CompanyID Missing",
+    pdf_missing: "PDF Missing",
+    companyid_missing: "CompanyID Missing",
     request_worklist: "Ready for DB import" // Legacy support
   };
   return texts[status as keyof typeof texts] || status;
 }
 
 /***********************************
- * UI Components
+ * Small UI atoms
  ***********************************/
 function Pill({ tone = "gray", children }: { tone?: string; children: React.ReactNode }) {
   const map = {
@@ -64,6 +74,36 @@ function Pill({ tone = "gray", children }: { tone?: string; children: React.Reac
     <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${map[tone as keyof typeof map] || map.gray}`}>
       {children}
     </span>
+  );
+}
+
+function Dropzone({ onFile, accept = ".pdf", label = "Drag & drop PDF here or click to select" }: {
+  onFile: (file: File) => void;
+  accept?: string;
+  label?: string;
+}) {
+  const [isOver, setIsOver] = useState(false);
+  return (
+    <label
+      onDragOver={(e) => {
+        e.preventDefault();
+        setIsOver(true);
+      }}
+      onDragLeave={() => setIsOver(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setIsOver(false);
+        const file = e.dataTransfer.files?.[0];
+        if (file) onFile(file);
+      }}
+      className={`flex cursor-pointer items-center gap-3 rounded-xl border-2 border-dashed px-4 py-3 text-sm ${
+        isOver ? "border-blue-400 bg-blue-50" : "border-gray-200 hover:bg-gray-50"
+      }`}
+    >
+      <Upload className="h-4 w-4 shrink-0" />
+      <span className="truncate">{label}</span>
+      <input type="file" accept={accept} className="sr-only" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
+    </label>
   );
 }
 
@@ -87,6 +127,7 @@ function TopActions({ onExportCompleted, onExportWorklist }: {
           Export Ready for DB import (CSV + ZIP)
         </button>
         <div className="ms-auto flex items-center gap-2 text-xs text-gray-500">
+          <Filter className="h-4 w-4" />
           <span>Show:</span>
           <select className="rounded-full border-gray-200 text-xs focus:border-blue-500 focus:ring-blue-500">
             <option>All</option>
@@ -101,7 +142,7 @@ function TopActions({ onExportCompleted, onExportWorklist }: {
 }
 
 /***********************************
- * Product Row Component
+ * Product Row (upload icon + expand)
  ***********************************/
 function ProductRow({ 
   product, 
@@ -122,6 +163,7 @@ function ProductRow({
 }) {
   const [open, setOpen] = useState(index === 0);
   const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [companyId, setCompanyId] = useState(product.company_id || "");
   const [notes, setNotes] = useState(product.notes || "");
   const [status, setStatus] = useState(product.status);
@@ -147,27 +189,15 @@ function ProductRow({
     <div className="rounded-2xl border bg-white shadow-sm">
       {/* Header (click to expand) */}
       <div onClick={() => setOpen(!open)} role="button" className="group flex w-full items-center justify-between gap-4 px-5 py-4 text-left">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-3 mb-2">
+        <div className="min-w-0">
+          <div className="flex items-center gap-3">
             <div className="truncate text-base font-semibold">{product.product_name}</div>
             <Pill tone={statusTone}>{statusText}</Pill>
             {file && <Pill tone="green">PDF Selected</Pill>}
             {product.pdf_filename && <Pill tone="green">PDF Linked</Pill>}
           </div>
-          {/* Always visible supplier and article info */}
-          <div className="flex items-center gap-4 text-sm text-gray-600">
-            <div className="flex items-center gap-1">
-              <span className="font-medium">Supplier:</span>
-              <span>{product.supplier}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="font-medium">Article:</span>
-              <span>{product.article_number || 'N/A'}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="font-medium">Reason:</span>
-              <span className="text-gray-500">{product.reason}</span>
-            </div>
+          <div className="mt-1 line-clamp-1 text-xs text-gray-500">
+            {product.supplier} • {product.article_number || 'No article number'} • {product.reason}
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -180,7 +210,10 @@ function ProductRow({
             onChange={(e) => {
               const f = e.target.files?.[0];
               if (!f) return;
+              setUploading(true);
+              setFile(f);
               handleFileUpload(f);
+              setTimeout(() => setUploading(false), 800);
             }}
           />
           {/* Upload button (doesn't toggle row) */}
@@ -193,13 +226,13 @@ function ProductRow({
             title="Upload PDF"
             aria-label="Upload PDF"
           >
-            {uploadingPdf === product.id ? (
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
+            {uploading || uploadingPdf === product.id ? (
+              <Loader2 className="h-4 w-4 animate-spin text-gray-600" />
             ) : (
-              <div className="h-4 w-4 text-gray-600">📁</div>
+              <Upload className="h-4 w-4 text-gray-600" />
             )}
           </button>
-          {open ? <div className="h-5 w-5 text-gray-400">▲</div> : <div className="h-5 w-5 text-gray-400">▼</div>}
+          {open ? <ChevronUp className="h-5 w-5 text-gray-400" /> : <ChevronDown className="h-5 w-5 text-gray-400" />}
         </div>
       </div>
 
@@ -210,19 +243,15 @@ function ProductRow({
           <div className="md:col-span-1">
             <div className="text-xs font-medium text-gray-700">Upload PDF</div>
             <div className="mt-2">
-              <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-dashed border-gray-200 px-4 py-3 text-sm hover:bg-gray-50">
-                <div className="h-4 w-4 text-gray-400">📁</div>
-                <span className="truncate">Click to select PDF</span>
-                <input type="file" accept=".pdf" className="sr-only" onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])} />
-              </label>
+              <Dropzone onFile={handleFileUpload} />
               {file && (
                 <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-xs">
-                  {file.name}
+                  <Paperclip className="h-3.5 w-3.5" /> {file.name}
                 </div>
               )}
               {product.pdf_filename && (
                 <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-green-100 px-3 py-1 text-xs">
-                  {product.pdf_filename}
+                  <Paperclip className="h-3.5 w-3.5" /> {product.pdf_filename}
                 </div>
               )}
             </div>
@@ -251,7 +280,7 @@ function ProductRow({
                   }}
                   className="inline-flex items-center gap-1 rounded-xl border border-gray-200 px-3 text-xs hover:bg-gray-50"
                 >
-                  Auto-match
+                  <Search className="h-4 w-4" /> Auto-match
                 </button>
               </div>
             </div>
@@ -287,7 +316,7 @@ function ProductRow({
                 onClick={handleSave}
                 className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
               >
-                Save
+                <CheckCircle2 className="h-4 w-4" /> Save
               </button>
               <button
                 onClick={() => {
@@ -307,7 +336,7 @@ function ProductRow({
 }
 
 /***********************************
- * Main Component
+ * Products content (page body below your header)
  ***********************************/
 export default function RejectedProducts({ projectId }: RejectedProductsProps) {
   const [products, setProducts] = useState<RejectedProduct[]>([]);
@@ -535,7 +564,6 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
     }
   };
 
-
   const filtered = useMemo(() => filterProductsByQuery(products, query), [products, query]);
 
   if (loading) {
@@ -620,9 +648,9 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2 rounded-xl border bg-white px-3 py-2 shadow-sm">
-              <div className="h-4 w-4 text-gray-400">🔍</div>
+              <Search className="h-4 w-4 text-gray-400" />
               <input 
                 value={query} 
                 onChange={(e) => setQuery(e.target.value)} 
@@ -633,7 +661,7 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
             <div className="text-sm text-gray-500">{filtered.length} products</div>
           </div>
 
-          <div className="grid gap-4">
+          <div className="mt-4 grid gap-4">
             {filtered.map((product, idx) => (
               <ProductRow 
                 key={product.id} 
