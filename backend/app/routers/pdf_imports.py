@@ -18,6 +18,51 @@ from ..services.pdf_processor import process_pdf_files, create_csv_from_pdf_data
 from ..services.parallel_pdf_processor import process_pdf_files_optimized
 
 
+def _normalize_column_names(df: pd.DataFrame) -> pd.DataFrame:
+    """Normalize column names to be consistent and case-insensitive."""
+    if df.empty:
+        return df
+    
+    # Define standard column name mappings (case-insensitive)
+    column_mappings = {
+        'product_name': 'product',
+        'product': 'product',
+        'supplier_name': 'vendor', 
+        'vendor': 'vendor',
+        'article_number': 'sku',
+        'sku': 'sku',
+        'market': 'market',
+        'language': 'language',
+        'description': 'description',
+        'sds-url': 'sds_url',
+        'sds_url': 'sds_url',
+        'url': 'sds_url',
+        'legislation': 'legislation',
+        'filename': 'filename',
+        'extraction_status': 'extraction_status',
+        'source_file': 'source_file',
+        '_source_file': 'source_file',
+        'source_id': 'source_id', 
+        '_source_id': 'source_id',
+        'actions': 'actions'
+    }
+    
+    # Create new column names
+    new_columns = []
+    for col in df.columns:
+        col_lower = col.lower().strip()
+        # Map to standard name if found, otherwise keep original (but lowercase)
+        normalized = column_mappings.get(col_lower, col_lower)
+        new_columns.append(normalized)
+    
+    # Rename columns
+    df_normalized = df.copy()
+    df_normalized.columns = new_columns
+    
+    print(f"Normalized columns: {list(df.columns)} -> {list(df_normalized.columns)}")
+    return df_normalized
+
+
 def _remove_duplicate_columns(df: pd.DataFrame) -> pd.DataFrame:
     """Remove duplicate columns while keeping all products (rows). Case-insensitive."""
     if df.empty:
@@ -300,6 +345,11 @@ def combine_import_files(project_id: int, req: CombineImportsRequest, session: S
             print(f"Unified DataFrame: columns = {list(combined_df.columns)}")
             print(f"Unified DataFrame: shape = {combined_df.shape}")
             print(f"Unified DataFrame: sample data = {combined_df.head(3).to_dict('records')}")
+            
+            # Normalize column names first (make them consistent)
+            print(f"BEFORE normalization - columns: {list(combined_df.columns)}")
+            combined_df = _normalize_column_names(combined_df)
+            print(f"AFTER normalization - columns: {list(combined_df.columns)}")
             
             # Remove duplicate columns (keep all products, just deduplicate columns)
             print(f"BEFORE deduplication - columns: {list(combined_df.columns)}")

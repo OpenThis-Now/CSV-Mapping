@@ -25,21 +25,36 @@ def normalize_header(h: str) -> str:
 
 
 def auto_map_headers(headers: Iterable[str]) -> dict[str, str]:
+    # Create both normalized and original mappings for better matching
     norm_map = {normalize_header(h): h for h in headers}
+    original_map = {h.lower().strip(): h for h in headers}  # Direct case-insensitive mapping
 
     def pick(cands: list[str]) -> str | None:
-        # First try exact matches
+        # First try exact normalized matches
         for c in cands:
             if c in norm_map:
                 return norm_map[c]
-        # Then try partial matches
+        
+        # Then try direct case-insensitive matches
+        for c in cands:
+            if c.lower() in original_map:
+                return original_map[c.lower()]
+        
+        # Then try partial matches in normalized names
         for n, original in norm_map.items():
             if any(c in n for c in cands):
                 return original
+        
         # Finally try case-insensitive partial matches
         for n, original in norm_map.items():
             if any(c.lower() in n.lower() for c in cands):
                 return original
+        
+        # Last resort: try partial matches in original headers (case-insensitive)
+        for orig_lower, original in original_map.items():
+            if any(c.lower() in orig_lower for c in cands):
+                return original
+        
         return None
 
     product = pick([normalize_header(c) for c in P_CANDIDATES])
