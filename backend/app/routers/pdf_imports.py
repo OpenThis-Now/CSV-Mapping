@@ -10,7 +10,7 @@ from sqlmodel import Session, select
 
 from ..config import settings
 from ..db import get_session
-from ..models import ImportFile, Project
+from ..models import ImportFile, Project, ImportedPdf
 from ..schemas import ImportUploadResponse, CombineImportsRequest
 from ..services.files import check_upload, compute_hash_and_save, open_text_stream
 from ..services.mapping import auto_map_headers
@@ -54,6 +54,39 @@ def upload_pdf_files(project_id: int, files: List[UploadFile] = File(...), sessi
             print(f"Parallel processing failed, falling back to sequential: {e}")
             # Fallback to original sequential processing
             pdf_data = process_pdf_files(pdf_paths)
+        
+        # Spara PDF:er permanent och skapa ImportedPdf-poster
+        pdfs_dir = Path(settings.PDFS_DIR) / f"project_{project_id}"
+        pdfs_dir.mkdir(parents=True, exist_ok=True)
+        
+        saved_pdfs = []
+        for i, pdf_path in enumerate(pdf_paths):
+            # Kopiera PDF till permanent lagring
+            original_filename = files[i].filename or f"pdf_{i}.pdf"
+            stored_filename = f"{project_id}_{i}_{Path(original_filename).name}"
+            permanent_path = pdfs_dir / stored_filename
+            
+            # Kopiera filen
+            import shutil
+            shutil.copy2(pdf_path, permanent_path)
+            
+            # Hitta motsvarande data i pdf_data
+            pdf_info = None
+            if i < len(pdf_data):
+                pdf_info = pdf_data[i]
+            
+            # Skapa ImportedPdf-post
+            imported_pdf = ImportedPdf(
+                project_id=project_id,
+                filename=original_filename,
+                stored_filename=stored_filename,
+                product_name=pdf_info.get("product_name") if pdf_info else None,
+                supplier_name=pdf_info.get("supplier") if pdf_info else None,
+                article_number=pdf_info.get("article_number") if pdf_info else None,
+                customer_row_index=None  # Will be set when CSV is processed
+            )
+            session.add(imported_pdf)
+            saved_pdfs.append(imported_pdf)
         
         # Skapa CSV från extraherade data
         csv_filename = f"pdf_import_{project_id}_{Path(files[0].filename).stem}.csv"

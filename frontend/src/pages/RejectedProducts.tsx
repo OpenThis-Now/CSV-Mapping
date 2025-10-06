@@ -170,6 +170,18 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
     }
   };
 
+  const linkPdfsFromImport = async () => {
+    try {
+      const res = await api.post(`/projects/${projectId}/rejected-products/link-pdfs`);
+      showToast(res.data.message, 'success');
+      // Reload products to show updated PDF links
+      await loadProducts();
+    } catch (error) {
+      console.error("Link PDFs failed:", error);
+      showToast("Failed to link PDFs", 'error');
+    }
+  };
+
   const uploadSuppliersCSV = async (file: File) => {
     setUploadingSuppliers(true);
     try {
@@ -285,6 +297,12 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
             className="px-4 py-2 bg-purple-100 text-purple-800 border border-purple-200 rounded hover:bg-purple-200 text-sm"
           >
             Export Ready for DB import (CSV + ZIP)
+          </button>
+          <button
+            onClick={linkPdfsFromImport}
+            className="px-4 py-2 bg-blue-100 text-blue-800 border border-blue-200 rounded hover:bg-blue-200 text-sm"
+          >
+            Link PDFs from Customer Import
           </button>
         </div>
       </div>

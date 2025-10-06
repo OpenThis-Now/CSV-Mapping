@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     IMPORTS_DIR: Path = Field(default=Path("storage/imports"))
     EXPORTS_DIR: Path = Field(default=Path("storage/exports"))
     TMP_DIR: Path = Field(default=Path("storage/tmp"))
+    PDFS_DIR: Path = Field(default=Path("storage/pdfs"))
 
     # Server / DB
     DATABASE_URL: str = Field(default="sqlite:///storage/app.db")

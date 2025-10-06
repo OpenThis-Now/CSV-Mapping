@@ -54,6 +54,18 @@ class ImportFile(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class ImportedPdf(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    project_id: int = Field(foreign_key="project.id", index=True)
+    filename: str = Field(index=True)  # Original PDF filename
+    stored_filename: str = Field(index=True)  # Filename in storage
+    product_name: Optional[str] = Field(default=None, index=True)  # Extracted product name
+    supplier_name: Optional[str] = Field(default=None, index=True)  # Extracted supplier name
+    article_number: Optional[str] = Field(default=None, index=True)  # Extracted article number
+    customer_row_index: Optional[int] = Field(default=None, index=True)  # Row index in customer CSV
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class MatchRun(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     project_id: int = Field(foreign_key="project.id", index=True)

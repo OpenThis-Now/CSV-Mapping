@@ -11,7 +11,7 @@ from sqlmodel import Session, select
 
 from ..config import settings
 from ..db import get_session
-from ..models import MatchResult, Project, RejectedProductData, RejectedExport, DatabaseCatalog
+from ..models import MatchResult, Project, RejectedProductData, RejectedExport, DatabaseCatalog, ImportedPdf
 from ..services.files import detect_csv_separator, open_text_stream
 from ..services.mapping import auto_map_headers
 from rapidfuzz import fuzz
@@ -34,6 +34,71 @@ def update_product_status_based_on_data(product: RejectedProductData) -> str:
         return "companyid_missing"
     else:
         return "needs_data"
+
+
+def auto_link_pdf_from_import(product: RejectedProductData, session: Session) -> bool:
+    """Try to automatically link a PDF from customer import based on product name"""
+    if product.pdf_filename:  # Already has a PDF
+        return False
+    
+    # Get the match result to find product name
+    match_result = session.get(MatchResult, product.match_result_id)
+    if not match_result:
+        return False
+    
+    # Extract product name from customer fields
+    product_name = (
+        match_result.customer_fields_json.get("Product_name") or 
+        match_result.customer_fields_json.get("product") or 
+        match_result.customer_fields_json.get("product_name") or 
+        match_result.customer_fields_json.get("name") or 
+        match_result.customer_fields_json.get("title") or 
+        ""
+    )
+    
+    if not product_name:
+        return False
+    
+    # Find matching PDF in ImportedPdf table
+    imported_pdfs = session.exec(
+        select(ImportedPdf).where(ImportedPdf.project_id == product.project_id)
+    ).all()
+    
+    best_match = None
+    best_score = 0
+    
+    for imported_pdf in imported_pdfs:
+        if not imported_pdf.product_name:
+            continue
+        
+        # Calculate similarity between product names
+        similarity = fuzz.ratio(product_name.lower(), imported_pdf.product_name.lower())
+        if similarity > best_score and similarity >= 80:  # Minimum 80% similarity
+            best_match = imported_pdf
+            best_score = similarity
+    
+    if best_match:
+        # Link the PDF
+        product.pdf_filename = best_match.stored_filename
+        product.pdf_source = "customer_import"
+        
+        # Copy PDF to rejected products directory
+        pdfs_dir = Path(settings.PDFS_DIR) / f"project_{product.project_id}"
+        rejected_pdfs_dir = Path(settings.STORAGE_ROOT) / "rejected_exports" / f"project_{product.project_id}"
+        rejected_pdfs_dir.mkdir(parents=True, exist_ok=True)
+        
+        source_path = pdfs_dir / best_match.stored_filename
+        dest_filename = f"{product.id}_{best_match.filename}"
+        dest_path = rejected_pdfs_dir / dest_filename
+        
+        if source_path.exists():
+            import shutil
+            shutil.copy2(source_path, dest_path)
+            product.pdf_filename = dest_filename
+        
+        return True
+    
+    return False
 
 
 @router.get("/projects/{project_id}/rejected-products")
@@ -70,6 +135,11 @@ def get_rejected_products(project_id: int, session: Session = Depends(get_sessio
             session.add(existing_data)
             session.commit()
             session.refresh(existing_data)
+        
+        # Try to auto-link PDF from customer import
+        pdf_linked = auto_link_pdf_from_import(existing_data, session)
+        if pdf_linked:
+            session.add(existing_data)
         
         # Auto-update status based on available data
         new_status = update_product_status_based_on_data(existing_data)
@@ -624,6 +694,36 @@ def export_worklist_products(project_id: int, session: Session = Depends(get_ses
         "zip_filename": zip_filename,
         "file_path": str(zip_path),
         "count": str(len(worklist_products))
+    }
+
+
+@router.post("/projects/{project_id}/rejected-products/link-pdfs")
+def link_pdfs_from_customer_import(project_id: int, session: Session = Depends(get_session)) -> Dict[str, Any]:
+    """Manually link PDFs from customer import to rejected products"""
+    p = session.get(Project, project_id)
+    if not p:
+        raise HTTPException(status_code=404, detail="Projekt saknas.")
+    
+    # Get all rejected products without PDFs
+    rejected_products = session.exec(
+        select(RejectedProductData).where(
+            RejectedProductData.project_id == project_id,
+            RejectedProductData.pdf_filename.is_(None)
+        )
+    ).all()
+    
+    linked_count = 0
+    for product in rejected_products:
+        if auto_link_pdf_from_import(product, session):
+            session.add(product)
+            linked_count += 1
+    
+    session.commit()
+    
+    return {
+        "message": f"Successfully linked {linked_count} PDFs from customer import.",
+        "linked_count": linked_count,
+        "total_products": len(rejected_products)
     }
 
 
