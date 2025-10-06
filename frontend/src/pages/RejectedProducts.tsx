@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import api, { SupplierData, SupplierMappingSummary, SupplierMatchResult } from "@/lib/api";
 import { useToast } from "@/contexts/ToastContext";
 
@@ -23,11 +23,285 @@ interface RejectedProductsProps {
   projectId: number;
 }
 
+/***********************************
+ * Helper functions
+ ***********************************/
+function computeStatusTone(status = "") {
+  if (!status) return "gray";
+  if (status.includes("missing")) return "amber";
+  if (status === "ready_for_db_import") return "green";
+  return "gray";
+}
+
+function filterProductsByQuery(products: RejectedProduct[] = [], q = "") {
+  const query = String(q).toLowerCase();
+  return products.filter((p) => p.product_name.toLowerCase().includes(query));
+}
+
+/***********************************
+ * UI Components
+ ***********************************/
+function Pill({ tone = "gray", children }: { tone?: string; children: React.ReactNode }) {
+  const map = {
+    gray: "bg-gray-100 text-gray-700",
+    amber: "bg-amber-100 text-amber-800",
+    red: "bg-rose-100 text-rose-700",
+    green: "bg-emerald-100 text-emerald-800",
+    indigo: "bg-indigo-100 text-indigo-700",
+  };
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${map[tone as keyof typeof map] || map.gray}`}>
+      {children}
+    </span>
+  );
+}
+
+function TopActions({ onExportCompleted, onExportWorklist }: {
+  onExportCompleted: () => void;
+  onExportWorklist: () => void;
+}) {
+  return (
+    <div className="sticky top-0 z-10 -mx-4 mb-6 border-b bg-white/80 p-4 backdrop-blur supports-[backdrop-filter]:bg-white/60">
+      <div className="flex flex-wrap items-center gap-2">
+        <button 
+          onClick={onExportCompleted}
+          className="rounded-full bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200 hover:bg-emerald-100"
+        >
+          Export Completed (CSV)
+        </button>
+        <button 
+          onClick={onExportWorklist}
+          className="rounded-full bg-violet-50 px-3 py-2 text-sm font-medium text-violet-700 ring-1 ring-inset ring-violet-200 hover:bg-violet-100"
+        >
+          Export Ready for DB import (CSV + ZIP)
+        </button>
+        <div className="ms-auto flex items-center gap-2 text-xs text-gray-500">
+          <span>Show:</span>
+          <select className="rounded-full border-gray-200 text-xs focus:border-blue-500 focus:ring-blue-500">
+            <option>All</option>
+            <option>PDF Missing</option>
+            <option>CompanyID Missing</option>
+            <option>Marked as Done</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/***********************************
+ * Product Row Component
+ ***********************************/
+function ProductRow({ 
+  product, 
+  index, 
+  onSave, 
+  onNext, 
+  onUploadPdf, 
+  onUpdateProduct,
+  uploadingPdf 
+}: {
+  product: RejectedProduct;
+  index: number;
+  onSave: (data: any) => void;
+  onNext: () => void;
+  onUploadPdf: (productId: number, file: File) => void;
+  onUpdateProduct: (productId: number, data: any) => void;
+  uploadingPdf: number | null;
+}) {
+  const [open, setOpen] = useState(index === 0);
+  const [file, setFile] = useState<File | null>(null);
+  const [companyId, setCompanyId] = useState(product.company_id || "");
+  const [notes, setNotes] = useState(product.notes || "");
+  const [status, setStatus] = useState(product.status);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const statusTone = computeStatusTone(status);
+  const statusText = getStatusText(status);
+
+  const handleSave = () => {
+    onSave({
+      company_id: companyId,
+      notes: notes,
+      status: status
+    });
+  };
+
+  const handleFileUpload = (uploadedFile: File) => {
+    setFile(uploadedFile);
+    onUploadPdf(product.id, uploadedFile);
+  };
+
+  return (
+    <div className="rounded-2xl border bg-white shadow-sm">
+      {/* Header (click to expand) */}
+      <div onClick={() => setOpen(!open)} role="button" className="group flex w-full items-center justify-between gap-4 px-5 py-4 text-left">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="truncate text-base font-semibold">{product.product_name}</div>
+            <Pill tone={statusTone}>{statusText}</Pill>
+            {file && <Pill tone="green">PDF Selected</Pill>}
+            {product.pdf_filename && <Pill tone="green">PDF Linked</Pill>}
+          </div>
+          {/* Always visible supplier and article info */}
+          <div className="flex items-center gap-4 text-sm text-gray-600">
+            <div className="flex items-center gap-1">
+              <span className="font-medium">Supplier:</span>
+              <span>{product.supplier}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="font-medium">Article:</span>
+              <span>{product.article_number || 'N/A'}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="font-medium">Reason:</span>
+              <span className="text-gray-500">{product.reason}</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          {/* Invisible file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf"
+            className="sr-only"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (!f) return;
+              handleFileUpload(f);
+            }}
+          />
+          {/* Upload button (doesn't toggle row) */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              fileInputRef.current?.click();
+            }}
+            className="rounded-full p-2 md:opacity-0 md:group-hover:opacity-100 hover:bg-gray-100 focus:opacity-100 focus:outline-none"
+            title="Upload PDF"
+            aria-label="Upload PDF"
+          >
+            {uploadingPdf === product.id ? (
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
+            ) : (
+              <div className="h-4 w-4 text-gray-600">📁</div>
+            )}
+          </button>
+          {open ? <div className="h-5 w-5 text-gray-400">▲</div> : <div className="h-5 w-5 text-gray-400">▼</div>}
+        </div>
+      </div>
+
+      {/* Expanded content */}
+      {open && (
+        <div className="grid gap-5 border-t px-5 py-5 md:grid-cols-3">
+          {/* Column: Quick PDF upload */}
+          <div className="md:col-span-1">
+            <div className="text-xs font-medium text-gray-700">Upload PDF</div>
+            <div className="mt-2">
+              <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-dashed border-gray-200 px-4 py-3 text-sm hover:bg-gray-50">
+                <div className="h-4 w-4 text-gray-400">📁</div>
+                <span className="truncate">Click to select PDF</span>
+                <input type="file" accept=".pdf" className="sr-only" onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])} />
+              </label>
+              {file && (
+                <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-xs">
+                  {file.name}
+                </div>
+              )}
+              {product.pdf_filename && (
+                <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-green-100 px-3 py-1 text-xs">
+                  {product.pdf_filename}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Column: Meta */}
+          <div className="space-y-3 md:col-span-1">
+            <div>
+              <label className="text-xs font-medium text-gray-700">Company ID</label>
+              <div className="mt-1 flex gap-2">
+                <input
+                  value={companyId}
+                  onChange={(e) => setCompanyId(e.target.value)}
+                  placeholder="Enter Company ID"
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                />
+                <button 
+                  onClick={async () => {
+                    // Auto-match functionality
+                    try {
+                      await api.post(`/projects/${product.match_result_id}/rejected-products/${product.id}/auto-match`);
+                      // Reload or update state
+                    } catch (error) {
+                      console.error("Auto-match failed:", error);
+                    }
+                  }}
+                  className="inline-flex items-center gap-1 rounded-xl border border-gray-200 px-3 text-xs hover:bg-gray-50"
+                >
+                  Auto-match
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-700">Status</label>
+              <select 
+                value={status}
+                onChange={(e) => setStatus(e.target.value as any)}
+                className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+              >
+                <option value="ready_for_db_import">Ready for DB import</option>
+                <option value="pdf_companyid_missing">PDF & CompanyID Missing</option>
+                <option value="pdf_missing">PDF Missing</option>
+                <option value="companyid_missing">CompanyID Missing</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Column: Notes & actions */}
+          <div className="space-y-3 md:col-span-1">
+            <div>
+              <label className="text-xs font-medium text-gray-700">Notes</label>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={5}
+                placeholder="Add any notes here"
+                className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={handleSave}
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => {
+                  handleSave();
+                  onNext();
+                }}
+                className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2 text-sm hover:bg-gray-50"
+              >
+                Save & Next
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/***********************************
+ * Main Component
+ ***********************************/
 export default function RejectedProducts({ projectId }: RejectedProductsProps) {
   const [products, setProducts] = useState<RejectedProduct[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingProduct, setEditingProduct] = useState<number | null>(null);
-  const [editData, setEditData] = useState<Partial<RejectedProduct>>({});
+  const [query, setQuery] = useState("");
   const [uploadingPdf, setUploadingPdf] = useState<number | null>(null);
   const [uploadingZip, setUploadingZip] = useState(false);
   
@@ -98,8 +372,6 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
     try {
       await api.put(`/projects/${projectId}/rejected-products/${productId}`, data);
       showToast("Product updated successfully", 'success');
-      setEditingProduct(null);
-      setEditData({});
       await loadProducts();
     } catch (error) {
       console.error("Failed to update product:", error);
@@ -196,7 +468,6 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
     }
   };
 
-
   const uploadSuppliersCSV = async (file: File) => {
     setUploadingSuppliers(true);
     try {
@@ -253,17 +524,6 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    const badges = {
-      ready_for_db_import: "bg-green-100 text-green-800 border-green-300",
-      pdf_companyid_missing: "bg-red-100 text-red-800 border-red-300",
-      pdf_missing: "bg-orange-100 text-orange-800 border-orange-300",
-      companyid_missing: "bg-orange-100 text-orange-800 border-orange-300",
-      request_worklist: "bg-green-100 text-green-800 border-green-300" // Legacy support
-    };
-    return badges[status as keyof typeof badges] || "bg-gray-100 text-gray-800 border-gray-300";
-  };
-
   const getStatusText = (status: string) => {
     const texts = {
       ready_for_db_import: "Ready for DB import",
@@ -274,6 +534,8 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
     };
     return texts[status as keyof typeof texts] || status;
   };
+
+  const filtered = useMemo(() => filterProductsByQuery(products, query), [products, query]);
 
   if (loading) {
     return (
@@ -295,27 +557,14 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Rejected Products</h1>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={exportCompleted}
-            className="px-4 py-2 bg-green-100 text-green-800 border border-green-200 rounded hover:bg-green-200 text-sm"
-          >
-            Export Completed (CSV)
-          </button>
-          <button
-            onClick={exportWorklist}
-            className="px-4 py-2 bg-purple-100 text-purple-800 border border-purple-200 rounded hover:bg-purple-200 text-sm"
-          >
-            Export Ready for DB import (CSV + ZIP)
-          </button>
-        </div>
+    <div className="mx-auto max-w-6xl px-4 pb-20">
+      <div className="mb-5 mt-2 flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Rejected Products</h1>
+        <div className="rounded-xl bg-gray-100 px-3 py-1 text-xs text-gray-600">Project: {projectId}</div>
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200">
+      <div className="border-b border-gray-200 mb-6">
         <nav className="-mb-px flex space-x-8">
           <button
             onClick={() => setActiveTab('products')}
@@ -343,8 +592,10 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
       {/* Tab Content */}
       {activeTab === 'products' && (
         <>
+          <TopActions onExportCompleted={exportCompleted} onExportWorklist={exportWorklist} />
+
           {/* Bulk PDF Upload */}
-          <div className="bg-white rounded-xl border p-4">
+          <div className="bg-white rounded-xl border p-4 mb-6">
             <div className="flex items-center gap-4">
               <div className="flex-1">
                 <h3 className="font-semibold mb-2">Bulk PDF Upload</h3>
@@ -368,154 +619,31 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
             </div>
           </div>
 
-          {/* Products List */}
-          <div className="grid gap-4">
-            {products.map((product) => (
-              <div key={product.id} className="bg-white rounded-xl border p-4">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="font-semibold text-lg">{product.product_name}</h3>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusBadge(product.status)}`}>
-                        {getStatusText(product.status)}
-                      </span>
-                    </div>
-                    <div className="text-sm text-gray-600 mb-1">
-                      <strong>Article Number:</strong> {product.article_number || 'N/A'}
-                    </div>
-                    <div className="text-sm text-gray-600 mb-1">
-                      <strong>Supplier:</strong> {product.supplier}
-                    </div>
-                    <div className="text-sm text-gray-600 mb-1">
-                      <strong>Reason:</strong> {product.reason}
-                    </div>
-                    {product.company_id && (
-                      <div className="text-sm text-gray-600 mb-1">
-                        <strong>Company ID:</strong> {product.company_id}
-                      </div>
-                    )}
-                    {product.pdf_filename && (
-                      <div className="text-sm text-gray-600 mb-1">
-                        <strong>PDF:</strong> {product.pdf_filename}
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => {
-                      setEditingProduct(product.id);
-                      setEditData({
-                        company_id: product.company_id,
-                        notes: product.notes,
-                        status: product.status
-                      });
-                    }}
-                    className="px-3 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200 text-sm"
-                  >
-                    Edit
-                  </button>
-                </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div className="flex items-center gap-2 rounded-xl border bg-white px-3 py-2 shadow-sm">
+              <div className="h-4 w-4 text-gray-400">🔍</div>
+              <input 
+                value={query} 
+                onChange={(e) => setQuery(e.target.value)} 
+                placeholder="Search products…" 
+                className="w-64 text-sm outline-none" 
+              />
+            </div>
+            <div className="text-sm text-gray-500">{filtered.length} products</div>
+          </div>
 
-                {/* Edit Form */}
-                {editingProduct === product.id && (
-                  <div className="border-t pt-4 mt-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Company ID
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            value={editData.company_id || ''}
-                            onChange={(e) => setEditData({...editData, company_id: e.target.value})}
-                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="Enter Company ID"
-                          />
-                          <button
-                            onClick={async () => {
-                              showToast(`Auto-matching Company ID for supplier: ${product.supplier}`, 'info');
-                              try {
-                                // Trigger auto-matching by calling the backend endpoint
-                                await api.post(`/projects/${projectId}/rejected-products/${product.id}/auto-match`);
-                                showToast("Auto-matching completed", 'success');
-                                await loadProducts();
-                              } catch (error) {
-                                console.error("Auto-match failed:", error);
-                                showToast("Auto-matching failed", 'error');
-                              }
-                            }}
-                            className="px-3 py-2 bg-blue-100 text-blue-800 rounded hover:bg-blue-200 text-sm"
-                          >
-                            Auto-match
-                          </button>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Status
-                        </label>
-                        <select
-                          value={editData.status || 'pdf_companyid_missing'}
-                          onChange={(e) => setEditData({...editData, status: e.target.value as any})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="ready_for_db_import">Ready for DB import</option>
-                          <option value="pdf_companyid_missing">PDF & CompanyID missing</option>
-                          <option value="pdf_missing">PDF missing</option>
-                          <option value="companyid_missing">CompanyID missing</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div className="mt-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Notes
-                      </label>
-                      <textarea
-                        value={editData.notes || ''}
-                        onChange={(e) => setEditData({...editData, notes: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        rows={3}
-                        placeholder="Add notes..."
-                      />
-                    </div>
-                    <div className="mt-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Upload PDF
-                      </label>
-                      <input
-                        type="file"
-                        accept=".pdf"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) uploadPdf(product.id, file);
-                        }}
-                        disabled={uploadingPdf === product.id}
-                        className="text-sm"
-                      />
-                      {uploadingPdf === product.id && (
-                        <div className="mt-2 text-sm text-blue-600">Uploading...</div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 mt-4">
-                      <button
-                        onClick={() => updateProduct(product.id, editData)}
-                        className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
-                      >
-                        Save Changes
-                      </button>
-                      <button
-                        onClick={() => {
-                          setEditingProduct(null);
-                          setEditData({});
-                        }}
-                        className="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-sm"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+          <div className="grid gap-4">
+            {filtered.map((product, idx) => (
+              <ProductRow 
+                key={product.id} 
+                product={product} 
+                index={idx} 
+                onSave={(data) => updateProduct(product.id, data)}
+                onNext={() => console.log("next")}
+                onUploadPdf={uploadPdf}
+                onUpdateProduct={updateProduct}
+                uploadingPdf={uploadingPdf}
+              />
             ))}
           </div>
         </>
@@ -635,7 +763,7 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
               {/* Exact Matches */}
               {supplierMatchResult.matched_suppliers.length > 0 && (
                 <div className="mb-6">
-                  <h4 className="font-medium mb-3 text-green-800">✓ Exact Matches</h4>
+                  <h4 className="font-medium mb-3 text-green-800">Exact Matches</h4>
                   <div className="space-y-2">
                     {supplierMatchResult.matched_suppliers.map((match, index) => (
                       <div key={index} className="border border-green-200 rounded-lg p-3 bg-green-50">
@@ -658,7 +786,7 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
               {/* New Country Needed */}
               {supplierMatchResult.new_country_needed.length > 0 && (
                 <div className="mb-6">
-                  <h4 className="font-medium mb-3 text-yellow-800">⚠ New Country Needed</h4>
+                  <h4 className="font-medium mb-3 text-yellow-800">New Country Needed</h4>
                   <div className="space-y-2">
                     {supplierMatchResult.new_country_needed.map((match, index) => (
                       <div key={index} className="border border-yellow-200 rounded-lg p-3 bg-yellow-50">
@@ -681,7 +809,7 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
               {/* New Supplier Needed */}
               {supplierMatchResult.new_supplier_needed.length > 0 && (
                 <div className="mb-6">
-                  <h4 className="font-medium mb-3 text-red-800">✗ New Supplier Needed</h4>
+                  <h4 className="font-medium mb-3 text-red-800">New Supplier Needed</h4>
                   <div className="space-y-2">
                     {supplierMatchResult.new_supplier_needed.map((match, index) => (
                       <div key={index} className="border border-red-200 rounded-lg p-3 bg-red-50">
