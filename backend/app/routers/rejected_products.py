@@ -38,12 +38,16 @@ def update_product_status_based_on_data(product: RejectedProductData) -> str:
 
 def auto_link_pdf_from_import(product: RejectedProductData, session: Session) -> bool:
     """Try to automatically link a PDF from customer import based on product name"""
+    print(f"DEBUG: auto_link_pdf_from_import called for product {product.id}")
+    
     if product.pdf_filename:  # Already has a PDF
+        print(f"DEBUG: Product {product.id} already has PDF: {product.pdf_filename}")
         return False
     
     # Get the match result to find product name
     match_result = session.get(MatchResult, product.match_result_id)
     if not match_result:
+        print(f"DEBUG: No match result found for product {product.id}")
         return False
     
     # Extract product name from customer fields
@@ -56,7 +60,10 @@ def auto_link_pdf_from_import(product: RejectedProductData, session: Session) ->
         ""
     )
     
+    print(f"DEBUG: Extracted product name: '{product_name}'")
+    
     if not product_name:
+        print(f"DEBUG: No product name found for product {product.id}")
         return False
     
     # Find matching PDF in ImportedPdf table
@@ -64,20 +71,27 @@ def auto_link_pdf_from_import(product: RejectedProductData, session: Session) ->
         select(ImportedPdf).where(ImportedPdf.project_id == product.project_id)
     ).all()
     
+    print(f"DEBUG: Found {len(imported_pdfs)} imported PDFs for project {product.project_id}")
+    
     best_match = None
     best_score = 0
     
     for imported_pdf in imported_pdfs:
+        print(f"DEBUG: Checking imported PDF: '{imported_pdf.product_name}' vs '{product_name}'")
         if not imported_pdf.product_name:
+            print(f"DEBUG: Skipping PDF with no product name")
             continue
         
         # Calculate similarity between product names
         similarity = fuzz.ratio(product_name.lower(), imported_pdf.product_name.lower())
+        print(f"DEBUG: Similarity: {similarity}")
         if similarity > best_score and similarity >= 80:  # Minimum 80% similarity
             best_match = imported_pdf
             best_score = similarity
+            print(f"DEBUG: New best match: {imported_pdf.product_name} (score: {similarity})")
     
     if best_match:
+        print(f"DEBUG: Found best match: {best_match.product_name} (score: {best_score})")
         # Link the PDF
         product.pdf_filename = best_match.stored_filename
         product.pdf_source = "customer_import"
@@ -717,13 +731,19 @@ def link_pdfs_from_customer_import(project_id: int, session: Session = Depends(g
         )
     ).all()
     
+    print(f"DEBUG: Found {len(rejected_products)} products without PDFs to check for linking")
+    
     linked_count = 0
     for product in rejected_products:
+        print(f"DEBUG: Checking product {product.id} for PDF linking")
         if auto_link_pdf_from_import(product, session):
+            print(f"DEBUG: Successfully linked PDF for product {product.id}")
             # Auto-update status based on available data after linking PDF
             product.status = update_product_status_based_on_data(product)
             session.add(product)
             linked_count += 1
+        else:
+            print(f"DEBUG: No PDF found to link for product {product.id}")
     
     session.commit()
     
