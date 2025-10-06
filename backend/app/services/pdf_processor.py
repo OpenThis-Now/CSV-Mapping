@@ -271,8 +271,12 @@ def simple_text_extraction(text: str, filename: str) -> Dict[str, Any]:
         product_match = re.search(pattern, text, re.IGNORECASE | re.MULTILINE)
         if product_match:
             candidate = product_match.group(1).strip()
-            # Filter out section headers and generic terms
-            if not any(skip in candidate.lower() for skip in ['section', 'identification', 'uses', 'composition', 'hazards', 'first aid']):
+            # Filter out section headers, generic terms, and incomplete phrases
+            if (not any(skip in candidate.lower() for skip in ['section', 'identification', 'uses', 'composition', 'hazards', 'first aid', 'and chemical', 'professional or', 'build-up']) and
+                len(candidate) > 5 and  # Must be at least 5 characters
+                not candidate.startswith('and ') and  # Don't start with "and"
+                not candidate.endswith(' or') and  # Don't end with "or"
+                candidate.count(' ') >= 1):  # Must have at least one space (multi-word)
                 product_name = candidate
                 break
     

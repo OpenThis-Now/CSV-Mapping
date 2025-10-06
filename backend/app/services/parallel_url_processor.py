@@ -25,7 +25,20 @@ def process_single_url_with_ai(url: str, api_key_index: int = 0) -> Optional[Dic
             return None
             
     except Exception as e:
-        log.error(f"Error processing URL {url}: {str(e)}")
+        log.error(f"Error processing URL {url} with key {api_key_index}: {str(e)}")
+        
+        # Try with a different API key as fallback
+        available_keys = get_available_api_keys()
+        if available_keys > 1:
+            fallback_key = (api_key_index + 1) % available_keys
+            log.info(f"Retrying URL {url} with fallback API key {fallback_key}")
+            try:
+                pdf_data = extract_pdf_data_with_ai(url, fallback_key)
+                if pdf_data and len(pdf_data) > 0:
+                    return pdf_data[0]
+            except Exception as fallback_error:
+                log.warning(f"Fallback AI extraction also failed for URL {url}: {fallback_error}")
+        
         return None
 
 

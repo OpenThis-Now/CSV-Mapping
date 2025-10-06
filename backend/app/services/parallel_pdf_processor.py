@@ -26,9 +26,6 @@ def process_single_pdf_with_ai(pdf_path: Path, api_key_index: int = 0) -> Dict[s
                 "api_key_index": api_key_index
             }
         
-        # Try simple extraction first
-        simple_result = simple_text_extraction(text, pdf_path.name)
-        
         # Try AI extraction with specific API key
         try:
             ai_result = extract_product_info_with_ai(text, pdf_path.name, api_key_index)
@@ -36,7 +33,21 @@ def process_single_pdf_with_ai(pdf_path: Path, api_key_index: int = 0) -> Dict[s
             return ai_result
         except Exception as ai_error:
             log.warning(f"AI extraction failed for {pdf_path.name} with key {api_key_index}: {ai_error}")
-            # Return simple extraction result in the expected format
+            
+            # Try with a different API key as fallback
+            available_keys = get_available_api_keys()
+            if available_keys > 1:
+                fallback_key = (api_key_index + 1) % available_keys
+                log.info(f"Retrying {pdf_path.name} with fallback API key {fallback_key}")
+                try:
+                    ai_result = extract_product_info_with_ai(text, pdf_path.name, fallback_key)
+                    return ai_result
+                except Exception as fallback_error:
+                    log.warning(f"Fallback AI extraction also failed for {pdf_path.name}: {fallback_error}")
+            
+            # Only use simple extraction as last resort
+            log.warning(f"Using simple text extraction as last resort for {pdf_path.name}")
+            simple_result = simple_text_extraction(text, pdf_path.name)
             return simple_result
             
     except Exception as e:
