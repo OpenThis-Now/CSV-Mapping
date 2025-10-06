@@ -34,6 +34,9 @@ def upload_suppliers_csv(project_id: int, file: UploadFile = File(...), session:
         if not headers:
             raise HTTPException(status_code=400, detail="CSV saknar rubriker.")
         
+        # Debug: Log available headers
+        print(f"DEBUG: Available CSV headers: {headers}")
+        
         # Clear existing supplier data for this project
         existing_suppliers = session.exec(
             select(SupplierData).where(SupplierData.project_id == project_id)
@@ -44,11 +47,50 @@ def upload_suppliers_csv(project_id: int, file: UploadFile = File(...), session:
         
         # Process CSV rows
         suppliers_added = 0
-        for row in reader:
-            supplier_name = row.get("Supplier name", "").strip()
-            company_id = row.get("CompanyID", "").strip()
-            country = row.get("Country", "").strip()
-            total = int(row.get("Total", "0") or "0")
+        skipped_rows = 0
+        
+        for row_num, row in enumerate(reader, start=2):  # Start at 2 since header is row 1
+            # Try different possible column names (case insensitive)
+            supplier_name = (
+                row.get("Supplier name", "").strip() or
+                row.get("supplier_name", "").strip() or
+                row.get("Supplier", "").strip() or
+                row.get("supplier", "").strip() or
+                row.get("Supplier Name", "").strip() or
+                row.get("SUPPLIER NAME", "").strip()
+            )
+            
+            company_id = (
+                row.get("CompanyID", "").strip() or
+                row.get("company_id", "").strip() or
+                row.get("Company ID", "").strip() or
+                row.get("companyid", "").strip() or
+                row.get("COMPANY_ID", "").strip()
+            )
+            
+            country = (
+                row.get("Country", "").strip() or
+                row.get("country", "").strip() or
+                row.get("COUNTRY", "").strip() or
+                row.get("Market", "").strip() or
+                row.get("market", "").strip()
+            )
+            
+            total_str = (
+                row.get("Total", "0") or
+                row.get("total", "0") or
+                row.get("TOTAL", "0") or
+                row.get("Count", "0") or
+                row.get("count", "0") or
+                "0"
+            )
+            
+            try:
+                total = int(total_str)
+            except (ValueError, TypeError):
+                total = 0
+            
+            print(f"DEBUG: Row {row_num}: supplier_name='{supplier_name}', company_id='{company_id}', country='{country}', total={total}")
             
             if supplier_name and company_id and country:
                 supplier = SupplierData(
@@ -60,8 +102,13 @@ def upload_suppliers_csv(project_id: int, file: UploadFile = File(...), session:
                 )
                 session.add(supplier)
                 suppliers_added += 1
+                print(f"DEBUG: Added supplier: {supplier_name} ({country})")
+            else:
+                skipped_rows += 1
+                print(f"DEBUG: Skipped row {row_num} - missing required fields")
         
         session.commit()
+        print(f"DEBUG: Processing complete. Added: {suppliers_added}, Skipped: {skipped_rows}")
     
     return {
         "message": f"Suppliers CSV uploaded successfully. {suppliers_added} suppliers added.",

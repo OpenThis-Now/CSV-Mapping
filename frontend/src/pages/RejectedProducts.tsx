@@ -177,12 +177,20 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
       formData.append('file', file);
       
       const res = await api.post(`/projects/${projectId}/suppliers/upload`, formData);
-      showToast(res.data.message, 'success');
+      
+      // Show more detailed message
+      if (res.data.suppliers_count === 0) {
+        showToast("CSV uploaded but no suppliers were added. Please check that your CSV has the correct column names: 'Supplier name', 'CompanyID', 'Country', 'Total'", 'warning');
+      } else {
+        showToast(res.data.message, 'success');
+      }
+      
       await loadSuppliers();
       await loadSupplierMapping();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to upload suppliers CSV:", error);
-      showToast("Failed to upload suppliers CSV", 'error');
+      const errorMessage = error.response?.data?.detail || "Failed to upload suppliers CSV";
+      showToast(errorMessage, 'error');
     } finally {
       setUploadingSuppliers(false);
     }
@@ -492,8 +500,15 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
               <div className="flex-1">
                 <h3 className="font-semibold mb-2">Upload Suppliers CSV</h3>
                 <p className="text-sm text-gray-600 mb-3">
-                  Upload a CSV file with supplier data. Required columns: Supplier name, CompanyID, Country, Total
+                  Upload a CSV file with supplier data. Required columns:
                 </p>
+                <div className="bg-gray-50 p-3 rounded-lg mb-3 text-sm">
+                  <div className="font-medium mb-1">CSV Format:</div>
+                  <div>• <strong>Supplier name</strong> - Name of the supplier/company</div>
+                  <div>• <strong>CompanyID</strong> - Company identifier</div>
+                  <div>• <strong>Country</strong> - Country/market code</div>
+                  <div>• <strong>Total</strong> - Number of products (optional, defaults to 0)</div>
+                </div>
                 <input
                   type="file"
                   accept=".csv"
