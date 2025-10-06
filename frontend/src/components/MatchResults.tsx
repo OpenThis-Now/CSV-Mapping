@@ -174,7 +174,7 @@ function TableView({ results, selectedIds, onSelectionChange }: { results: Match
                 {r.decision === "pending" && <Badge tone="yellow">Pending</Badge>}
               </td>
               <td className="px-3 py-4 align-top">
-                <div className="text-sm font-semibold">{r.overall_score}</div>
+                <div className="text-sm font-semibold">{Math.round(r.overall_score)}</div>
               </td>
               <td className="px-3 py-4 align-top">
                 <div className="text-sm">
@@ -317,7 +317,7 @@ function CardView({ results, selectedIds, onSelectionChange, onApprove, onReject
                 </div>
               </div>
               <div className="text-sm">
-                Score <span className="font-semibold">{r.overall_score}</span>
+                Score <span className="font-semibold">{Math.round(r.overall_score)}</span>
               </div>
               <div className="text-sm">
                 AI-score: {r.ai_confidence !== null && r.ai_confidence !== undefined ? (
