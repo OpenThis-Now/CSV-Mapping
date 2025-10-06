@@ -56,12 +56,18 @@ def process_single_pdf_with_ai(pdf_path: Path, api_key_index: int = 0) -> Dict[s
 
 def process_pdf_files_parallel(pdf_paths: List[Path], max_workers: int = 10) -> List[Dict[str, Any]]:
     """Process multiple PDF files in parallel using multiple API keys"""
-    log.info(f"Starting parallel processing of {len(pdf_paths)} PDF files with {max_workers} workers")
+    # Get available API keys and optimize workers
+    available_keys = get_available_api_keys()
+    if available_keys < max_workers:
+        # Use more workers per API key for better throughput
+        max_workers = min(available_keys * 5, len(pdf_paths), 50)  # Up to 5 workers per API key
+    
+    log.info(f"Starting parallel processing of {len(pdf_paths)} PDF files with {max_workers} workers using {available_keys} API keys")
     
     # Create tasks with round-robin API key assignment
     tasks = []
     for i, pdf_path in enumerate(pdf_paths):
-        api_key_index = i % max_workers  # Distribute across available API keys
+        api_key_index = i % available_keys  # Distribute across available API keys
         tasks.append((pdf_path, api_key_index))
     
     # Process in parallel using ThreadPoolExecutor
@@ -164,15 +170,15 @@ def get_available_api_keys() -> int:
     
     api_keys = [
         settings.OPENAI_API_KEY,
-        getattr(settings, 'OPENAI_API_KEY_2', None),
-        getattr(settings, 'OPENAI_API_KEY_3', None),
-        getattr(settings, 'OPENAI_API_KEY_4', None),
-        getattr(settings, 'OPENAI_API_KEY_5', None),
-        getattr(settings, 'OPENAI_API_KEY_6', None),
-        getattr(settings, 'OPENAI_API_KEY_7', None),
-        getattr(settings, 'OPENAI_API_KEY_8', None),
-        getattr(settings, 'OPENAI_API_KEY_9', None),
-        getattr(settings, 'OPENAI_API_KEY_10', None),
+        getattr(settings, 'OPENAI_API_KEY2', None),
+        getattr(settings, 'OPENAI_API_KEY3', None),
+        getattr(settings, 'OPENAI_API_KEY4', None),
+        getattr(settings, 'OPENAI_API_KEY5', None),
+        getattr(settings, 'OPENAI_API_KEY6', None),
+        getattr(settings, 'OPENAI_API_KEY7', None),
+        getattr(settings, 'OPENAI_API_KEY8', None),
+        getattr(settings, 'OPENAI_API_KEY9', None),
+        getattr(settings, 'OPENAI_API_KEY10', None),
     ]
     
     available_keys = [key for key in api_keys if key]
@@ -187,7 +193,8 @@ def process_pdf_files_optimized(pdf_paths: List[Path]) -> List[Dict[str, Any]]:
         raise RuntimeError("No API keys available")
     
     # Use parallel processing with available API keys
-    max_workers = min(available_keys, len(pdf_paths), 10)  # Cap at 10 workers
+    # With 10 API keys, use up to 5 workers per key for better throughput
+    max_workers = min(available_keys * 5, len(pdf_paths), 50)  # Up to 50 workers total
     
     log.info(f"Processing {len(pdf_paths)} PDFs with {max_workers} workers using {available_keys} API keys")
     
