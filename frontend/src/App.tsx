@@ -80,7 +80,34 @@ function AppContent() {
     <div className="min-h-screen">
       <header className="sticky top-0 z-20 bg-white border-b">
         <div className="max-w-6xl mx-auto flex items-center gap-3 p-3">
-          <div className="text-xl font-semibold">Mapping Bridge</div>
+          <div className="flex items-center gap-3">
+            {/* Bridge Icon */}
+            <svg 
+              width="32" 
+              height="24" 
+              viewBox="0 0 32 24" 
+              className="text-gray-600"
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth="2" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+            >
+              {/* Bridge supports */}
+              <line x1="8" y1="8" x2="8" y2="16" />
+              <line x1="24" y1="8" x2="24" y2="16" />
+              {/* Bridge arch */}
+              <path d="M8 8 Q16 4 24 8" />
+              {/* Bridge deck */}
+              <line x1="8" y1="16" x2="24" y2="16" />
+            </svg>
+            
+            {/* Text */}
+            <div className="flex flex-col">
+              <div className="text-lg font-medium text-gray-700 leading-none">Mapping</div>
+              <div className="text-lg font-medium text-gray-700 leading-none">Bridge</div>
+            </div>
+          </div>
           <nav className="ml-6 flex gap-2">
             <button 
               className={`chip ${view === "projects" ? "bg-blue-100 border-blue-300 text-blue-800" : ""}`}
