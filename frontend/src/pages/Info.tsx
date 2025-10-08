@@ -5,49 +5,52 @@ export default function InfoPage() {
   const [tab, setTab] = useState("input");
 
   const inputRequired = [
-    "Product_name - Product name",
-    "Supplier_name - Supplier name",
-    "Article_number - Art.no",
-    "Market - Market/Region",
-    "Language - Language",
+    "Product_name - Product name (required)",
+    "Supplier_name - Supplier name (required)", 
+    "Article_number - Article number/SKU (required)",
+    "Market - Market/Region (required)",
+    "Language - Language (required)",
   ];
   const inputOptional = [
-    "Location_ID - Location ID",
-    "Product_ID - Product ID",
-    "Description - Description",
-    "SDS-URL - URL to PDF safety data sheet",
+    "Location_ID - Location ID (optional)",
+    "Product_ID - Product ID (optional)",
+    "Description - Description (optional)",
+    "SDS-URL - URL to PDF safety data sheet (optional)",
   ];
   const inputTemplate = `Product_name;Supplier_name;Article_number;Market;Language;Location_ID;Product_ID;Description;SDS-URL
 THINNER 215;Carboline;05570910001D;Canada;English;LOC001;PROD001;Industrial paint thinner;https://example.com/sds/thinner215.pdf
 MAPEFLOOR FILLER;MAPEI INC.;245633;Canada;English;LOC002;PROD002;Floor filler compound;https://example.com/sds/mapefloor.pdf
-BAR-RUST 235 BLACK;AkzoNobel;HB9903;Canada;English;LOC003;PROD003;Rust protection paint;https://example.com/sds/bar-rust.pdf`;
+BAR-RUST 235 BLACK PART A;AkzoNobel;HB9903;Sweden;Swedish;LOC003;PROD003;Rust protection paint;https://example.com/sds/bar-rust.pdf`;
 
   const dbRequired = [
-    "Product_name - Product name",
-    "Supplier_name - Supplier name",
-    "Article_number - Art.no",
-    "Market - Market/Region",
-    "Language - Language",
+    "Product_name - Product name (required)",
+    "Supplier_name - Supplier name (required)",
+    "Article_number - Article number/SKU (required)",
+    "Market - Market/Region (required)",
+    "Language - Language (required)",
   ];
   const dbOptional = [
-    "Unique_ID - Company ID",
-    "MSDSkey - Safety data sheet",
-    "Revision_date - Revision",
-    "Expire_date - Expired",
-    "Description - Description",
+    "Unique_ID - Company ID (optional)",
+    "MSDSkey - Safety data sheet key (optional)",
+    "Revision_date - Revision date (optional)",
+    "Expire_date - Expiration date (optional)",
+    "Description - Description (optional)",
   ];
   const dbTemplate = `Product_name;Supplier_name;Article_number;Market;Language;Unique_ID;MSDSkey;Revision_date;Expire_date;Description
 THINNER 215;Carboline;05570910001D;Canada;English;12345;26139007;2024-01-15;2025-12-31;Industrial paint thinner
 MAPEFLOOR FILLER NA;MAPEI INC.;245633;Canada;English;12347;26146274;2024-02-01;2026-01-31;Floor filler compound
-BAR-RUST 235 BLACK PART A;AkzoNobel;HB9903;Canada;English;12348;26146498;2024-01-20;2025-06-30;Rust protection paint`;
+BAR-RUST 235 BLACK PART A;AkzoNobel;HB9903;Sweden;Swedish;12348;26146498;2024-01-20;2025-06-30;Rust protection paint`;
 
   const tips = [
     "Use semicolon (;) as separator, not comma (,)",
     "Save as UTF-8 for Nordic characters (å, ä, ö, æ, ø, þ, ð)",
-    "First row should contain column names",
+    "First row should contain column names exactly as shown above",
     "Empty cells are allowed for optional fields",
     "Date format: YYYY-MM-DD (e.g. 2024-01-15)",
     "SDS-URL: Must be direct links to PDF files (http:// or https://)",
+    "Market values: Use 'Canada', 'Sweden', 'Norway', 'Denmark', etc.",
+    "Language values: Use 'English', 'Swedish', 'Norwegian', 'Danish', etc.",
+    "Column names are case-sensitive - use exact names shown above",
     "AI Enhancement: Works best with well-formatted SDS documents",
   ];
 
@@ -233,6 +236,23 @@ BAR-RUST 235 BLACK PART A;AkzoNobel;HB9903;Canada;English;12348;26146498;2024-01
                 <ul className="mt-2 list-disc pl-5 space-y-1 text-sm text-slate-800">
                   {tips.map((t) => (<li key={t}>{t}</li>))}
                 </ul>
+              </div>
+            </section>
+
+            <section className="mt-6" aria-label="Troubleshooting">
+              <div className="rounded-2xl border border-red-200 bg-red-50 p-4 md:p-5 shadow-sm">
+                <h4 className="text-sm font-semibold text-slate-900">Troubleshooting: "Not on market & language" errors</h4>
+                <div className="mt-2 text-sm text-slate-800">
+                  <p className="mb-2">If you see "Not on market & language" errors, check these common issues:</p>
+                  <ul className="list-disc pl-5 space-y-1">
+                    <li><strong>Column names:</strong> Must match exactly (case-sensitive): Product_name, Supplier_name, Article_number, Market, Language</li>
+                    <li><strong>Market values:</strong> Use exact values like "Canada", "Sweden", "Norway" (not "CA", "SE", "NO")</li>
+                    <li><strong>Language values:</strong> Use exact values like "English", "Swedish", "Norwegian" (not "EN", "SV", "NO")</li>
+                    <li><strong>Mixed databases:</strong> If your database contains multiple markets, ensure each customer row has the correct market/language</li>
+                    <li><strong>UTF-8 encoding:</strong> Save files as UTF-8 to avoid character encoding issues</li>
+                    <li><strong>Separator:</strong> Use semicolon (;) not comma (,) as separator</li>
+                  </ul>
+                </div>
               </div>
             </section>
           </>
