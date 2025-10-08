@@ -80,8 +80,11 @@ def _process_urls_in_background_optimized(project_id: int, import_id: int, enhan
         session.commit()
         
         # Process URLs in batches to update progress
-        # Use larger batches for better parallelization
-        batch_size = min(20, len(urls_to_process))  # Process up to 20 URLs at a time
+        # Use batch size that matches parallel processing capacity
+        from ..services.parallel_url_processor import get_available_api_keys
+        available_keys = get_available_api_keys()
+        max_workers = min(available_keys * 3, 30)  # Same logic as parallel processor
+        batch_size = min(max_workers, len(urls_to_process))  # Process up to max_workers URLs at a time
         pdf_data_results = []
         
         for i in range(0, len(urls_to_process), batch_size):
@@ -331,7 +334,20 @@ def get_url_enhancement_status(project_id: int, session: Session = Depends(get_s
     
     # Calculate stats
     queued = max(0, enhancement_run.total_urls - enhancement_run.processed_urls)
-    processing = 1 if enhancement_run.processed_urls < enhancement_run.total_urls and enhancement_run.status == "running" else 0
+    
+    # Calculate actual processing count based on parallel processing
+    if enhancement_run.processed_urls < enhancement_run.total_urls and enhancement_run.status == "running":
+        # Calculate how many are currently being processed in parallel
+        # Based on the parallel processor logic: up to 10 workers, or 3 per API key
+        from ..services.parallel_url_processor import get_available_api_keys
+        available_keys = get_available_api_keys()
+        max_workers = min(available_keys * 3, 30)  # Same logic as in parallel_url_processor.py
+        
+        # Estimate current processing: min of remaining URLs and max workers
+        remaining_urls = enhancement_run.total_urls - enhancement_run.processed_urls
+        processing = min(remaining_urls, max_workers)
+    else:
+        processing = 0
     
     return {
         "has_active_enhancement": True,
