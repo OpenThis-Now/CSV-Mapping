@@ -421,7 +421,7 @@ def get_ai_suggestions(project_id: int, session: Session = Depends(get_session))
         return []
     
     # Get customer row indices that have already been decided
-    # This includes all AI-related decisions: manual approval/rejection, auto-approval
+    # This includes all AI-related decisions: manual approval/rejection, auto-approval, and regular rejected
     completed_row_indices = session.exec(
         select(MatchResult.customer_row_index)
         .where(MatchResult.match_run_id == latest_run.id)
@@ -429,7 +429,9 @@ def get_ai_suggestions(project_id: int, session: Session = Depends(get_session))
             # Either has AI status set (manual decisions)
             MatchResult.ai_status.in_(["approved", "rejected", "auto_approved"]) |
             # Or is AI auto-approved
-            (MatchResult.decision == "ai_auto_approved")
+            (MatchResult.decision == "ai_auto_approved") |
+            # Or is manually rejected
+            (MatchResult.decision == "rejected")
         )
     ).all()
     
@@ -458,6 +460,7 @@ def get_ai_suggestions(project_id: int, session: Session = Depends(get_session))
     log.info(f"Found {len(existing_suggestions)} existing suggestions")
     log.info(f"Found {len(sent_to_ai_results)} sent_to_ai results")
     log.info(f"Found {len(completed_row_indices)} completed row indices")
+    log.info(f"Completed row indices: {completed_row_indices}")
     
     # Convert MatchResults to AiSuggestionItem format for display
     match_result_suggestions = []
