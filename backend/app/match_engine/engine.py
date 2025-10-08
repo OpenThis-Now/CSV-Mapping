@@ -109,34 +109,6 @@ def run_match(customer_csv: Path, db_csv: Path, customer_mapping: dict[str, str]
         print(f"DEBUG: Customer columns: {list(customer_df.columns)}")
     
     db_records = db_df.to_dict(orient="records")
-    
-    # Sort database records to prioritize matching market/language
-    # This helps when database contains multiple markets
-    def sort_key(record):
-        market = record.get(db_mapping.get("market", "Market"), "").strip()
-        language = record.get(db_mapping.get("language", "Language"), "").strip()
-        # Prioritize records that match customer market/language
-        return (market, language)
-    
-    # Get customer market/language for comparison
-    if customer_df.shape[0] > 0:
-        first_customer = customer_df.iloc[0].to_dict()
-        customer_market = first_customer.get(customer_mapping.get("market", "Market"), "").strip()
-        customer_language = first_customer.get(customer_mapping.get("language", "Language"), "").strip()
-        
-        # Sort to put matching market/language first
-        db_records.sort(key=lambda r: (
-            r.get(db_mapping.get("market", "Market"), "").strip() != customer_market,
-            r.get(db_mapping.get("language", "Language"), "").strip() != customer_language
-        ))
-        
-        print(f"DEBUG: Sorted database records to prioritize market='{customer_market}', language='{customer_language}'")
-        print(f"DEBUG: First few database records after sorting:")
-        for i, record in enumerate(db_records[:3]):
-            market = record.get(db_mapping.get("market", "Market"), "").strip()
-            language = record.get(db_mapping.get("language", "Language"), "").strip()
-            product = record.get(db_mapping.get("product", "Product_name"), "").strip()
-            print(f"  {i}: {product} (Market: {market}, Language: {language})")
 
     for idx, crow in enumerate(customer_df.to_dict(orient="records")):
         if limit is not None and idx >= limit:
@@ -145,12 +117,23 @@ def run_match(customer_csv: Path, db_csv: Path, customer_mapping: dict[str, str]
         best_db = None
         best_score = -1
         
+        # Get current customer's market/language
+        current_customer_market = crow.get(customer_mapping.get("market", "Market"), "").strip()
+        current_customer_language = crow.get(customer_mapping.get("language", "Language"), "").strip()
+        
+        # Sort database records to prioritize matching market/language for THIS customer row
+        db_records_sorted = sorted(db_records, key=lambda r: (
+            r.get(db_mapping.get("market", "Market"), "").strip() != current_customer_market,
+            r.get(db_mapping.get("language", "Language"), "").strip() != current_customer_language
+        ))
+        
         # Debug: Log customer row data
         print(f"Processing customer row {idx}: {crow}")
+        print(f"DEBUG: Customer market/language: '{current_customer_market}' / '{current_customer_language}'")
         print(f"DEBUG: Starting scoring loop for customer row {idx}")
         
-        print(f"DEBUG: About to compare against {len(db_records)} database records")
-        for db_idx, db_row in enumerate(db_records):
+        print(f"DEBUG: About to compare against {len(db_records_sorted)} database records")
+        for db_idx, db_row in enumerate(db_records_sorted):
             try:
                 meta = score_pair(crow, db_row, customer_mapping, db_mapping, thresholds)
                 print(f"DEBUG: Scored DB product {db_idx}: score={meta['overall']}")
