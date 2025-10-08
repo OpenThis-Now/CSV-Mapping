@@ -66,10 +66,14 @@ def run_match(customer_csv: Path, db_csv: Path, customer_mapping: dict[str, str]
     # Use database mapping if provided, otherwise auto-map
     if db_mapping is None:
         db_mapping = auto_map_headers(db_df.columns)
+        print(f"DEBUG: Auto-mapped database headers: {db_mapping}")
+        print(f"DEBUG: Database columns: {list(db_df.columns)}")
     
     # Use customer mapping if provided, otherwise auto-map
     if customer_mapping is None:
         customer_mapping = auto_map_headers(customer_df.columns)
+        print(f"DEBUG: Auto-mapped customer headers: {customer_mapping}")
+        print(f"DEBUG: Customer columns: {list(customer_df.columns)}")
     
     db_records = db_df.to_dict(orient="records")
 
@@ -92,6 +96,12 @@ def run_match(customer_csv: Path, db_csv: Path, customer_mapping: dict[str, str]
                 product_field = db_mapping.get("product", "Product_name")
                 vendor_field = db_mapping.get("vendor", "Supplier_name")
                 print(f"  New best match (score {best_score}): {db_row.get(product_field, 'N/A')} from {db_row.get(vendor_field, 'N/A')}")
+            
+            # Debug: Show first few database products being compared
+            if db_idx < 3:
+                product_field = db_mapping.get("product", "Product_name")
+                vendor_field = db_mapping.get("vendor", "Supplier_name")
+                print(f"  DB product {db_idx}: {db_row.get(product_field, 'N/A')} from {db_row.get(vendor_field, 'N/A')} (score: {meta['overall']})")
         
         assert best_meta is not None and best_db is not None
         # Use mapped field names for display
