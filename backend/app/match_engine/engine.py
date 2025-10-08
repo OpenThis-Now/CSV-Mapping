@@ -81,6 +81,15 @@ def run_match(customer_csv: Path, db_csv: Path, customer_mapping: dict[str, str]
         except Exception as e:
             raise Exception(f"Kunde inte läsa kundfilen: {str(e)}")
     
+    # Strip BOM (Byte Order Mark) from column names if present
+    if used_encoding and 'utf-8' in used_encoding:
+        db_df.columns = [col.lstrip('\ufeff') if col.startswith('\ufeff') else col for col in db_df.columns]
+        print(f"DEBUG: Stripped BOM from database columns")
+    
+    if customer_used_encoding and 'utf-8' in customer_used_encoding:
+        customer_df.columns = [col.lstrip('\ufeff') if col.startswith('\ufeff') else col for col in customer_df.columns]
+        print(f"DEBUG: Stripped BOM from customer columns")
+    
     # Debug: Show what columns were actually read
     print(f"DEBUG: Database CSV columns ({used_encoding}): {list(db_df.columns)}")
     print(f"DEBUG: Customer CSV columns ({customer_used_encoding}): {list(customer_df.columns)}")
