@@ -16,6 +16,7 @@ def run_match(customer_csv: Path, db_csv: Path, customer_mapping: dict[str, str]
     # Detect separators
     db_separator = detect_csv_separator(db_csv)
     customer_separator = detect_csv_separator(customer_csv)
+    print(f"DEBUG: Detected separators - Database: '{db_separator}', Customer: '{customer_separator}'")
     
     # Read CSV with error handling for inconsistent columns and encoding
     db_df = None
@@ -113,6 +114,10 @@ def run_match(customer_csv: Path, db_csv: Path, customer_mapping: dict[str, str]
     print(f"DEBUG: Customer CSV columns ({customer_used_encoding}): {list(customer_df.columns)}")
     print(f"DEBUG: Database CSV shape: {db_df.shape}")
     print(f"DEBUG: Customer CSV shape: {customer_df.shape}")
+    
+    # Debug: Show first few rows of data to see what's actually read
+    print(f"DEBUG: First database row: {db_df.iloc[0].to_dict() if len(db_df) > 0 else 'No data'}")
+    print(f"DEBUG: First customer row: {customer_df.iloc[0].to_dict() if len(customer_df) > 0 else 'No data'}")
 
     # Use database mapping if provided, otherwise auto-map
     if db_mapping is None:
@@ -143,6 +148,7 @@ def run_match(customer_csv: Path, db_csv: Path, customer_mapping: dict[str, str]
         customer_language = first_customer.get(customer_mapping.get("language", "Language"), "").strip()
         
         # Sort to put matching market/language first
+        # True = mismatch (comes later), False = match (comes first)
         db_records.sort(key=lambda r: (
             r.get(db_mapping.get("market", "Market"), "").strip() != customer_market,
             r.get(db_mapping.get("language", "Language"), "").strip() != customer_language
@@ -150,11 +156,18 @@ def run_match(customer_csv: Path, db_csv: Path, customer_mapping: dict[str, str]
         
         print(f"DEBUG: Sorted database records to prioritize market='{customer_market}', language='{customer_language}'")
         print(f"DEBUG: First few database records after sorting:")
-        for i, record in enumerate(db_records[:3]):
+        for i, record in enumerate(db_records[:5]):
             market = record.get(db_mapping.get("market", "Market"), "").strip()
             language = record.get(db_mapping.get("language", "Language"), "").strip()
             product = record.get(db_mapping.get("product", "Product_name"), "").strip()
-            print(f"  {i}: {product} (Market: {market}, Language: {language})")
+            vendor = record.get(db_mapping.get("vendor", "Supplier_name"), "").strip()
+            print(f"  {i}: {product} from {vendor} (Market: {market}, Language: {language})")
+        
+        # Count how many records match customer market/language
+        matching_records = [r for r in db_records if 
+                           r.get(db_mapping.get("market", "Market"), "").strip() == customer_market and
+                           r.get(db_mapping.get("language", "Language"), "").strip() == customer_language]
+        print(f"DEBUG: Found {len(matching_records)} records matching market='{customer_market}', language='{customer_language}' out of {len(db_records)} total")
 
     for idx, crow in enumerate(customer_df.to_dict(orient="records")):
         if limit is not None and idx >= limit:
