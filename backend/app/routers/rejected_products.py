@@ -141,10 +141,19 @@ def get_rejected_products(project_id: int, session: Session = Depends(get_sessio
         
         if not existing_data:
             # Create new RejectedProductData entry
+            # Create RejectedProductData with auto-determined status
+            temp_product = RejectedProductData(
+                project_id=project_id,
+                match_result_id=result.id,
+                company_id=None,
+                pdf_filename=None
+            )
+            status = update_product_status_based_on_data(temp_product)
+            
             existing_data = RejectedProductData(
                 project_id=project_id,
                 match_result_id=result.id,
-                status="needs_data"
+                status=status
             )
             session.add(existing_data)
             session.commit()

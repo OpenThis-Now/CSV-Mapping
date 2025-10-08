@@ -12,6 +12,7 @@ from rapidfuzz import fuzz
 from ..config import settings
 from ..db import get_session
 from ..models import Project, SupplierData, MatchResult, RejectedProductData
+from .rejected_products import update_product_status_based_on_data
 from ..services.files import check_upload, compute_hash_and_save, open_text_stream, detect_csv_separator
 from ..services.mapping import auto_map_headers
 
@@ -540,10 +541,19 @@ def apply_supplier_matches(project_id: int, session: Session = Depends(get_sessi
                 ).first()
                 
                 if not existing_data:
+                    # Create RejectedProductData with auto-determined status
+                    temp_product = RejectedProductData(
+                        project_id=project_id,
+                        match_result_id=result.id,
+                        company_id=None,
+                        pdf_filename=None
+                    )
+                    status = update_product_status_based_on_data(temp_product)
+                    
                     existing_data = RejectedProductData(
                         project_id=project_id,
                         match_result_id=result.id,
-                        status="needs_data"
+                        status=status
                     )
                     session.add(existing_data)
                 
