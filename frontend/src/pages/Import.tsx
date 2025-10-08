@@ -64,7 +64,7 @@ export default function ImportPage({ projectId, onImportChange }: { projectId: n
   const checkUrlEnhancementStatus = async () => {
     try {
       const res = await api.get(`/projects/${projectId}/url-enhancement/status`);
-      console.log("URL enhancement status:", res.data);
+      // console.log("URL enhancement status:", res.data);
       
       if (res.data.has_active_enhancement) {
         setUrlEnhancementStatus(res.data);
@@ -218,10 +218,10 @@ export default function ImportPage({ projectId, onImportChange }: { projectId: n
       // If already selected, deselect it (set to null), otherwise select it
       const newImportId = isCurrentlySelected ? null : importId;
       
-      console.log("Import.tsx: Toggling import:", { projectId, importId, newImportId, currentProject: project });
+      // console.log("Import.tsx: Toggling import:", { projectId, importId, newImportId, currentProject: project });
       
       const response = await api.patch(`/projects/${projectId}`, { active_import_id: newImportId });
-      console.log("Import.tsx: PATCH response:", response.data);
+      // console.log("Import.tsx: PATCH response:", response.data);
       
       await refreshProject();
       

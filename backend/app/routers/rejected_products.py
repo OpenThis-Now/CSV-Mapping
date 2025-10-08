@@ -38,16 +38,16 @@ def update_product_status_based_on_data(product: RejectedProductData) -> str:
 
 def auto_link_pdf_from_import(product: RejectedProductData, session: Session) -> bool:
     """Try to automatically link a PDF from customer import based on product name"""
-    print(f"DEBUG: auto_link_pdf_from_import called for product {product.id}")
+    # print(f"DEBUG: auto_link_pdf_from_import called for product {product.id}")
     
     if product.pdf_filename:  # Already has a PDF
-        print(f"DEBUG: Product {product.id} already has PDF: {product.pdf_filename}")
+        # print(f"DEBUG: Product {product.id} already has PDF: {product.pdf_filename}")
         return False
     
     # Get the match result to find product name
     match_result = session.get(MatchResult, product.match_result_id)
     if not match_result:
-        print(f"DEBUG: No match result found for product {product.id}")
+        # print(f"DEBUG: No match result found for product {product.id}")
         return False
     
     # Extract product name from customer fields
@@ -60,10 +60,10 @@ def auto_link_pdf_from_import(product: RejectedProductData, session: Session) ->
         ""
     )
     
-    print(f"DEBUG: Extracted product name: '{product_name}'")
+    # print(f"DEBUG: Extracted product name: '{product_name}'")
     
     if not product_name:
-        print(f"DEBUG: No product name found for product {product.id}")
+        # print(f"DEBUG: No product name found for product {product.id}")
         return False
     
     # Find matching PDF in ImportedPdf table
@@ -71,27 +71,27 @@ def auto_link_pdf_from_import(product: RejectedProductData, session: Session) ->
         select(ImportedPdf).where(ImportedPdf.project_id == product.project_id)
     ).all()
     
-    print(f"DEBUG: Found {len(imported_pdfs)} imported PDFs for project {product.project_id}")
+    # print(f"DEBUG: Found {len(imported_pdfs)} imported PDFs for project {product.project_id}")
     
     best_match = None
     best_score = 0
     
     for imported_pdf in imported_pdfs:
-        print(f"DEBUG: Checking imported PDF: '{imported_pdf.product_name}' vs '{product_name}'")
+        # print(f"DEBUG: Checking imported PDF: '{imported_pdf.product_name}' vs '{product_name}'")
         if not imported_pdf.product_name:
-            print(f"DEBUG: Skipping PDF with no product name")
+            # print(f"DEBUG: Skipping PDF with no product name")
             continue
         
         # Calculate similarity between product names
         similarity = fuzz.ratio(product_name.lower(), imported_pdf.product_name.lower())
-        print(f"DEBUG: Similarity: {similarity}")
+        # print(f"DEBUG: Similarity: {similarity}")
         if similarity > best_score and similarity >= 80:  # Minimum 80% similarity
             best_match = imported_pdf
             best_score = similarity
-            print(f"DEBUG: New best match: {imported_pdf.product_name} (score: {similarity})")
+            # print(f"DEBUG: New best match: {imported_pdf.product_name} (score: {similarity})")
     
     if best_match:
-        print(f"DEBUG: Found best match: {best_match.product_name} (score: {best_score})")
+        # print(f"DEBUG: Found best match: {best_match.product_name} (score: {best_score})")
         # Link the PDF
         product.pdf_filename = best_match.stored_filename
         product.pdf_source = "customer_import"
@@ -158,7 +158,7 @@ def get_rejected_products(project_id: int, session: Session = Depends(get_sessio
         # Auto-update status based on available data
         new_status = update_product_status_based_on_data(existing_data)
         if existing_data.status != new_status:
-            print(f"DEBUG: Updating product {existing_data.id} status from '{existing_data.status}' to '{new_status}'")
+            # print(f"DEBUG: Updating product {existing_data.id} status from '{existing_data.status}' to '{new_status}'")
             existing_data.status = new_status
             session.add(existing_data)
         
@@ -172,7 +172,7 @@ def get_rejected_products(project_id: int, session: Session = Depends(get_sessio
                 session.commit()
         
         # Debug logging
-        print(f"DEBUG: MatchResult {result.id} customer_fields_json: {result.customer_fields_json}")
+        # print(f"DEBUG: MatchResult {result.id} customer_fields_json: {result.customer_fields_json}")
         
         # Try different field names for product name (case sensitive!)
         product_name = (
@@ -205,7 +205,7 @@ def get_rejected_products(project_id: int, session: Session = Depends(get_sessio
             ""
         )
         
-        print(f"DEBUG: Extracted - product_name: '{product_name}', supplier: '{supplier}', article_number: '{article_number}'")
+        # print(f"DEBUG: Extracted - product_name: '{product_name}', supplier: '{supplier}', article_number: '{article_number}'")
         
         products.append({
             "id": existing_data.id,
@@ -242,20 +242,20 @@ def _auto_match_company_id(match_result: MatchResult, session: Session) -> Optio
     )
     
     if not supplier_name:
-        print(f"DEBUG: No supplier name found for auto-matching")
+        # print(f"DEBUG: No supplier name found for auto-matching")
         return None
     
-    print(f"DEBUG: Trying to auto-match supplier: '{supplier_name}'")
+    # print(f"DEBUG: Trying to auto-match supplier: '{supplier_name}'")
     
     # Get the active database for this project
     try:
         # Get database file path (this is a simplified approach)
         db_files = list(Path(settings.STORAGE_ROOT).glob("databases/*.csv"))
         if not db_files:
-            print(f"DEBUG: No database files found in {settings.STORAGE_ROOT}/databases/")
+            # print(f"DEBUG: No database files found in {settings.STORAGE_ROOT}/databases/")
             return None
         
-        print(f"DEBUG: Found {len(db_files)} database files: {[f.name for f in db_files]}")
+        # print(f"DEBUG: Found {len(db_files)} database files: {[f.name for f in db_files]}")
         
         # Try to find matching supplier in database
         for db_file in db_files:
@@ -266,7 +266,7 @@ def _auto_match_company_id(match_result: MatchResult, session: Session) -> Optio
                     # Show available fields in first row
                     first_row = next(reader, None)
                     if first_row:
-                        print(f"DEBUG: Available fields in {db_file.name}: {list(first_row.keys())}")
+                        # print(f"DEBUG: Available fields in {db_file.name}: {list(first_row.keys())}")
                         # Reset reader to start
                         f.seek(0)
                         reader = csv.DictReader(f, delimiter=separator)
@@ -286,14 +286,14 @@ def _auto_match_company_id(match_result: MatchResult, session: Session) -> Optio
                             supplier_lower = supplier_name.lower().strip()
                             db_supplier_lower = db_supplier.lower().strip()
                             
-                            print(f"DEBUG: Comparing '{supplier_name}' vs '{db_supplier}'")
-                            print(f"DEBUG: supplier_lower='{supplier_lower}', db_supplier_lower='{db_supplier_lower}'")
+                            # print(f"DEBUG: Comparing '{supplier_name}' vs '{db_supplier}'")
+                            # print(f"DEBUG: supplier_lower='{supplier_lower}', db_supplier_lower='{db_supplier_lower}'")
                             
                             # Check if supplier name is contained in database supplier name
                             # e.g., "Carboline" should match "Carboline Canada" or "Carboline lalala"
                             if supplier_lower in db_supplier_lower:
-                                print(f"DEBUG: Found exact match! '{supplier_name}' is contained in '{db_supplier}'")
-                                print(f"DEBUG: supplier_lower='{supplier_lower}', db_supplier_lower='{db_supplier_lower}'")
+                                # print(f"DEBUG: Found exact match! '{supplier_name}' is contained in '{db_supplier}'")
+                                # print(f"DEBUG: supplier_lower='{supplier_lower}', db_supplier_lower='{db_supplier_lower}'")
                                 # Found a match, return company ID if available
                                 # Try different field names for company ID
                                 company_id = (
@@ -302,16 +302,16 @@ def _auto_match_company_id(match_result: MatchResult, session: Session) -> Optio
                                     row.get("Company_ID", "").strip() or
                                     row.get("CompanyID", "").strip()
                                 )
-                                print(f"DEBUG: Company ID: '{company_id}'")
+                                # print(f"DEBUG: Company ID: '{company_id}'")
                                 return company_id
             except Exception as e:
-                print(f"DEBUG: Error reading database file {db_file}: {e}")
+                # print(f"DEBUG: Error reading database file {db_file}: {e}")
                 continue
     except Exception as e:
-        print(f"DEBUG: Error in auto-match: {e}")
+        # print(f"DEBUG: Error in auto-match: {e}")
         pass
     
-    print(f"DEBUG: No match found for supplier: '{supplier_name}'")
+    # print(f"DEBUG: No match found for supplier: '{supplier_name}'")
     return None
 
 
@@ -674,12 +674,12 @@ def export_worklist_products(project_id: int, session: Session = Depends(get_ses
     zip_filename = f"worklist_pdfs_{timestamp}.zip"
     zip_path = export_dir / zip_filename
     
-    print(f"DEBUG: Creating ZIP file at: {zip_path}")
+    # print(f"DEBUG: Creating ZIP file at: {zip_path}")
     
     with zipfile.ZipFile(zip_path, 'w') as zip_file:
         # Add CSV to ZIP
         zip_file.write(csv_path, csv_filename)
-        print(f"DEBUG: Added CSV file: {csv_filename}")
+        # print(f"DEBUG: Added CSV file: {csv_filename}")
         
         # Add PDFs to ZIP
         pdf_count = 0
@@ -689,14 +689,14 @@ def export_worklist_products(project_id: int, session: Session = Depends(get_ses
                 if pdf_path.exists():
                     zip_file.write(pdf_path, product.pdf_filename)
                     pdf_count += 1
-                    print(f"DEBUG: Added PDF: {product.pdf_filename}")
+                    # print(f"DEBUG: Added PDF: {product.pdf_filename}")
                 else:
-                    print(f"WARNING: PDF file not found: {pdf_path}")
+                    # print(f"WARNING: PDF file not found: {pdf_path}")
         
-        print(f"DEBUG: Added {pdf_count} PDFs to ZIP file")
+        # print(f"DEBUG: Added {pdf_count} PDFs to ZIP file")
     
-    print(f"DEBUG: ZIP file created successfully: {zip_path}")
-    print(f"DEBUG: ZIP file size: {zip_path.stat().st_size} bytes")
+    # print(f"DEBUG: ZIP file created successfully: {zip_path}")
+    # print(f"DEBUG: ZIP file size: {zip_path.stat().st_size} bytes")
     
     # Create export record
     export_record = RejectedExport(
@@ -733,19 +733,19 @@ def link_pdfs_from_customer_import(project_id: int, session: Session = Depends(g
         )
     ).all()
     
-    print(f"DEBUG: Found {len(rejected_products)} products without PDFs to check for linking")
+    # print(f"DEBUG: Found {len(rejected_products)} products without PDFs to check for linking")
     
     linked_count = 0
     for product in rejected_products:
-        print(f"DEBUG: Checking product {product.id} for PDF linking")
+        # print(f"DEBUG: Checking product {product.id} for PDF linking")
         if auto_link_pdf_from_import(product, session):
-            print(f"DEBUG: Successfully linked PDF for product {product.id}")
+            # print(f"DEBUG: Successfully linked PDF for product {product.id}")
             # Auto-update status based on available data after linking PDF
             product.status = update_product_status_based_on_data(product)
             session.add(product)
             linked_count += 1
         else:
-            print(f"DEBUG: No PDF found to link for product {product.id}")
+            # print(f"DEBUG: No PDF found to link for product {product.id}")
     
     session.commit()
     
@@ -770,14 +770,14 @@ def download_export_file(
     # Create file path
     file_path = Path(settings.STORAGE_ROOT) / "rejected_exports" / f"project_{project_id}" / filename
     
-    print(f"DEBUG: Download request for file: {file_path}")
-    print(f"DEBUG: File exists: {file_path.exists()}")
+    # print(f"DEBUG: Download request for file: {file_path}")
+    # print(f"DEBUG: File exists: {file_path.exists()}")
     
     if not file_path.exists():
-        print(f"DEBUG: File not found: {file_path}")
+        # print(f"DEBUG: File not found: {file_path}")
         raise HTTPException(status_code=404, detail="Fil saknas.")
     
-    print(f"DEBUG: File size: {file_path.stat().st_size} bytes")
+    # print(f"DEBUG: File size: {file_path.stat().st_size} bytes")
     
     from fastapi.responses import FileResponse
     return FileResponse(

@@ -16,10 +16,10 @@ def extract_pdf_text(pdf_path: Path, max_pages: int = 3) -> Optional[str]:
     # Try PyMuPDF first
     try:
         import fitz
-        print(f"Using PyMuPDF for {pdf_path}")
+        # print(f"Using PyMuPDF for {pdf_path}")
         doc = fitz.open(pdf_path)
         if len(doc) == 0:
-            print(f"PDF {pdf_path} is empty")
+            # print(f"PDF {pdf_path} is empty")
             return None
             
         text = ""
@@ -32,20 +32,20 @@ def extract_pdf_text(pdf_path: Path, max_pages: int = 3) -> Optional[str]:
         doc.close()
         result = text.strip() if text.strip() else None
         if result:
-            print(f"PyMuPDF: Successfully extracted {len(result)} characters from PDF {pdf_path}")
+            # print(f"PyMuPDF: Successfully extracted {len(result)} characters from PDF {pdf_path}")
             return result
         else:
-            print(f"PyMuPDF: No text found in PDF {pdf_path}")
+            # print(f"PyMuPDF: No text found in PDF {pdf_path}")
             
     except ImportError as e:
-        print(f"PyMuPDF not available: {e}")
+        # print(f"PyMuPDF not available: {e}")
     except Exception as e:
-        print(f"PyMuPDF error reading PDF {pdf_path}: {e}")
+        # print(f"PyMuPDF error reading PDF {pdf_path}: {e}")
     
     # Fallback to pdfplumber
     try:
         import pdfplumber
-        print(f"Using pdfplumber for {pdf_path}")
+        # print(f"Using pdfplumber for {pdf_path}")
         text = ""
         with pdfplumber.open(pdf_path) as pdf:
             for page_num in range(min(max_pages, len(pdf.pages))):
@@ -56,17 +56,17 @@ def extract_pdf_text(pdf_path: Path, max_pages: int = 3) -> Optional[str]:
         
         result = text.strip() if text.strip() else None
         if result:
-            print(f"pdfplumber: Successfully extracted {len(result)} characters from PDF {pdf_path}")
+            # print(f"pdfplumber: Successfully extracted {len(result)} characters from PDF {pdf_path}")
             return result
         else:
-            print(f"pdfplumber: No text found in PDF {pdf_path}")
+            # print(f"pdfplumber: No text found in PDF {pdf_path}")
             
     except ImportError as e:
-        print(f"pdfplumber not available: {e}")
+        # print(f"pdfplumber not available: {e}")
     except Exception as e:
-        print(f"pdfplumber error reading PDF {pdf_path}: {e}")
+        # print(f"pdfplumber error reading PDF {pdf_path}: {e}")
     
-    print(f"All PDF extraction methods failed for {pdf_path}")
+    # print(f"All PDF extraction methods failed for {pdf_path}")
     return None
 
 
@@ -198,28 +198,28 @@ PDF TEXT TO ANALYZE:
 def extract_product_info_with_ai(text: str, filename: str, api_key_index: int = 0) -> Dict[str, Any]:
     """Använd AI för att extrahera produktinformation från PDF-text"""
     if not text or len(text.strip()) < 50:
-        print(f"Text too short or empty for {filename}: {len(text) if text else 0} characters")
+        # print(f"Text too short or empty for {filename}: {len(text) if text else 0} characters")
         return create_fallback_entry(filename)
     
     try:
         # Check if we have a valid OpenAI API key
         from ..config import settings
         if not settings.OPENAI_API_KEY or settings.OPENAI_API_KEY == "din_api_nyckel_här":
-            print(f"No valid OpenAI API key found, using fallback extraction for {filename}")
+            # print(f"No valid OpenAI API key found, using fallback extraction for {filename}")
             # Fallback to simple text parsing when no valid API key
             return simple_text_extraction(text, filename)
         
-        print(f"Using AI extraction for {filename} with {len(text)} characters")
+        # print(f"Using AI extraction for {filename} with {len(text)} characters")
         prompt = build_pdf_extraction_prompt(text, filename)
         # Ensure prompt is properly encoded
         prompt = prompt.encode('utf-8').decode('utf-8')
-        print(f"Calling OpenAI API for {filename}...")
+        # print(f"Calling OpenAI API for {filename}...")
         result = suggest_with_openai(prompt, max_items=1, api_key_index=api_key_index)
         
-        print(f"AI API response for {filename}: {result}")
+        # print(f"AI API response for {filename}: {result}")
         
         if result and len(result) > 0:
-            print(f"AI extraction successful for {filename}")
+            # print(f"AI extraction successful for {filename}")
             ai_result = result[0]
             
             # Justera marknad baserat på språk och filename (t.ex. EU + Swedish -> Sweden)
@@ -228,17 +228,17 @@ def extract_product_info_with_ai(text: str, filename: str, api_key_index: int = 
                 language_value = ai_result["language"]["value"]
                 adjusted_market = adjust_market_by_language(market_value, language_value, filename)
                 if adjusted_market != market_value:
-                    print(f"AI: Adjusted market from '{market_value}' to '{adjusted_market}' based on language '{language_value}' and filename '{filename}'")
+                    # print(f"AI: Adjusted market from '{market_value}' to '{adjusted_market}' based on language '{language_value}' and filename '{filename}'")
                     ai_result["authored_market"]["value"] = adjusted_market
             
             return ai_result
         else:
-            print(f"AI extraction returned empty result for {filename}, using fallback extraction")
+            # print(f"AI extraction returned empty result for {filename}, using fallback extraction")
             # Use simple text extraction as fallback instead of creating empty entry
             return simple_text_extraction(text, filename)
             
     except Exception as e:
-        print(f"AI extraction failed for {filename}: {e}")
+        # print(f"AI extraction failed for {filename}: {e}")
         import traceback
         traceback.print_exc()
         # Fallback to simple text parsing
@@ -249,7 +249,7 @@ def simple_text_extraction(text: str, filename: str) -> Dict[str, Any]:
     """Enkel text-extraktion som fallback när AI inte är tillgänglig"""
     import re
     
-    print(f"Using simple text extraction for {filename}")
+    # print(f"Using simple text extraction for {filename}")
     
     # Simple regex patterns for common SDS fields
     product_name = None
@@ -402,7 +402,7 @@ def simple_text_extraction(text: str, filename: str) -> Dict[str, Any]:
     if authored_market and language:
         adjusted_market = adjust_market_by_language(authored_market, language, filename)
         if adjusted_market != authored_market:
-            print(f"Adjusted market from '{authored_market}' to '{adjusted_market}' based on language '{language}' and filename '{filename}'")
+            # print(f"Adjusted market from '{authored_market}' to '{adjusted_market}' based on language '{language}' and filename '{filename}'")
             authored_market = adjusted_market
     
     # Determine extraction status - be more lenient
@@ -413,7 +413,7 @@ def simple_text_extraction(text: str, filename: str) -> Dict[str, Any]:
     if product_name and len(product_name.strip()) > 2:
         status = "success"
     
-    print(f"Simple extraction results for {filename}: product={product_name}, article={article_number}, company={company_name}, market={authored_market}, language={language}, status={status}")
+    # print(f"Simple extraction results for {filename}: product={product_name}, article={article_number}, company={company_name}, market={authored_market}, language={language}, status={status}")
     
     return {
         "product_name": {"value": product_name, "confidence": 0.8 if product_name else 0.0, "evidence": {"snippet": f"Found in text: {product_name or 'not found'}"}},
@@ -558,7 +558,7 @@ def create_csv_from_pdf_data(pdf_data: List[Dict[str, Any]], output_path: Path) 
         "product", "vendor", "sku", "market", "legislation", "language", "filename", "extraction_status"
     ]
     
-    print(f"Creating CSV with {len(pdf_data)} items at {output_path}")
+    # print(f"Creating CSV with {len(pdf_data)} items at {output_path}")
     
     with open(output_path, 'w', newline='', encoding='utf-8') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
@@ -588,10 +588,10 @@ def create_csv_from_pdf_data(pdf_data: List[Dict[str, Any]], output_path: Path) 
             }
             
             # Log each row for debugging
-            print(f"Row {i+1}: {row}")
+            # print(f"Row {i+1}: {row}")
             writer.writerow(row)
     
-    print(f"CSV created successfully with {len(pdf_data)} rows")
+    # print(f"CSV created successfully with {len(pdf_data)} rows")
     return output_path
 
 
@@ -599,42 +599,42 @@ def process_pdf_files(pdf_files: List[Path]) -> List[Dict[str, Any]]:
     """Bearbeta flera PDF-filer och returnera extraherade data"""
     all_products = []
     
-    print(f"Starting to process {len(pdf_files)} PDF files...")
+    # print(f"Starting to process {len(pdf_files)} PDF files...")
     
     for pdf_path in pdf_files:
         filename = pdf_path.name
-        print(f"Processing PDF: {filename}")
+        # print(f"Processing PDF: {filename}")
         
         try:
             # Extrahera text från PDF
             text = extract_pdf_text(pdf_path)
             
             if not text:
-                print(f"No text extracted from {filename} - creating fallback entry")
+                # print(f"No text extracted from {filename} - creating fallback entry")
                 product_info = create_fallback_entry(filename)
             else:
-                print(f"Extracted {len(text)} characters from {filename}")
+                # print(f"Extracted {len(text)} characters from {filename}")
                 # Använd AI för att extrahera produktinformation
                 product_info = extract_product_info_with_ai(text, filename)
             
             all_products.append(product_info)
-            print(f"Processed {filename}: status = {product_info.get('extraction_status', 'unknown')}")
+            # print(f"Processed {filename}: status = {product_info.get('extraction_status', 'unknown')}")
             
             # Log extracted data for debugging
             if product_info.get('extraction_status') == 'success':
-                print(f"Successfully extracted: product={product_info.get('product_name', {}).get('value')}, vendor={product_info.get('company_name', {}).get('value')}, sku={product_info.get('article_number', {}).get('value')}")
+                # print(f"Successfully extracted: product={product_info.get('product_name', {}).get('value')}, vendor={product_info.get('company_name', {}).get('value')}, sku={product_info.get('article_number', {}).get('value')}")
             else:
-                print(f"Extraction failed or partial for {filename}")
+                # print(f"Extraction failed or partial for {filename}")
                 
         except Exception as e:
-            print(f"Error processing {filename}: {e}")
+            # print(f"Error processing {filename}: {e}")
             import traceback
             traceback.print_exc()
             # Create fallback entry for this file
             fallback_info = create_fallback_entry(filename)
             all_products.append(fallback_info)
     
-    print(f"Completed processing {len(pdf_files)} PDF files, got {len(all_products)} results")
+    # print(f"Completed processing {len(pdf_files)} PDF files, got {len(all_products)} results")
     return all_products
 
 
@@ -642,14 +642,14 @@ def extract_pdf_data_with_ai(url: str, api_key_index: int = 0) -> List[Dict[str,
     """Download PDF from URL and extract data using AI."""
     try:
         # Download PDF from URL with shorter timeout and better error handling
-        print(f"Downloading PDF from URL: {url}")
+        # print(f"Downloading PDF from URL: {url}")
         response = requests.get(url, timeout=10, stream=True)
         response.raise_for_status()
         
         # Check if content is actually a PDF
         content_type = response.headers.get('content-type', '').lower()
         if 'pdf' not in content_type and not url.lower().endswith('.pdf'):
-            print(f"URL does not appear to be a PDF (content-type: {content_type}): {url}")
+            # print(f"URL does not appear to be a PDF (content-type: {content_type}): {url}")
             return []
         
         # Create temporary file
@@ -661,13 +661,13 @@ def extract_pdf_data_with_ai(url: str, api_key_index: int = 0) -> List[Dict[str,
             # Extract text from PDF
             text = extract_pdf_text(temp_path)
             if not text:
-                print(f"No text extracted from URL: {url}")
+                # print(f"No text extracted from URL: {url}")
                 return []
             
             # Use AI to extract structured data
             ai_result = extract_product_info_with_ai(text, Path(url).name, api_key_index)
             if not ai_result:
-                print(f"AI extraction failed for URL: {url}")
+                # print(f"AI extraction failed for URL: {url}")
                 return []
             
             # Convert to the expected format
@@ -678,8 +678,8 @@ def extract_pdf_data_with_ai(url: str, api_key_index: int = 0) -> List[Dict[str,
             temp_path.unlink(missing_ok=True)
             
     except requests.RequestException as e:
-        print(f"Error downloading PDF from URL {url}: {str(e)}")
+        # print(f"Error downloading PDF from URL {url}: {str(e)}")
         return []
     except Exception as e:
-        print(f"Error processing PDF from URL {url}: {str(e)}")
+        # print(f"Error processing PDF from URL {url}: {str(e)}")
         return []

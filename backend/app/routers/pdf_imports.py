@@ -59,7 +59,7 @@ def _normalize_column_names(df: pd.DataFrame) -> pd.DataFrame:
     df_normalized = df.copy()
     df_normalized.columns = new_columns
     
-    print(f"Normalized columns: {list(df.columns)} -> {list(df_normalized.columns)}")
+    # print(f"Normalized columns: {list(df.columns)} -> {list(df_normalized.columns)}")
     return df_normalized
 
 
@@ -68,7 +68,7 @@ def _remove_duplicate_columns(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
     
-    print(f"Original columns: {list(df.columns)}")
+    # print(f"Original columns: {list(df.columns)}")
     
     # Find duplicate column names (case-insensitive)
     seen_columns = {}  # lowercase -> original case
@@ -80,7 +80,7 @@ def _remove_duplicate_columns(df: pd.DataFrame) -> pd.DataFrame:
         if col_lower in seen_columns:
             # This is a duplicate column (case-insensitive)
             columns_to_remove.append(i)
-            print(f"Removing duplicate column at index {i}: '{col}' (duplicate of '{seen_columns[col_lower]}')")
+            # print(f"Removing duplicate column at index {i}: '{col}' (duplicate of '{seen_columns[col_lower]}')")
         else:
             # First occurrence of this column name
             seen_columns[col_lower] = col
@@ -89,9 +89,9 @@ def _remove_duplicate_columns(df: pd.DataFrame) -> pd.DataFrame:
     # Keep only the first occurrence of each column
     result_df = df.iloc[:, columns_to_keep].copy()
     
-    print(f"Removed {len(columns_to_remove)} duplicate columns at indices: {columns_to_remove}")
-    print(f"Kept {len(columns_to_keep)} unique columns at indices: {columns_to_keep}")
-    print(f"Final columns: {list(result_df.columns)}")
+    # print(f"Removed {len(columns_to_remove)} duplicate columns at indices: {columns_to_remove}")
+    # print(f"Kept {len(columns_to_keep)} unique columns at indices: {columns_to_keep}")
+    # print(f"Final columns: {list(result_df.columns)}")
     
     return result_df
 
@@ -126,11 +126,11 @@ def upload_pdf_files(project_id: int, files: List[UploadFile] = File(...), sessi
             pdf_paths.append(pdf_path)
         
         # Bearbeta PDF:er med AI (parallellt för snabbare bearbetning)
-        print(f"Processing {len(pdf_paths)} PDF files in parallel...")
+        # print(f"Processing {len(pdf_paths)} PDF files in parallel...")
         try:
             pdf_data = process_pdf_files_optimized(pdf_paths)
         except Exception as e:
-            print(f"Parallel processing failed, falling back to sequential: {e}")
+            # print(f"Parallel processing failed, falling back to sequential: {e}")
             # Fallback to original sequential processing
             pdf_data = process_pdf_files(pdf_paths)
         
@@ -216,7 +216,7 @@ def upload_pdf_files(project_id: int, files: List[UploadFile] = File(...), sessi
             try:
                 pdf_path.unlink()
             except Exception as e:
-                print(f"Could not delete temporary file {pdf_path}: {e}")
+                # print(f"Could not delete temporary file {pdf_path}: {e}")
         
         return ImportUploadResponse(
             import_file_id=imp.id, 
@@ -295,10 +295,10 @@ def combine_import_files(project_id: int, req: CombineImportsRequest, session: S
                     df = pd.read_csv(csv_path, sep=separator, encoding='cp1252')
             
             # Debug: Log column information
-            print(f"Processing file {imp.id} ({imp.original_name}):")
-            print(f"  Columns: {list(df.columns)}")
-            print(f"  Shape: {df.shape}")
-            print(f"  Mapping: {imp.columns_map_json}")
+            # print(f"Processing file {imp.id} ({imp.original_name}):")
+            # print(f"  Columns: {list(df.columns)}")
+            # print(f"  Shape: {df.shape}")
+            # print(f"  Mapping: {imp.columns_map_json}")
             
             # Mappa kolumner baserat på filens mappning
             file_mapping = imp.columns_map_json
@@ -342,20 +342,20 @@ def combine_import_files(project_id: int, req: CombineImportsRequest, session: S
         # Skapa enhetlig DataFrame
         if unified_data:
             combined_df = pd.DataFrame(unified_data)
-            print(f"Unified DataFrame: columns = {list(combined_df.columns)}")
-            print(f"Unified DataFrame: shape = {combined_df.shape}")
-            print(f"Unified DataFrame: sample data = {combined_df.head(3).to_dict('records')}")
+            # print(f"Unified DataFrame: columns = {list(combined_df.columns)}")
+            # print(f"Unified DataFrame: shape = {combined_df.shape}")
+            # print(f"Unified DataFrame: sample data = {combined_df.head(3).to_dict('records')}")
             
             # Normalize column names first (make them consistent)
-            print(f"BEFORE normalization - columns: {list(combined_df.columns)}")
+            # print(f"BEFORE normalization - columns: {list(combined_df.columns)}")
             combined_df = _normalize_column_names(combined_df)
-            print(f"AFTER normalization - columns: {list(combined_df.columns)}")
+            # print(f"AFTER normalization - columns: {list(combined_df.columns)}")
             
             # Remove duplicate columns (keep all products, just deduplicate columns)
-            print(f"BEFORE deduplication - columns: {list(combined_df.columns)}")
+            # print(f"BEFORE deduplication - columns: {list(combined_df.columns)}")
             combined_df = _remove_duplicate_columns(combined_df)
-            print(f"AFTER deduplication - columns: {list(combined_df.columns)}")
-            print(f"After column deduplication: shape = {combined_df.shape}")
+            # print(f"AFTER deduplication - columns: {list(combined_df.columns)}")
+            # print(f"After column deduplication: shape = {combined_df.shape}")
             
             # Skapa ny CSV-fil
             combined_filename = f"combined_import_{project_id}_{len(imports)}_files.csv"
@@ -364,10 +364,10 @@ def combine_import_files(project_id: int, req: CombineImportsRequest, session: S
             # Spara kombinerad CSV
             try:
                 combined_df.to_csv(combined_path, index=False, encoding='utf-8')
-                print(f"DEBUG: Successfully saved combined file to: {combined_path}")
-                print(f"DEBUG: File exists after save: {combined_path.exists()}")
+                # print(f"DEBUG: Successfully saved combined file to: {combined_path}")
+                # print(f"DEBUG: File exists after save: {combined_path.exists()}")
             except Exception as e:
-                print(f"ERROR: Failed to save combined file: {e}")
+                # print(f"ERROR: Failed to save combined file: {e}")
                 raise HTTPException(status_code=500, detail=f"Failed to save combined file: {e}")
             
             

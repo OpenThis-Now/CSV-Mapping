@@ -26,15 +26,15 @@ export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: n
 
   const refresh = async () => {
     try {
-      console.log("Projects.tsx: Refreshing project list...");
+      // console.log("Projects.tsx: Refreshing project list...");
       const [projectsRes, databasesRes] = await Promise.all([
         api.get<Project[]>("/projects/list"),
         api.get<DatabaseListItem[]>("/databases")
       ]);
       
-      console.log("Projects.tsx: Received project data:", projectsRes.data);
-      console.log("Projects.tsx: Number of projects received:", projectsRes.data.length);
-      console.log("Projects.tsx: Project names:", projectsRes.data.map(p => p.name));
+      // console.log("Projects.tsx: Received project data:", projectsRes.data);
+      // console.log("Projects.tsx: Number of projects received:", projectsRes.data.length);
+      // console.log("Projects.tsx: Project names:", projectsRes.data.map(p => p.name));
       
       setList(projectsRes.data);
       setDatabases(databasesRes.data);
@@ -98,13 +98,13 @@ export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: n
   // Refresh when the page becomes visible or when user clicks on it
   useEffect(() => {
     const handleFocus = () => {
-      console.log("Projects.tsx: Window focus detected, refreshing...");
+      // console.log("Projects.tsx: Window focus detected, refreshing...");
       refresh();
     };
     
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        console.log("Projects.tsx: Page visible, refreshing...");
+        // console.log("Projects.tsx: Page visible, refreshing...");
         refresh();
       }
     };
@@ -201,7 +201,7 @@ export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: n
             pending: counts.actionRequired
           };
           
-          console.log(`Project ${p.id} (${p.name}):`, {
+          // console.log(`Project ${p.id} (${p.name}):`, {
             projectStats: projectStats[p.id],
             counts,
             hasStats: !!projectStats[p.id],

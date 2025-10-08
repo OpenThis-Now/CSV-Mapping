@@ -36,7 +36,7 @@ export default function AIDeep({ projectId }: { projectId: number }) {
       // Store all results for product name lookup, but filter for display
       setResults(res.data);
       const aiResults = res.data.filter(r => r.decision === "sent_to_ai");
-      console.log("Loaded AI results:", aiResults.length, "items");
+      // console.log("Loaded AI results:", aiResults.length, "items");
     } catch (error) {
       console.error("Failed to load results:", error);
     }

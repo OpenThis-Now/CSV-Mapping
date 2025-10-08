@@ -80,7 +80,6 @@ export default function MatchPage({ projectId }: { projectId: number }) {
       
       // Fallback: always refresh after 5 seconds regardless of status
       setTimeout(async () => {
-        console.log("Fallback refresh after 5 seconds");
         await refresh();
         setRunning(false);
       }, 5000);
@@ -95,8 +94,6 @@ export default function MatchPage({ projectId }: { projectId: number }) {
   const refresh = async () => {
     try {
     const res = await api.get<MatchResultItem[]>(`/projects/${projectId}/results`);
-      console.log("Match results loaded:", res.data.length, "results");
-      console.log("Match results data:", res.data);
     setResults(res.data);
     } catch (error) {
       console.error("Failed to load match results:", error);
@@ -142,7 +139,6 @@ export default function MatchPage({ projectId }: { projectId: number }) {
   };
 
   useEffect(() => { 
-    console.log("Match page loaded, refreshing results...");
     refresh(); 
   }, []);
 
@@ -154,7 +150,6 @@ export default function MatchPage({ projectId }: { projectId: number }) {
       // Handle "review_required" as a combination of multiple decision values
       if (statusFilter === "review_required") {
         const matches = result.decision === "pending" || result.decision === "sent_to_ai";
-        console.log(`Filtering result with decision "${result.decision}": ${matches}`);
         return matches;
       }
       
@@ -163,19 +158,16 @@ export default function MatchPage({ projectId }: { projectId: number }) {
         const matches = result.decision === "approved" || 
                        result.decision === "auto_approved" || 
                        result.decision === "ai_auto_approved";
-        console.log(`Filtering result with decision "${result.decision}" for approved: ${matches}`);
         return matches;
       }
       
       // Handle "rejected" - include both manual and auto rejections
       if (statusFilter === "rejected") {
         const matches = result.decision === "rejected" || result.decision === "auto_rejected" || result.decision === "ai_auto_rejected";
-        console.log(`Filtering result with decision "${result.decision}" for rejected: ${matches}`);
         return matches;
       }
       
       const matches = result.decision === statusFilter;
-      console.log(`Filtering result with decision "${result.decision}" against filter "${statusFilter}": ${matches}`);
       return matches;
     })
   .sort((a, b) => {
@@ -202,36 +194,8 @@ export default function MatchPage({ projectId }: { projectId: number }) {
   const endIndex = startIndex + itemsPerPage;
   const paginatedResults = filteredResults.slice(startIndex, endIndex);
   
-  // Debug pagination
-  console.log("=== PAGINATION DEBUG ===");
-  console.log("Results count:", results.length);
-  console.log("Filtered results count:", filteredResults.length);
-  console.log("Current page:", currentPage);
-  console.log("Items per page:", itemsPerPage);
-  console.log("Status filter:", statusFilter);
   
-  // Debug sorting
-  console.log("=== SORTING DEBUG ===");
-  console.log("First 5 results from backend:", results.slice(0, 5).map(r => ({ id: r.id, customer_row_index: r.customer_row_index, decision: r.decision })));
-  console.log("First 5 filtered results:", filteredResults.slice(0, 5).map(r => ({ id: r.id, customer_row_index: r.customer_row_index, decision: r.decision })));
   
-  // Debug pending products specifically
-  const pendingProducts = results.filter(r => r.decision === "pending");
-  const pendingOnCurrentPage = paginatedResults.filter(r => r.decision === "pending");
-  
-  console.log("=== PENDING PRODUCTS DEBUG ===");
-  console.log("All pending products:", pendingProducts.map(r => ({ id: r.id, customer_row_index: r.customer_row_index, decision: r.decision })));
-  console.log("Pending on current page:", pendingOnCurrentPage.map(r => ({ id: r.id, customer_row_index: r.customer_row_index, decision: r.decision })));
-  console.log("Total pending count:", pendingProducts.length);
-  console.log("Pending on current page count:", pendingOnCurrentPage.length);
-  
-  // Debug all decisions
-  console.log("=== DECISIONS DEBUG ===");
-  const decisionCounts = results.reduce((acc, r) => {
-    acc[r.decision] = (acc[r.decision] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-  console.log("Decision counts:", decisionCounts);
 
   // Reset to page 1 when filter changes
   useEffect(() => {

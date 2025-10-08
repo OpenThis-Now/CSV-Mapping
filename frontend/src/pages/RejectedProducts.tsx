@@ -618,7 +618,7 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
         }
       } catch (linkError) {
         // Silently handle link errors - not critical for main functionality
-        console.log("Auto-linking PDFs failed (non-critical):", linkError);
+        // console.log("Auto-linking PDFs failed (non-critical):", linkError);
       }
     } catch (error) {
       console.error("Failed to load rejected products:", error);
@@ -707,7 +707,7 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
       const baseURL = api.defaults.baseURL;
       const fullUrl = url.startsWith('/api/') ? `${baseURL}${url.replace('/api', '')}` : url;
       
-      console.log('Downloading from:', fullUrl);
+      // console.log('Downloading from:', fullUrl);
       
       // Use fetch to get the file as blob, then create download link
       const response = await fetch(fullUrl, {
@@ -722,7 +722,7 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
       }
       
       const blob = await response.blob();
-      console.log('Downloaded blob size:', blob.size, 'type:', blob.type);
+      // console.log('Downloaded blob size:', blob.size, 'type:', blob.type);
       
       // Create download link
       const downloadUrl = window.URL.createObjectURL(blob);
@@ -735,7 +735,7 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
       
       // Clean up the object URL
       setTimeout(() => {
-        window.URL.revokeObjectURL(downloadUrl);
+      window.URL.revokeObjectURL(downloadUrl);
       }, 1000);
       
     } catch (error) {

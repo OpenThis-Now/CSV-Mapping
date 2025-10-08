@@ -151,7 +151,7 @@ def upload_suppliers_csv(project_id: int, file: UploadFile = File(...), session:
             raise HTTPException(status_code=400, detail="CSV saknar rubriker.")
         
         # Debug: Log available headers
-        print(f"DEBUG: Available CSV headers: {headers}")
+        # print(f"DEBUG: Available CSV headers: {headers}")
         
         # Clear existing supplier data for this project
         existing_suppliers = session.exec(
@@ -206,7 +206,7 @@ def upload_suppliers_csv(project_id: int, file: UploadFile = File(...), session:
             except (ValueError, TypeError):
                 total = 0
             
-            print(f"DEBUG: Row {row_num}: supplier_name='{supplier_name}', company_id='{company_id}', country='{country}', total={total}")
+            # print(f"DEBUG: Row {row_num}: supplier_name='{supplier_name}', company_id='{company_id}', country='{country}', total={total}")
             
             if supplier_name and company_id and country:
                 supplier = SupplierData(
@@ -218,13 +218,13 @@ def upload_suppliers_csv(project_id: int, file: UploadFile = File(...), session:
                 )
                 session.add(supplier)
                 suppliers_added += 1
-                print(f"DEBUG: Added supplier: {supplier_name} ({country})")
+                # print(f"DEBUG: Added supplier: {supplier_name} ({country})")
             else:
                 skipped_rows += 1
-                print(f"DEBUG: Skipped row {row_num} - missing required fields")
+                # print(f"DEBUG: Skipped row {row_num} - missing required fields")
         
         session.commit()
-        print(f"DEBUG: Processing complete. Added: {suppliers_added}, Skipped: {skipped_rows}")
+        # print(f"DEBUG: Processing complete. Added: {suppliers_added}, Skipped: {skipped_rows}")
     
     return {
         "message": f"Suppliers CSV uploaded successfully. {suppliers_added} suppliers added.",
@@ -357,7 +357,7 @@ def ai_match_suppliers(project_id: int, session: Session = Depends(get_session))
         supplier_name = supplier_group["supplier_name"]
         country = supplier_group["country"]
         
-        print(f"DEBUG: Processing supplier: '{supplier_name}' in country: '{country}'")
+        # print(f"DEBUG: Processing supplier: '{supplier_name}' in country: '{country}'")
         
         # First try exact match: Country + Supplier name
         exact_matches = [
@@ -375,7 +375,7 @@ def ai_match_suppliers(project_id: int, session: Session = Depends(get_session))
                 "match_type": "exact_match",
                 "products_affected": len(supplier_group["products"])
             })
-            print(f"DEBUG: Exact match found: {best_match.supplier_name}")
+            # print(f"DEBUG: Exact match found: {best_match.supplier_name}")
         else:
             # Try fuzzy matching with same country first (higher threshold for exact match)
             fuzzy_match_same_country = find_best_supplier_match(
@@ -393,7 +393,7 @@ def ai_match_suppliers(project_id: int, session: Session = Depends(get_session))
                         "match_type": "fuzzy_match_same_country",
                         "products_affected": len(supplier_group["products"])
                     })
-                    print(f"DEBUG: Fuzzy match (same country) found: {fuzzy_match_same_country.supplier_name} (similarity: {similarity:.2f})")
+                    # print(f"DEBUG: Fuzzy match (same country) found: {fuzzy_match_same_country.supplier_name} (similarity: {similarity:.2f})")
                 else:
                     # Similar name but not confident enough - treat as new country needed
                     new_country_needed.append({
@@ -402,7 +402,7 @@ def ai_match_suppliers(project_id: int, session: Session = Depends(get_session))
                         "matched_supplier": fuzzy_match_same_country,
                         "products_affected": len(supplier_group["products"])
                     })
-                    print(f"DEBUG: Fuzzy match (different confidence) found: {fuzzy_match_same_country.supplier_name} (similarity: {similarity:.2f})")
+                    # print(f"DEBUG: Fuzzy match (different confidence) found: {fuzzy_match_same_country.supplier_name} (similarity: {similarity:.2f})")
             else:
                 # Try fuzzy matching without country restriction (higher threshold)
                 fuzzy_match_any_country = find_best_supplier_match(
@@ -417,7 +417,7 @@ def ai_match_suppliers(project_id: int, session: Session = Depends(get_session))
                         "matched_supplier": fuzzy_match_any_country,
                         "products_affected": len(supplier_group["products"])
                     })
-                    print(f"DEBUG: Fuzzy match (any country) found: {fuzzy_match_any_country.supplier_name} (similarity: {similarity:.2f})")
+                    # print(f"DEBUG: Fuzzy match (any country) found: {fuzzy_match_any_country.supplier_name} (similarity: {similarity:.2f})")
                 else:
                     # No match found at all
                     new_supplier_needed.append({
@@ -425,7 +425,7 @@ def ai_match_suppliers(project_id: int, session: Session = Depends(get_session))
                         "country": country,
                         "products_affected": len(supplier_group["products"])
                     })
-                    print(f"DEBUG: No match found for: {supplier_name}")
+                    # print(f"DEBUG: No match found for: {supplier_name}")
     
     return {
         "matched_suppliers": matched_results,

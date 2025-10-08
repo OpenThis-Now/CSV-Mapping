@@ -131,59 +131,59 @@ def get_import_data(project_id: int, import_id: int, session: Session = Depends(
 @router.put("/projects/{project_id}/import/{import_id}/data")
 def update_import_data(project_id: int, import_id: int, data: List[Dict[str, Any]], session: Session = Depends(get_session)) -> Dict[str, str]:
     """Update CSV data"""
-    print(f"DEBUG: update_import_data called with project_id={project_id}, import_id={import_id}, data_length={len(data)}")
+    # print(f"DEBUG: update_import_data called with project_id={project_id}, import_id={import_id}, data_length={len(data)}")
     
     p = session.get(Project, project_id)
     if not p:
-        print(f"DEBUG: Project {project_id} not found")
+        # print(f"DEBUG: Project {project_id} not found")
         raise HTTPException(status_code=404, detail="Projekt saknas.")
     
     imp = session.get(ImportFile, import_id)
     if not imp or imp.project_id != project_id:
-        print(f"DEBUG: ImportFile {import_id} not found or wrong project")
+        # print(f"DEBUG: ImportFile {import_id} not found or wrong project")
         raise HTTPException(status_code=404, detail="Importfil saknas.")
     
     # Write updated CSV file
     file_path = Path(settings.IMPORTS_DIR) / imp.filename
-    print(f"DEBUG: File path: {file_path}")
-    print(f"DEBUG: File exists: {file_path.exists()}")
+    # print(f"DEBUG: File path: {file_path}")
+    # print(f"DEBUG: File exists: {file_path.exists()}")
     
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="CSV-fil saknas på disk.")
     
     try:
         separator = detect_csv_separator(file_path)
-        print(f"DEBUG: Detected separator: '{separator}'")
+        # print(f"DEBUG: Detected separator: '{separator}'")
         
         # Get column headers from first row or existing mapping
         if data:
             headers = list(data[0].keys())
-            print(f"DEBUG: Headers from data: {headers}")
+            # print(f"DEBUG: Headers from data: {headers}")
         else:
             # If no data, use headers from mapping
             headers = list(imp.columns_map_json.keys())
-            print(f"DEBUG: Headers from mapping: {headers}")
+            # print(f"DEBUG: Headers from mapping: {headers}")
         
-        print(f"DEBUG: Writing {len(data)} rows to file")
+        # print(f"DEBUG: Writing {len(data)} rows to file")
         
         with open(file_path, 'w', newline='', encoding='utf-8') as f:
             writer = csv.DictWriter(f, fieldnames=headers, delimiter=separator)
             writer.writeheader()
             writer.writerows(data)
         
-        print(f"DEBUG: File written successfully")
+        # print(f"DEBUG: File written successfully")
         
         # Update row count
         imp.row_count = len(data)
         session.add(imp)
         session.commit()
         
-        print(f"DEBUG: Database updated, row_count={len(data)}")
+        # print(f"DEBUG: Database updated, row_count={len(data)}")
         
         return {"message": "CSV-data uppdaterad.", "row_count": len(data)}
     except Exception as e:
-        print(f"DEBUG: Exception occurred: {str(e)}")
-        print(f"DEBUG: Exception type: {type(e)}")
+        # print(f"DEBUG: Exception occurred: {str(e)}")
+        # print(f"DEBUG: Exception type: {type(e)}")
         import traceback
-        print(f"DEBUG: Traceback: {traceback.format_exc()}")
+        # print(f"DEBUG: Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Kunde inte skriva CSV-fil: {str(e)}")

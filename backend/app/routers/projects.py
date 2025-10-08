@@ -68,12 +68,12 @@ def patch_project(project_id: int, payload: dict, session: Session = Depends(get
     session.commit()
     session.refresh(p)
     
-    print(f"DEBUG: After commit - active_database_id: {p.active_database_id}, active_import_id: {p.active_import_id}")
+    # print(f"DEBUG: After commit - active_database_id: {p.active_database_id}, active_import_id: {p.active_import_id}")
     
     # Let's also check what's in the database directly
     from sqlmodel import select
     db_project = session.exec(select(Project).where(Project.id == p.id)).first()
-    print(f"DEBUG: Direct DB query - active_database_id: {db_project.active_database_id}, active_import_id: {db_project.active_import_id}")
+    # print(f"DEBUG: Direct DB query - active_database_id: {db_project.active_database_id}, active_import_id: {db_project.active_import_id}")
     
     return ProjectResponse(id=p.id, name=p.name, status=p.status, active_database_id=p.active_database_id, active_import_id=p.active_import_id)
 

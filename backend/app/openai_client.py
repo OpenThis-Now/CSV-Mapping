@@ -62,7 +62,7 @@ def suggest_with_openai(prompt: str, max_items: int = 3, api_key_index: int = 0)
         temperature=0.2,
     )
     text = resp.choices[0].message.content or "[]"
-    print(f"OpenAI raw response: {text[:500]}...")  # Log first 500 chars
+    # print(f"OpenAI raw response: {text[:500]}...")  # Log first 500 chars
     
     import json, re
     
@@ -70,22 +70,22 @@ def suggest_with_openai(prompt: str, max_items: int = 3, api_key_index: int = 0)
     json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', text, flags=re.DOTALL)
     if json_match:
         json_text = json_match.group(1)
-        print(f"Extracted JSON from markdown: {json_text[:200]}...")
+        # print(f"Extracted JSON from markdown: {json_text[:200]}...")
         try:
             data = json.loads(json_text)
-            print(f"OpenAI parsed JSON successfully: {len(data) if isinstance(data, list) else 1} items")
+            # print(f"OpenAI parsed JSON successfully: {len(data) if isinstance(data, list) else 1} items")
             if not isinstance(data, list):
                 data = [data]
             return data[:max_items]
         except Exception as e:
-            print(f"JSON parse error on extracted text: {e}")
+            # print(f"JSON parse error on extracted text: {e}")
     
     # Fallback: try to parse the entire response as JSON
     try:
         data = json.loads(text)
-        print(f"OpenAI parsed JSON successfully: {len(data) if isinstance(data, list) else 1} items")
+        # print(f"OpenAI parsed JSON successfully: {len(data) if isinstance(data, list) else 1} items")
     except Exception as e:
-        print(f"OpenAI JSON parse error: {e}")
+        # print(f"OpenAI JSON parse error: {e}")
         # Try to find JSON array or object in the text
         json_patterns = [
             r'(\[.*?\])',  # JSON array
@@ -96,15 +96,15 @@ def suggest_with_openai(prompt: str, max_items: int = 3, api_key_index: int = 0)
             if m:
                 try:
                     data = json.loads(m.group(1))
-                    print(f"OpenAI regex fallback success: {data}")
+                    # print(f"OpenAI regex fallback success: {data}")
                     break
                 except:
                     continue
         else:
             data = []
-            print(f"OpenAI regex fallback result: {data}")
+            # print(f"OpenAI regex fallback result: {data}")
     
     if not isinstance(data, list):
         data = [data]
-    print(f"OpenAI final result: {len(data)} items")
+    # print(f"OpenAI final result: {len(data)} items")
     return data[:max_items]

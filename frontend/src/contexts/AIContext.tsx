@@ -108,7 +108,7 @@ export function AIProvider({ children }: { children: ReactNode }) {
     
     // Set a timeout to prevent infinite hanging
     timeoutRef.current = setTimeout(() => {
-      console.log("AI analysis timeout - forcing completion");
+      // console.log("AI analysis timeout - forcing completion");
       clearInterval(stepInterval);
       setIsAnalyzing(false);
       setThinkingStep(0);
@@ -121,7 +121,7 @@ export function AIProvider({ children }: { children: ReactNode }) {
         customer_row_indices: selectedIndices, 
         max_suggestions: 3 
       });
-      console.log("AI suggestions received:", res.data);
+      // console.log("AI suggestions received:", res.data);
       
       // Merge new suggestions with existing ones, replacing any existing suggestions for the same customer_row_index
       setSuggestions(prev => {
@@ -168,7 +168,7 @@ export function AIProvider({ children }: { children: ReactNode }) {
   };
 
   const stopAnalysis = () => {
-    console.log("Stopping AI analysis manually");
+    // console.log("Stopping AI analysis manually");
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
@@ -186,7 +186,7 @@ export function AIProvider({ children }: { children: ReactNode }) {
     try {
       const { default: api } = await import('@/lib/api');
       
-      console.log("Approving suggestion:", suggestion);
+      // console.log("Approving suggestion:", suggestion);
       
       // Use the new AI approval endpoint that tracks which suggestion was approved
       const response = await api.post(`/projects/${projectId}/approve-ai`, { 
@@ -194,7 +194,7 @@ export function AIProvider({ children }: { children: ReactNode }) {
         ai_suggestion_id: suggestion.id || 0 // We need to get the actual AI suggestion ID
       });
       
-      console.log("Approval response:", response.data);
+      // console.log("Approval response:", response.data);
       
       // Remove this product from the AI suggestions
       setSuggestions(prev => prev.filter(s => s.customer_row_index !== suggestion.customer_row_index));

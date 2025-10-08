@@ -104,9 +104,9 @@ function TableView({ results, selectedIds, onSelectionChange }: { results: Match
 
   // Debug: Log the first result to see what data we're getting
   if (results.length > 0) {
-    console.log("First result:", results[0]);
-    console.log("Customer preview:", results[0].customer_preview);
-    console.log("DB preview:", results[0].db_preview);
+    // console.log("First result:", results[0]);
+    // console.log("Customer preview:", results[0].customer_preview);
+    // console.log("DB preview:", results[0].db_preview);
   }
 
   return (

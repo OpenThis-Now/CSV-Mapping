@@ -150,13 +150,6 @@ def score_pair(customer_row: dict[str, Any], db_row: dict[str, Any], customer_ma
     db_market = db_row.get(db_mapping.get("market", "Market"), "").strip()
     db_language = db_row.get(db_mapping.get("language", "Language"), "").strip()
 
-    # Debug logging for market/language detection
-    print(f"DEBUG: customer_mapping keys: {list(customer_mapping.keys())}")
-    print(f"DEBUG: db_mapping keys: {list(db_mapping.keys())}")
-    print(f"DEBUG: customer_market='{customer_market}', db_market='{db_market}'")
-    print(f"DEBUG: customer_language='{customer_language}', db_language='{db_language}'")
-    print(f"DEBUG: customer_row keys: {list(customer_row.keys())}")
-    print(f"DEBUG: db_row keys: {list(db_row.keys())}")
 
     # Track market and language mismatches for scoring and comments
     market_mismatch = False
@@ -187,13 +180,10 @@ def score_pair(customer_row: dict[str, Any], db_row: dict[str, Any], customer_ma
     
     if customer_market_norm and db_market_norm and customer_market_norm != db_market_norm:
         market_mismatch = True
-        print(f"DEBUG: Market mismatch detected: '{customer_market}' (normalized: '{customer_market_norm}') != '{db_market}' (normalized: '{db_market_norm}')")
     
     if customer_language and db_language and customer_language.lower() != db_language.lower():
         language_mismatch = True
-        print(f"DEBUG: Language mismatch detected: '{customer_language}' != '{db_language}'")
     
-    print(f"DEBUG: market_mismatch={market_mismatch}, language_mismatch={language_mismatch}")
 
     # Only score fields that have customer data
     vendor_score = score_fields(cv, dv) if cv.strip() else 0
@@ -213,12 +203,10 @@ def score_pair(customer_row: dict[str, Any], db_row: dict[str, Any], customer_ma
     if market_mismatch and language_mismatch:
         # Only set to 0 if it's a very poor match anyway
         if overall < 20:
-            print(f"DEBUG: Setting score to 0 due to very poor match with market and language mismatch")
             overall = 0
         else:
             # Reduce score but don't eliminate completely
             overall = max(10, overall * 0.3)
-            print(f"DEBUG: Reduced score to {overall} due to market and language mismatch")
     else:
         # Cap score at 70% for market mismatches, 60% for language mismatches (less strict)
         if market_mismatch:

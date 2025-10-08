@@ -55,10 +55,10 @@ export default function PDFImportPage({ projectId }: { projectId: number }) {
       const isCurrentlySelected = project?.active_import_id === importId;
       const newImportId = isCurrentlySelected ? null : importId;
       
-      console.log("PDFImport.tsx: Toggling import:", { projectId, importId, newImportId, currentProject: project });
+      // console.log("PDFImport.tsx: Toggling import:", { projectId, importId, newImportId, currentProject: project });
       
       const response = await api.patch(`/projects/${projectId}`, { active_import_id: newImportId });
-      console.log("PDFImport.tsx: PATCH response:", response.data);
+      // console.log("PDFImport.tsx: PATCH response:", response.data);
       
       await refreshProject();
     } catch (error) {
