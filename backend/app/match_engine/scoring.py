@@ -199,20 +199,22 @@ def score_pair(customer_row: dict[str, Any], db_row: dict[str, Any], customer_ma
 
     overall -= numeric_penalty(cp, dp, thr.numeric_mismatch_penalty)
     
-    # Be less strict about market/language mismatches - focus on product matching
-    if market_mismatch and language_mismatch:
-        # Only set to 0 if it's a very poor match anyway
-        if overall < 20:
-            overall = 0
-        else:
-            # Reduce score but don't eliminate completely
-            overall = max(10, overall * 0.3)
-    else:
-        # Cap score at 70% for market mismatches, 60% for language mismatches (less strict)
-        if market_mismatch:
-            overall = min(70, overall)
-        if language_mismatch:
-            overall = min(60, overall)
+    # Enforce strict language matching - language must always match
+    if language_mismatch:
+        # Language mismatch is a hard requirement - auto-reject
+        return {
+            "vendor_score": vendor_score,
+            "product_score": product_score,
+            "overall": 0,
+            "exact": False,
+            "reason": "No match found on market lang",
+            "decision": "auto_rejected",
+        }
+    
+    # Handle market mismatches (less strict than language)
+    if market_mismatch:
+        # Cap score at 70% for market mismatches
+        overall = min(70, overall)
 
     exact = vendor_score >= 95 and product_score >= 95 or sku_exact(cs, ds)
 
@@ -221,12 +223,8 @@ def score_pair(customer_row: dict[str, Any], db_row: dict[str, Any], customer_ma
         reason.append("Exact SKU match")
     elif cs.strip() and ds.strip():
         reason.append("Different SKUs")
-    if market_mismatch and language_mismatch:
-        reason.append("Wrong market & language")
-    elif market_mismatch:
+    if market_mismatch:
         reason.append("Other market")
-    elif language_mismatch:
-        reason.append("Language mismatch")
     if vendor_score < thr.vendor_min:
         reason.append("Low vendor match")
     if product_score < thr.product_min:
