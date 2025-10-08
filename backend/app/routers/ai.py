@@ -462,6 +462,10 @@ def get_ai_suggestions(project_id: int, session: Session = Depends(get_session))
     log.info(f"Found {len(completed_row_indices)} completed row indices")
     log.info(f"Completed row indices: {completed_row_indices}")
     
+    # Debug: Show details of sent_to_ai_results
+    for result in sent_to_ai_results[:3]:  # Show first 3
+        log.info(f"Sent to AI result: row_index={result.customer_row_index}, decision={result.decision}, ai_status={result.ai_status}")
+    
     # Convert MatchResults to AiSuggestionItem format for display
     match_result_suggestions = []
     for result in sent_to_ai_results:
@@ -631,12 +635,13 @@ def auto_queue_ai_analysis(project_id: int, session: Session = Depends(get_sessi
     log.info(f"Latest match run ID: {latest_run.id}")
     
     # Find results with scores between 70-95 that are not already sent to AI
+    # Note: Excluding "rejected" to prevent re-queuing manually rejected products
     results_to_queue = session.exec(
         select(MatchResult).where(
             MatchResult.match_run_id == latest_run.id,
             MatchResult.overall_score >= 70,
             MatchResult.overall_score <= 95,
-            MatchResult.decision.in_(["pending", "auto_approved", "rejected"])
+            MatchResult.decision.in_(["pending", "auto_approved"])
         )
     ).all()
     
