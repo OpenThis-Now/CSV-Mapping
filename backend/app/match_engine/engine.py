@@ -82,13 +82,31 @@ def run_match(customer_csv: Path, db_csv: Path, customer_mapping: dict[str, str]
             raise Exception(f"Kunde inte läsa kundfilen: {str(e)}")
     
     # Strip BOM (Byte Order Mark) from column names if present
+    import re
+    def strip_bom_from_columns(columns):
+        cleaned_columns = []
+        for col in columns:
+            # Remove ALL invisible characters at the start of column names
+            # This includes BOM, zero-width characters, and other invisible Unicode
+            cleaned_col = re.sub(r'^[\s\ufeff\ufeff\ufeff\u200b\u200c\u200d\ufeff\u00a0\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u202f\u205f\u3000]+', '', col)
+            cleaned_columns.append(cleaned_col)
+        return cleaned_columns
+    
     if used_encoding and 'utf-8' in used_encoding:
-        db_df.columns = [col.lstrip('\ufeff') if col.startswith('\ufeff') else col for col in db_df.columns]
-        print(f"DEBUG: Stripped BOM from database columns")
+        original_columns = list(db_df.columns)
+        db_df.columns = strip_bom_from_columns(db_df.columns)
+        if original_columns != list(db_df.columns):
+            print(f"DEBUG: Stripped BOM from database columns")
+            print(f"DEBUG: Original: {original_columns}")
+            print(f"DEBUG: Cleaned: {list(db_df.columns)}")
     
     if customer_used_encoding and 'utf-8' in customer_used_encoding:
-        customer_df.columns = [col.lstrip('\ufeff') if col.startswith('\ufeff') else col for col in customer_df.columns]
-        print(f"DEBUG: Stripped BOM from customer columns")
+        original_columns = list(customer_df.columns)
+        customer_df.columns = strip_bom_from_columns(customer_df.columns)
+        if original_columns != list(customer_df.columns):
+            print(f"DEBUG: Stripped BOM from customer columns")
+            print(f"DEBUG: Original: {original_columns}")
+            print(f"DEBUG: Cleaned: {list(customer_df.columns)}")
     
     # Debug: Show what columns were actually read
     print(f"DEBUG: Database CSV columns ({used_encoding}): {list(db_df.columns)}")
