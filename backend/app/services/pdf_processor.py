@@ -36,11 +36,13 @@ def extract_pdf_text(pdf_path: Path, max_pages: int = 3) -> Optional[str]:
             return result
         else:
             # print(f"PyMuPDF: No text found in PDF {pdf_path}")
-            
+            pass
     except ImportError as e:
         # print(f"PyMuPDF not available: {e}")
+        pass
     except Exception as e:
         # print(f"PyMuPDF error reading PDF {pdf_path}: {e}")
+        pass
     
     # Fallback to pdfplumber
     try:
@@ -60,11 +62,14 @@ def extract_pdf_text(pdf_path: Path, max_pages: int = 3) -> Optional[str]:
             return result
         else:
             # print(f"pdfplumber: No text found in PDF {pdf_path}")
+            pass
             
     except ImportError as e:
         # print(f"pdfplumber not available: {e}")
+        pass
     except Exception as e:
         # print(f"pdfplumber error reading PDF {pdf_path}: {e}")
+        pass
     
     # print(f"All PDF extraction methods failed for {pdf_path}")
     return None
@@ -623,8 +628,10 @@ def process_pdf_files(pdf_files: List[Path]) -> List[Dict[str, Any]]:
             # Log extracted data for debugging
             if product_info.get('extraction_status') == 'success':
                 # print(f"Successfully extracted: product={product_info.get('product_name', {}).get('value')}, vendor={product_info.get('company_name', {}).get('value')}, sku={product_info.get('article_number', {}).get('value')}")
+                pass
             else:
                 # print(f"Extraction failed or partial for {filename}")
+                pass
                 
         except Exception as e:
             # print(f"Error processing {filename}: {e}")

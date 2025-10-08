@@ -692,6 +692,7 @@ def export_worklist_products(project_id: int, session: Session = Depends(get_ses
                     # print(f"DEBUG: Added PDF: {product.pdf_filename}")
                 else:
                     # print(f"WARNING: PDF file not found: {pdf_path}")
+                    pass
         
         # print(f"DEBUG: Added {pdf_count} PDFs to ZIP file")
     
@@ -746,6 +747,7 @@ def link_pdfs_from_customer_import(project_id: int, session: Session = Depends(g
             linked_count += 1
         else:
             # print(f"DEBUG: No PDF found to link for product {product.id}")
+            pass
     
     session.commit()
     

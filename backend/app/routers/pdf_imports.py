@@ -217,6 +217,7 @@ def upload_pdf_files(project_id: int, files: List[UploadFile] = File(...), sessi
                 pdf_path.unlink()
             except Exception as e:
                 # print(f"Could not delete temporary file {pdf_path}: {e}")
+                pass
         
         return ImportUploadResponse(
             import_file_id=imp.id, 

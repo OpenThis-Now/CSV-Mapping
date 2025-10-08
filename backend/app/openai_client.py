@@ -79,6 +79,7 @@ def suggest_with_openai(prompt: str, max_items: int = 3, api_key_index: int = 0)
             return data[:max_items]
         except Exception as e:
             # print(f"JSON parse error on extracted text: {e}")
+            pass
     
     # Fallback: try to parse the entire response as JSON
     try:
