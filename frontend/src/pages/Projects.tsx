@@ -202,12 +202,12 @@ export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: n
           };
           
           // console.log(`Project ${p.id} (${p.name}):`, {
-            projectStats: projectStats[p.id],
-            counts,
-            hasStats: !!projectStats[p.id],
-            progressBarData,
-            breakdown: projectStats[p.id]?.status_breakdown
-          });
+          //   projectStats: projectStats[p.id],
+          //   counts,
+          //   hasStats: !!projectStats[p.id],
+          //   progressBarData,
+          //   breakdown: projectStats[p.id]?.status_breakdown
+          // });
           
 
           const Pill = ({ children }: { children: React.ReactNode }) => (
