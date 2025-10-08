@@ -19,18 +19,26 @@ def run_match(customer_csv: Path, db_csv: Path, customer_mapping: dict[str, str]
     
     # Read CSV with error handling for inconsistent columns and encoding
     db_df = None
+    used_encoding = None
     for encoding in ["utf-8", "utf-8-sig", "latin-1", "cp1252", "iso-8859-1"]:
         try:
             db_df = pd.read_csv(db_csv, dtype=str, keep_default_na=False, on_bad_lines='skip', sep=db_separator, encoding=encoding)
+            used_encoding = encoding
+            print(f"DEBUG: Successfully read database CSV with encoding: {encoding}")
             break
-        except (UnicodeDecodeError, UnicodeError):
+        except (UnicodeDecodeError, UnicodeError) as e:
+            print(f"DEBUG: Failed to read database CSV with encoding {encoding}: {e}")
             continue
-        except Exception:
+        except Exception as e:
+            print(f"DEBUG: Failed to read database CSV with encoding {encoding}: {e}")
             # Try with different parameters
             try:
                 db_df = pd.read_csv(db_csv, dtype=str, keep_default_na=False, sep=db_separator, quotechar='"', on_bad_lines='skip', encoding=encoding)
+                used_encoding = encoding
+                print(f"DEBUG: Successfully read database CSV with encoding: {encoding} (with quotechar)")
                 break
-            except Exception:
+            except Exception as e2:
+                print(f"DEBUG: Failed to read database CSV with encoding {encoding} (with quotechar): {e2}")
                 continue
     
     if db_df is None:
@@ -42,26 +50,42 @@ def run_match(customer_csv: Path, db_csv: Path, customer_mapping: dict[str, str]
     
     # Read customer CSV with encoding handling
     customer_df = None
+    customer_used_encoding = None
     for encoding in ["utf-8", "utf-8-sig", "latin-1", "cp1252", "iso-8859-1"]:
         try:
             customer_df = pd.read_csv(customer_csv, dtype=str, keep_default_na=False, on_bad_lines='skip', sep=customer_separator, encoding=encoding)
+            customer_used_encoding = encoding
+            print(f"DEBUG: Successfully read customer CSV with encoding: {encoding}")
             break
-        except (UnicodeDecodeError, UnicodeError):
+        except (UnicodeDecodeError, UnicodeError) as e:
+            print(f"DEBUG: Failed to read customer CSV with encoding {encoding}: {e}")
             continue
-        except Exception:
+        except Exception as e:
+            print(f"DEBUG: Failed to read customer CSV with encoding {encoding}: {e}")
             # Try with different parameters
             try:
                 customer_df = pd.read_csv(customer_csv, dtype=str, keep_default_na=False, sep=customer_separator, quotechar='"', on_bad_lines='skip', encoding=encoding)
+                customer_used_encoding = encoding
+                print(f"DEBUG: Successfully read customer CSV with encoding: {encoding} (with quotechar)")
                 break
-            except Exception:
+            except Exception as e2:
+                print(f"DEBUG: Failed to read customer CSV with encoding {encoding} (with quotechar): {e2}")
                 continue
     
     if customer_df is None:
         # Final fallback with error replacement
         try:
             customer_df = pd.read_csv(customer_csv, dtype=str, keep_default_na=False, on_bad_lines='skip', sep=customer_separator, encoding='utf-8', errors='replace')
+            customer_used_encoding = 'utf-8 (with errors=replace)'
+            print(f"DEBUG: Successfully read customer CSV with fallback encoding: utf-8 (with errors=replace)")
         except Exception as e:
             raise Exception(f"Kunde inte läsa kundfilen: {str(e)}")
+    
+    # Debug: Show what columns were actually read
+    print(f"DEBUG: Database CSV columns ({used_encoding}): {list(db_df.columns)}")
+    print(f"DEBUG: Customer CSV columns ({customer_used_encoding}): {list(customer_df.columns)}")
+    print(f"DEBUG: Database CSV shape: {db_df.shape}")
+    print(f"DEBUG: Customer CSV shape: {customer_df.shape}")
 
     # Use database mapping if provided, otherwise auto-map
     if db_mapping is None:
