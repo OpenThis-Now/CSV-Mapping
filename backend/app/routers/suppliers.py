@@ -236,13 +236,16 @@ def upload_suppliers_csv(project_id: int, file: UploadFile = File(...), session:
 @router.get("/projects/{project_id}/suppliers")
 def get_suppliers(project_id: int, session: Session = Depends(get_session)) -> List[Dict[str, Any]]:
     """Get all suppliers for a project"""
-    p = session.get(Project, project_id)
-    if not p:
-        raise HTTPException(status_code=404, detail="Projekt saknas.")
-    
-    suppliers = session.exec(
-        select(SupplierData).where(SupplierData.project_id == project_id)
-    ).all()
+    try:
+        p = session.get(Project, project_id)
+        if not p:
+            raise HTTPException(status_code=404, detail="Projekt saknas.")
+        
+        suppliers = session.exec(
+            select(SupplierData).where(SupplierData.project_id == project_id)
+        ).all()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load suppliers: {str(e)}")
     
     return [
         {
