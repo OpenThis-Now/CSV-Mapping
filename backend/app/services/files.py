@@ -70,7 +70,7 @@ def open_text_stream(path: Path):
 
 
 def detect_csv_separator(path: Path) -> str:
-    """Detect CSV separator by reading first line."""
+    """Detect CSV separator by analyzing the first few lines."""
     # Use the same encoding list as open_text_stream
     encodings = [
         "utf-8", "utf-8-sig", 
@@ -84,28 +84,63 @@ def detect_csv_separator(path: Path) -> str:
     for encoding in encodings:
         try:
             with open(path, "r", encoding=encoding, newline="") as f:
-                first_line = f.readline().strip()
-                if ';' in first_line and ',' not in first_line:
-                    return ';'
-                elif '\t' in first_line and ',' not in first_line and ';' not in first_line:
-                    return '\t'
-                else:
-                    return ','
+                lines = [f.readline().strip() for _ in range(3)]  # Read first 3 lines
+                lines = [line for line in lines if line]  # Remove empty lines
+                
+                if not lines:
+                    continue
+                
+                # Count separators in each line
+                separator_counts = {}
+                for line in lines:
+                    for sep in [';', ',', '\t']:
+                        count = line.count(sep)
+                        if count > 0:
+                            separator_counts[sep] = separator_counts.get(sep, 0) + count
+                
+                # Find the separator with the most consistent count across lines
+                if separator_counts:
+                    # Prefer semicolon if it exists and has consistent counts
+                    if ';' in separator_counts:
+                        semicolon_counts = [line.count(';') for line in lines]
+                        if len(set(semicolon_counts)) == 1 and semicolon_counts[0] > 0:  # All lines have same count
+                            return ';'
+                    
+                    # Then prefer comma if it has consistent counts
+                    if ',' in separator_counts:
+                        comma_counts = [line.count(',') for line in lines]
+                        if len(set(comma_counts)) == 1 and comma_counts[0] > 0:  # All lines have same count
+                            return ','
+                    
+                    # Then prefer tab
+                    if '\t' in separator_counts:
+                        tab_counts = [line.count('\t') for line in lines]
+                        if len(set(tab_counts)) == 1 and tab_counts[0] > 0:  # All lines have same count
+                            return '\t'
+                    
+                    # Fallback: return the separator with highest total count
+                    return max(separator_counts.items(), key=lambda x: x[1])[0]
+                
         except (UnicodeDecodeError, UnicodeError):
             continue
     
     # Fallback: try with error replacement
     try:
         with open(path, "r", encoding="utf-8", errors="replace", newline="") as f:
-            first_line = f.readline().strip()
-            if ';' in first_line and ',' not in first_line:
-                return ';'
-            elif '\t' in first_line and ',' not in first_line and ';' not in first_line:
-                return '\t'
-            else:
-                return ','
+            lines = [f.readline().strip() for _ in range(3)]
+            lines = [line for line in lines if line]
+            
+            if lines:
+                # Simple fallback logic
+                first_line = lines[0]
+                if ';' in first_line:
+                    return ';'
+                elif '\t' in first_line:
+                    return '\t'
+                else:
+                    return ','
     except Exception:
         pass
     
-    # Final fallback: assume comma separator
-    return ','
+    # Final fallback: assume semicolon separator (our preferred format)
+    return ';'
