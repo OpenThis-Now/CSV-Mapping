@@ -433,19 +433,54 @@ def get_ai_suggestions(project_id: int, session: Session = Depends(get_session))
         )
     ).all()
     
-    # Get suggestions that are NOT for completed rows
-    suggestions = session.exec(
+    # Get existing AI suggestions that are NOT for completed rows
+    existing_suggestions = session.exec(
         select(AiSuggestion)
         .where(AiSuggestion.project_id == project_id)
         .where(~AiSuggestion.customer_row_index.in_(completed_row_indices))
         .order_by(AiSuggestion.customer_row_index, AiSuggestion.rank)
     ).all()
     
+    # Also get MatchResults that are "sent_to_ai" but don't have AI suggestions yet
+    # These represent products that are ready for AI review but haven't been processed yet
+    sent_to_ai_results = session.exec(
+        select(MatchResult)
+        .where(MatchResult.match_run_id == latest_run.id)
+        .where(MatchResult.decision == "sent_to_ai")
+        .where(MatchResult.ai_status == None)  # No AI status set yet
+        .where(~MatchResult.customer_row_index.in_(completed_row_indices))
+        .order_by(MatchResult.customer_row_index)
+    ).all()
+    
+    # Debug logging
+    import logging
+    log = logging.getLogger("app.ai")
+    log.info(f"Found {len(existing_suggestions)} existing suggestions")
+    log.info(f"Found {len(sent_to_ai_results)} sent_to_ai results")
+    log.info(f"Found {len(completed_row_indices)} completed row indices")
+    
+    # Convert MatchResults to AiSuggestionItem format for display
+    match_result_suggestions = []
+    for result in sent_to_ai_results:
+        # Create a placeholder suggestion for products that are ready for AI review
+        match_result_suggestions.append(AiSuggestionItem(
+            id=result.id,  # Use match result ID as temporary ID
+            customer_row_index=result.customer_row_index,
+            rank=1,
+            database_fields_json=result.database_fields_json or {},
+            confidence=0.0,  # No confidence yet since AI hasn't run
+            rationale="Ready for AI review - click to start analysis",
+            source="pending_ai_review"
+        ))
+    
+    # Combine existing suggestions with pending review items
+    all_suggestions = list(existing_suggestions) + match_result_suggestions
+    
     # Deduplicate suggestions by customer_row_index + product_name to avoid showing identical matches
     seen_combinations = set()
     deduplicated_suggestions = []
     
-    for s in suggestions:
+    for s in all_suggestions:
         product_name = s.database_fields_json.get("Product_name", "")
         combination_key = (s.customer_row_index, product_name)
         
