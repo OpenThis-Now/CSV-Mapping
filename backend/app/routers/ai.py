@@ -604,6 +604,13 @@ def auto_queue_ai_analysis(project_id: int, session: Session = Depends(get_sessi
     
     log.info(f"Found {len(results_to_queue)} products in 70-95 score range")
     
+    # Debug: Show some of the scores found
+    if results_to_queue:
+        for i, result in enumerate(results_to_queue[:3]):
+            log.info(f"  Product {i+1}: score={result.overall_score}, decision={result.decision}")
+    else:
+        log.info("  No products found in 70-95 score range")
+    
     # Check if there are any manually sent products that need processing
     manually_sent_products = session.exec(
         select(MatchResult).where(
