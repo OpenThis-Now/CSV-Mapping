@@ -466,6 +466,18 @@ def get_ai_suggestions(project_id: int, session: Session = Depends(get_session))
     for result in sent_to_ai_results[:3]:  # Show first 3
         log.info(f"Sent to AI result: row_index={result.customer_row_index}, decision={result.decision}, ai_status={result.ai_status}")
     
+    # Debug: Show all sent_to_ai results (not just first 3)
+    all_sent_to_ai = session.exec(
+        select(MatchResult)
+        .where(MatchResult.match_run_id == latest_run.id)
+        .where(MatchResult.decision == "sent_to_ai")
+        .order_by(MatchResult.customer_row_index)
+    ).all()
+    
+    log.info(f"All sent_to_ai results: {len(all_sent_to_ai)}")
+    for result in all_sent_to_ai:
+        log.info(f"  Row {result.customer_row_index}: decision={result.decision}, ai_status={result.ai_status}, in_completed={result.customer_row_index in completed_row_indices}")
+    
     # Convert MatchResults to AiSuggestionItem format for display
     match_result_suggestions = []
     for result in sent_to_ai_results:

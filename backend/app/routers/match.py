@@ -148,6 +148,13 @@ def run_matching(project_id: int, req: MatchRequest, session: Session = Depends(
                 log.info(f"Processed {created} rows")
         
         log.info(f"Match run completed, created {created} results")
+        
+        # Debug: Show some results and their decisions
+        sample_results = session.exec(
+            select(MatchResult).where(MatchResult.match_run_id == run.id).limit(5)
+        ).all()
+        for result in sample_results:
+            log.info(f"Result {result.customer_row_index}: score={result.overall_score}, decision={result.decision}, reason={result.reason}")
         run.status = "finished"
         run.finished_at = datetime.utcnow()
         session.add(run)
