@@ -138,22 +138,30 @@ def run_match(customer_csv: Path, db_csv: Path, customer_mapping: dict[str, str]
         
         # Debug: Log customer row data
         print(f"Processing customer row {idx}: {crow}")
+        print(f"DEBUG: Starting scoring loop for customer row {idx}")
         
+        print(f"DEBUG: About to compare against {len(db_records)} database records")
         for db_idx, db_row in enumerate(db_records):
-            meta = score_pair(crow, db_row, customer_mapping, db_mapping, thresholds)
-            if meta["overall"] > best_score:
-                best_score = meta["overall"]
-                best_meta, best_db = meta, db_row
-                # Use mapped field names for display
-                product_field = db_mapping.get("product", "Product_name")
-                vendor_field = db_mapping.get("vendor", "Supplier_name")
-                print(f"  New best match (score {best_score}): {db_row.get(product_field, 'N/A')} from {db_row.get(vendor_field, 'N/A')}")
-            
-            # Debug: Show first few database products being compared
-            if db_idx < 3:
-                product_field = db_mapping.get("product", "Product_name")
-                vendor_field = db_mapping.get("vendor", "Supplier_name")
-                print(f"  DB product {db_idx}: {db_row.get(product_field, 'N/A')} from {db_row.get(vendor_field, 'N/A')} (score: {meta['overall']})")
+            try:
+                meta = score_pair(crow, db_row, customer_mapping, db_mapping, thresholds)
+                print(f"DEBUG: Scored DB product {db_idx}: score={meta['overall']}")
+                
+                if meta["overall"] > best_score:
+                    best_score = meta["overall"]
+                    best_meta, best_db = meta, db_row
+                    # Use mapped field names for display
+                    product_field = db_mapping.get("product", "Product_name")
+                    vendor_field = db_mapping.get("vendor", "Supplier_name")
+                    print(f"  New best match (score {best_score}): {db_row.get(product_field, 'N/A')} from {db_row.get(vendor_field, 'N/A')}")
+                
+                # Debug: Show first few database products being compared
+                if db_idx < 3:
+                    product_field = db_mapping.get("product", "Product_name")
+                    vendor_field = db_mapping.get("vendor", "Supplier_name")
+                    print(f"  DB product {db_idx}: {db_row.get(product_field, 'N/A')} from {db_row.get(vendor_field, 'N/A')} (score: {meta['overall']})")
+            except Exception as e:
+                print(f"DEBUG: Error scoring DB product {db_idx}: {e}")
+                continue
         
         assert best_meta is not None and best_db is not None
         # Use mapped field names for display
