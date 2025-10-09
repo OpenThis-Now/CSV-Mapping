@@ -131,18 +131,18 @@ def run_matching(project_id: int, req: MatchRequest, session: Session = Depends(
         customer_separator = detect_csv_separator(cust_csv)
         customer_df = pd.read_csv(cust_csv, dtype=str, keep_default_na=False, sep=customer_separator, encoding='utf-8')
         
-        # For URL enhanced files, create individual hashes per product
+        # For URL enhanced files, use original_pdf_hash if available, otherwise fall back to file_hash
         if "enhanced" in imp.filename.lower():
-            log.info("Creating individual product hashes for URL enhanced file")
-            import hashlib
-            individual_hashes = []
-            for _, row in customer_df.iterrows():
-                # Create hash from key product fields
-                product_key = f"{row.get('Product_name', '')}|{row.get('Supplier_name', '')}|{row.get('Article_number', '')}|{imp.file_hash}"
-                individual_hash = hashlib.sha512(product_key.encode('utf-8')).hexdigest()
-                individual_hashes.append(individual_hash)
-            customer_df['file_hash'] = individual_hashes
-            log.info(f"Created {len(individual_hashes)} individual product hashes for URL enhanced file")
+            log.info("URL enhanced file detected - checking for original PDF hashes")
+            if 'original_pdf_hash' in customer_df.columns:
+                log.info("Found original_pdf_hash column - using individual PDF hashes")
+                # Use original_pdf_hash for rows that have it, otherwise use file_hash
+                customer_df['file_hash'] = customer_df['original_pdf_hash'].fillna(imp.file_hash)
+                customer_df['file_hash'] = customer_df['file_hash'].replace('', imp.file_hash)
+                log.info(f"Using original PDF hashes for {len(customer_df[customer_df['file_hash'] != imp.file_hash])} rows")
+            else:
+                log.info("No original_pdf_hash column found - using enhanced file hash")
+                customer_df['file_hash'] = imp.file_hash
         else:
             # For regular files, use the same file hash for all rows
             customer_df['file_hash'] = imp.file_hash

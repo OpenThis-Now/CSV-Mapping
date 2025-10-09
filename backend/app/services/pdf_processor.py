@@ -659,9 +659,19 @@ def extract_pdf_data_with_ai(url: str, api_key_index: int = 0) -> List[Dict[str,
             # print(f"URL does not appear to be a PDF (content-type: {content_type}): {url}")
             return []
         
+        # Calculate SHA-512 hash of the original PDF file
+        import hashlib
+        pdf_hash = hashlib.sha512()
+        pdf_bytes = response.content
+        pdf_hash.update(pdf_bytes)
+        original_pdf_hash = pdf_hash.hexdigest()
+        
+        # Log file size and hash for debugging
+        print(f"Downloaded PDF from {url}: {len(pdf_bytes)} bytes, hash: {original_pdf_hash[:16]}...")
+        
         # Create temporary file
         with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as temp_file:
-            temp_file.write(response.content)
+            temp_file.write(pdf_bytes)
             temp_path = Path(temp_file.name)
         
         try:
@@ -676,6 +686,9 @@ def extract_pdf_data_with_ai(url: str, api_key_index: int = 0) -> List[Dict[str,
             if not ai_result:
                 # print(f"AI extraction failed for URL: {url}")
                 return []
+            
+            # Add the original PDF hash to the result
+            ai_result["original_pdf_hash"] = original_pdf_hash
             
             # Convert to the expected format
             return [ai_result]

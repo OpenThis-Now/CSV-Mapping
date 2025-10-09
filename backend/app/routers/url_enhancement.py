@@ -102,6 +102,10 @@ def _process_urls_in_background_optimized(project_id: int, import_id: int, enhan
             log.info(f"URL enhancement was cancelled, not creating enhanced CSV")
             return
         
+        # Add original_pdf_hash column to headers if it doesn't exist
+        if "original_pdf_hash" not in headers:
+            headers.append("original_pdf_hash")
+        
         # Process results and update rows
         enhanced_rows = []
         url_result_index = 0
@@ -140,8 +144,20 @@ def _process_urls_in_background_optimized(project_id: int, import_id: int, enhan
                         
                         if pdf_item.get("language", {}).get("value"):
                             enhanced_row[language_column] = pdf_item["language"]["value"]
+                        
+                        # Add original PDF hash to the enhanced row
+                        original_pdf_hash = pdf_item.get("original_pdf_hash", "")
+                        enhanced_row["original_pdf_hash"] = original_pdf_hash
+                        if original_pdf_hash:
+                            log.info(f"Added original PDF hash for row {row_idx}: {original_pdf_hash[:16]}...")
                     
                     url_result_index += 1
+                else:
+                    # No PDF data for this URL
+                    enhanced_row["original_pdf_hash"] = ""
+            else:
+                # No URL for this row
+                enhanced_row["original_pdf_hash"] = ""
             
             enhanced_rows.append(enhanced_row)
         
