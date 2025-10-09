@@ -14,7 +14,7 @@ from sqlmodel import Session, select
 
 from ..config import settings
 from ..db import get_session
-from ..models import ImportFile, Project, URLEnhancementRun
+from ..models import ImportFile, Project, URLEnhancementRun, ImportedPdf
 from ..schemas import ImportUploadResponse
 from ..services.files import detect_csv_separator, open_text_stream
 from ..services.pdf_processor import extract_pdf_data_with_ai, separate_market_and_legislation, adjust_market_by_language
@@ -82,6 +82,36 @@ def _process_urls_in_background_optimized(project_id: int, import_id: int, enhan
         # Process all URLs at once to maintain order
         log.info(f"Processing all {len(urls_to_process)} URLs in parallel")
         pdf_data_results = process_urls_optimized(urls_to_process)
+        
+        # Create ImportedPdf records for each successfully processed PDF
+        log.info(f"Creating ImportedPdf records for processed PDFs")
+        for i, (url, pdf_data) in enumerate(zip(urls_to_process, pdf_data_results)):
+            if pdf_data and pdf_data.get("original_pdf_hash"):
+                # Extract product info from PDF data
+                product_name = None
+                supplier_name = None
+                article_number = None
+                
+                if pdf_data.get("product_name", {}).get("value"):
+                    product_name = pdf_data["product_name"]["value"]
+                if pdf_data.get("company_name", {}).get("value"):
+                    supplier_name = pdf_data["company_name"]["value"]
+                if pdf_data.get("article_number", {}).get("value"):
+                    article_number = pdf_data["article_number"]["value"]
+                
+                # Create ImportedPdf record
+                imported_pdf = ImportedPdf(
+                    project_id=project_id,
+                    filename=Path(url).name,
+                    stored_filename=f"url_enhanced_{project_id}_{i}_{Path(url).name}",
+                    file_hash=pdf_data["original_pdf_hash"],
+                    product_name=product_name,
+                    supplier_name=supplier_name,
+                    article_number=article_number,
+                    customer_row_index=None  # Will be set during matching
+                )
+                session.add(imported_pdf)
+                log.info(f"Created ImportedPdf record for URL {i}: {pdf_data['original_pdf_hash'][:16]}...")
         
         # Update progress
         enhancement_run.processed_urls = len(pdf_data_results)

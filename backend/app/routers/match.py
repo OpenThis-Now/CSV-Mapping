@@ -131,17 +131,40 @@ def run_matching(project_id: int, req: MatchRequest, session: Session = Depends(
         customer_separator = detect_csv_separator(cust_csv)
         customer_df = pd.read_csv(cust_csv, dtype=str, keep_default_na=False, sep=customer_separator, encoding='utf-8')
         
-        # For URL enhanced files, use original_pdf_hash if available, otherwise fall back to file_hash
+        # For URL enhanced files, try to get PDF hashes from ImportedPdf records
         if "enhanced" in imp.filename.lower():
-            log.info("URL enhanced file detected - checking for original PDF hashes")
-            if 'original_pdf_hash' in customer_df.columns:
-                log.info("Found original_pdf_hash column - using individual PDF hashes")
-                # Use original_pdf_hash for rows that have it, otherwise use file_hash
-                customer_df['file_hash'] = customer_df['original_pdf_hash'].fillna(imp.file_hash)
-                customer_df['file_hash'] = customer_df['file_hash'].replace('', imp.file_hash)
-                log.info(f"Using original PDF hashes for {len(customer_df[customer_df['file_hash'] != imp.file_hash])} rows")
+            log.info("URL enhanced file detected - looking up PDF hashes from ImportedPdf records")
+            
+            # Look up ImportedPdf records for this project
+            from ..models import ImportedPdf
+            imported_pdfs = session.exec(
+                select(ImportedPdf)
+                .where(ImportedPdf.project_id == project_id)
+                .where(ImportedPdf.customer_row_index.is_(None))  # Not yet processed
+            ).all()
+            
+            if imported_pdfs:
+                log.info(f"Found {len(imported_pdfs)} ImportedPdf records with PDF hashes")
+                # Create a mapping from product info to PDF hash
+                pdf_hash_map = {}
+                for pdf_record in imported_pdfs:
+                    # Create key from product info
+                    if pdf_record.product_name and pdf_record.supplier_name and pdf_record.article_number:
+                        key = f"{pdf_record.product_name}|{pdf_record.supplier_name}|{pdf_record.article_number}"
+                        pdf_hash_map[key] = pdf_record.file_hash
+                        log.info(f"Mapped {key} -> {pdf_record.file_hash[:16]}...")
+                
+                # Apply PDF hashes to customer data
+                customer_df['file_hash'] = imp.file_hash  # Default fallback
+                for idx, row in customer_df.iterrows():
+                    product_key = f"{row.get('Product_name', '')}|{row.get('Supplier_name', '')}|{row.get('Article_number', '')}"
+                    if product_key in pdf_hash_map:
+                        customer_df.at[idx, 'file_hash'] = pdf_hash_map[product_key]
+                        log.info(f"Applied PDF hash to row {idx}: {pdf_hash_map[product_key][:16]}...")
+                
+                log.info(f"Applied PDF hashes to {len(customer_df[customer_df['file_hash'] != imp.file_hash])} rows")
             else:
-                log.info("No original_pdf_hash column found - using enhanced file hash")
+                log.info("No ImportedPdf records found - using enhanced file hash")
                 customer_df['file_hash'] = imp.file_hash
         else:
             # For regular files, use the same file hash for all rows
