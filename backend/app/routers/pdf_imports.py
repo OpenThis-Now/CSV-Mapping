@@ -182,6 +182,12 @@ def upload_pdf_files(project_id: int, files: List[UploadFile] = File(...), sessi
         # Skapa CSV-fil
         create_csv_from_pdf_data(pdf_data, csv_path)
         
+        # Compute SHA-512 hash of the created CSV file
+        import hashlib
+        with open(csv_path, 'rb') as f:
+            file_content = f.read()
+            csv_file_hash = hashlib.sha512(file_content).hexdigest()
+        
         # Läsa CSV för att få metadata (headers, row count)
         from ..services.files import detect_csv_separator
         separator = detect_csv_separator(csv_path)
@@ -199,6 +205,7 @@ def upload_pdf_files(project_id: int, files: List[UploadFile] = File(...), sessi
             project_id=project_id,
             filename=csv_filename,
             original_name=f"PDF Import ({len(files)} files)",
+            file_hash=csv_file_hash,
             columns_map_json=mapping,
             row_count=count,
         )
@@ -371,6 +378,11 @@ def combine_import_files(project_id: int, req: CombineImportsRequest, session: S
                 # print(f"ERROR: Failed to save combined file: {e}")
                 raise HTTPException(status_code=500, detail=f"Failed to save combined file: {e}")
             
+            # Compute SHA-512 hash of the combined CSV file
+            import hashlib
+            with open(combined_path, 'rb') as f:
+                file_content = f.read()
+                combined_file_hash = hashlib.sha512(file_content).hexdigest()
             
             # Skapa enhetlig kolumnmappning för den kombinerade filen
             unified_mapping = {
@@ -386,6 +398,7 @@ def combine_import_files(project_id: int, req: CombineImportsRequest, session: S
                 project_id=project_id,
                 filename=combined_filename,
                 original_name=f"Kombinerad import ({len(imports)} filer)",
+                file_hash=combined_file_hash,
                 columns_map_json=unified_mapping,  # Använd enhetlig mappning
                 row_count=len(unified_data),
             )
