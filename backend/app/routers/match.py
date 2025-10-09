@@ -131,6 +131,14 @@ def run_matching(project_id: int, req: MatchRequest, session: Session = Depends(
                 if product_key in existing_products:
                     log.debug(f"Skipping existing product: {product_key}")
                     continue
+            # Add file_hash from ImportFile to customer_fields_json
+            customer_fields_with_hash = crow.copy()
+            customer_fields_with_hash["file_hash"] = imp.file_hash
+            
+            # Add file_hash from DatabaseCatalog to db_fields_json
+            db_fields_with_hash = dbrow.copy() if dbrow else {}
+            db_fields_with_hash["file_hash"] = db.file_hash
+            
             mr = MatchResult(
                 match_run_id=run.id,
                 customer_row_index=row_index,
@@ -138,8 +146,8 @@ def run_matching(project_id: int, req: MatchRequest, session: Session = Depends(
                 overall_score=meta["overall"],
                 reason=meta["reason"],
                 exact_match=meta["exact"],
-                customer_fields_json=crow,
-                db_fields_json=dbrow,
+                customer_fields_json=customer_fields_with_hash,
+                db_fields_json=db_fields_with_hash,
             )
             session.add(mr)
             created += 1
