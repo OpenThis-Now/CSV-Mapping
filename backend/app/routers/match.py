@@ -130,7 +130,22 @@ def run_matching(project_id: int, req: MatchRequest, session: Session = Depends(
         # Read customer CSV and add file_hash
         customer_separator = detect_csv_separator(cust_csv)
         customer_df = pd.read_csv(cust_csv, dtype=str, keep_default_na=False, sep=customer_separator, encoding='utf-8')
-        customer_df['file_hash'] = imp.file_hash
+        
+        # For URL enhanced files, create individual hashes per product
+        if "enhanced" in imp.filename.lower():
+            log.info("Creating individual product hashes for URL enhanced file")
+            import hashlib
+            individual_hashes = []
+            for _, row in customer_df.iterrows():
+                # Create hash from key product fields
+                product_key = f"{row.get('Product_name', '')}|{row.get('Supplier_name', '')}|{row.get('Article_number', '')}|{imp.file_hash}"
+                individual_hash = hashlib.sha512(product_key.encode('utf-8')).hexdigest()
+                individual_hashes.append(individual_hash)
+            customer_df['file_hash'] = individual_hashes
+            log.info(f"Created {len(individual_hashes)} individual product hashes for URL enhanced file")
+        else:
+            # For regular files, use the same file hash for all rows
+            customer_df['file_hash'] = imp.file_hash
         
         # Read database CSV and add file_hash
         db_separator = detect_csv_separator(db_csv)
