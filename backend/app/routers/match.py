@@ -136,6 +136,8 @@ def run_matching(project_id: int, req: MatchRequest, session: Session = Depends(
         db_separator = detect_csv_separator(db_csv)
         log.info(f"Detected separators - Customer: '{customer_separator}', Database: '{db_separator}'")
         db_df = pd.read_csv(db_csv, dtype=str, keep_default_na=False, sep=db_separator, encoding='utf-8')
+        log.info(f"Original database CSV columns after reading: {list(db_df.columns)}")
+        log.info(f"Original database CSV shape: {db_df.shape}")
         db_df['file_hash'] = db.file_hash
         
         # Debug: Log file hash information
@@ -165,16 +167,37 @@ def run_matching(project_id: int, req: MatchRequest, session: Session = Depends(
             log.error(f"file_hash column missing from temp customer CSV! Columns: {list(temp_cust_df.columns)}")
         if 'file_hash' not in temp_db_df.columns:
             log.error(f"file_hash column missing from temp database CSV! Columns: {list(temp_db_df.columns)}")
-            # Try to fix by re-reading with different separator
+            # Try to fix by re-reading with different separators
             log.info("Attempting to fix database CSV separator issue...")
-            try:
-                # Try with semicolon separator
-                temp_db_df = pd.read_csv(temp_db_csv, dtype=str, keep_default_na=False, sep=';', encoding='utf-8')
-                log.info(f"Fixed database CSV columns with semicolon: {list(temp_db_df.columns)}")
-                # Save the fixed version
-                temp_db_df.to_csv(temp_db_csv, index=False, encoding='utf-8')
-            except Exception as e:
-                log.error(f"Failed to fix database CSV: {e}")
+            
+            # Try different separators in order of preference
+            separators_to_try = [';', ',', '\t', '|']
+            fixed = False
+            
+            for sep in separators_to_try:
+                try:
+                    log.info(f"Trying separator: '{sep}'")
+                    temp_db_df = pd.read_csv(temp_db_csv, dtype=str, keep_default_na=False, sep=sep, encoding='utf-8')
+                    if len(temp_db_df.columns) > 1 and 'file_hash' in temp_db_df.columns:
+                        log.info(f"Successfully fixed with separator '{sep}': {list(temp_db_df.columns)}")
+                        # Add file_hash back since it might have been lost
+                        temp_db_df['file_hash'] = db.file_hash
+                        # Save the fixed version
+                        temp_db_df.to_csv(temp_db_csv, index=False, encoding='utf-8')
+                        fixed = True
+                        break
+                    else:
+                        log.info(f"Separator '{sep}' didn't work - columns: {list(temp_db_df.columns)}")
+                except Exception as e:
+                    log.info(f"Separator '{sep}' failed: {e}")
+                    continue
+            
+            if not fixed:
+                log.error("Failed to fix database CSV with any separator!")
+                # Create a minimal fallback with just the file_hash
+                log.info("Creating fallback database CSV with file_hash only...")
+                fallback_df = pd.DataFrame({'file_hash': [db.file_hash]})
+                fallback_df.to_csv(temp_db_csv, index=False, encoding='utf-8')
         
         try:
             for row_index, crow, dbrow, meta in run_match(temp_cust_csv, temp_db_csv, imp.columns_map_json, db.columns_map_json, thr):
