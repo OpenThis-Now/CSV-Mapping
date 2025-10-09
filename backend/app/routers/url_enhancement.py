@@ -174,25 +174,42 @@ def _process_urls_in_background_optimized(project_id: int, import_id: int, enhan
             with open(enhanced_path, 'rb') as f:
                 file_content = f.read()
                 enhanced_file_hash = hashlib.sha512(file_content).hexdigest()
-            log.info(f"SHA-512 hash computed successfully: {enhanced_file_hash[:16]}...")
-            log.info(f"Full hash: {enhanced_file_hash}")
+            log.info(f"Enhanced CSV SHA-512 hash computed successfully: {enhanced_file_hash[:16]}...")
+            log.info(f"Enhanced CSV full hash: {enhanced_file_hash}")
         except Exception as hash_error:
             log.error(f"Failed to compute SHA-512 hash: {hash_error}")
             raise Exception(f"Failed to compute file hash: {hash_error}")
         
-        # Debug: Also compute hash of original file for comparison
-        original_hash = imp.file_hash if imp.file_hash else "No original hash"
-        log.info(f"Original file hash: {original_hash[:16] if original_hash != 'No original hash' else 'None'}...")
-        log.info(f"Enhanced file hash: {enhanced_file_hash[:16]}...")
-        log.info(f"Hash comparison - Same: {original_hash == enhanced_file_hash}")
+        # Create a unique hash for this enhancement run by combining:
+        # 1. Original file hash
+        # 2. Enhancement timestamp
+        # 3. Number of URLs processed
+        # 4. Enhancement run ID
+        original_hash = imp.file_hash if imp.file_hash else ""
+        enhancement_timestamp = enhancement_run.started_at.isoformat() if enhancement_run.started_at else ""
+        urls_processed = enhancement_run.successful_urls if enhancement_run.successful_urls else 0
+        run_id = enhancement_run.id if enhancement_run.id else 0
+        
+        # Create unique hash by combining all these elements
+        unique_hash_input = f"{original_hash}|{enhancement_timestamp}|{urls_processed}|{run_id}|{enhanced_file_hash}"
+        unique_enhancement_hash = hashlib.sha512(unique_hash_input.encode('utf-8')).hexdigest()
+        
+        log.info(f"Original file hash: {original_hash[:16] if original_hash else 'None'}...")
+        log.info(f"Enhanced CSV hash: {enhanced_file_hash[:16]}...")
+        log.info(f"Unique enhancement hash: {unique_enhancement_hash[:16]}...")
+        log.info(f"Hash components: original={original_hash[:8] if original_hash else 'None'}, timestamp={enhancement_timestamp[:19] if enhancement_timestamp else 'None'}, urls={urls_processed}, run_id={run_id}")
+        log.info(f"Hash comparison - Enhanced vs Original: {enhanced_file_hash == original_hash}")
+        
+        # Use the unique enhancement hash for the ImportFile record
+        final_hash = unique_enhancement_hash
         
         # Create new ImportFile entry
-        log.info(f"Creating new ImportFile entry")
+        log.info(f"Creating new ImportFile entry with unique hash")
         enhanced_import = ImportFile(
             project_id=project_id,
             original_name=f"Enhanced {imp.original_name} (URL data)",
             filename=enhanced_filename,
-            file_hash=enhanced_file_hash,
+            file_hash=final_hash,  # Use the unique enhancement hash
             columns_map_json=imp.columns_map_json,
             row_count=len(enhanced_rows)
         )
