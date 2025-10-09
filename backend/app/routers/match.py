@@ -138,7 +138,14 @@ def run_matching(project_id: int, req: MatchRequest, session: Session = Depends(
         db_df = pd.read_csv(db_csv, dtype=str, keep_default_na=False, sep=db_separator, encoding='utf-8')
         log.info(f"Original database CSV columns after reading: {list(db_df.columns)}")
         log.info(f"Original database CSV shape: {db_df.shape}")
-        db_df['file_hash'] = db.file_hash
+        
+        # Use existing File_hash column if it exists, otherwise use db.file_hash
+        if 'File_hash' in db_df.columns:
+            log.info("Using existing File_hash column from database CSV")
+            db_df['file_hash'] = db_df['File_hash']
+        else:
+            log.info("No File_hash column found, using database file hash for all rows")
+            db_df['file_hash'] = db.file_hash
         
         # Debug: Log file hash information
         log.info(f"Customer file hash: {imp.file_hash[:16] if imp.file_hash else 'None'}...")
@@ -181,7 +188,10 @@ def run_matching(project_id: int, req: MatchRequest, session: Session = Depends(
                     if len(temp_db_df.columns) > 1 and 'file_hash' in temp_db_df.columns:
                         log.info(f"Successfully fixed with separator '{sep}': {list(temp_db_df.columns)}")
                         # Add file_hash back since it might have been lost
-                        temp_db_df['file_hash'] = db.file_hash
+                        if 'File_hash' in temp_db_df.columns:
+                            temp_db_df['file_hash'] = temp_db_df['File_hash']
+                        else:
+                            temp_db_df['file_hash'] = db.file_hash
                         # Save the fixed version
                         temp_db_df.to_csv(temp_db_csv, index=False, encoding='utf-8')
                         fixed = True
