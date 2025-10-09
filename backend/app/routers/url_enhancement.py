@@ -173,7 +173,13 @@ def _process_urls_in_background_optimized(project_id: int, import_id: int, enhan
             writer.writeheader()
             writer.writerows(enhanced_rows)
         
-        log.info(f"Enhanced CSV file created successfully")
+        # Compute SHA-512 hash of the enhanced file
+        import hashlib
+        with open(enhanced_path, 'rb') as f:
+            file_content = f.read()
+            enhanced_file_hash = hashlib.sha512(file_content).hexdigest()
+        
+        log.info(f"Enhanced CSV file created successfully with hash: {enhanced_file_hash[:16]}...")
         
         # Create new ImportFile entry
         log.info(f"Creating new ImportFile entry")
@@ -181,6 +187,7 @@ def _process_urls_in_background_optimized(project_id: int, import_id: int, enhan
             project_id=project_id,
             original_name=f"Enhanced {imp.original_name} (URL data)",
             filename=enhanced_filename,
+            file_hash=enhanced_file_hash,
             columns_map_json=imp.columns_map_json,
             row_count=len(enhanced_rows)
         )

@@ -23,7 +23,7 @@ def upload_import_csv(project_id: int, file: UploadFile = File(...), session: Se
     if not p:
         raise HTTPException(status_code=404, detail="Projekt saknas.")
     check_upload(file)
-    _, path = compute_hash_and_save(Path(settings.IMPORTS_DIR), file)
+    file_hash, path = compute_hash_and_save(Path(settings.IMPORTS_DIR), file)
 
     separator = detect_csv_separator(path)
     
@@ -39,6 +39,7 @@ def upload_import_csv(project_id: int, file: UploadFile = File(...), session: Se
         project_id=project_id,
         filename=path.name,
         original_name=file.filename or path.name,
+        file_hash=file_hash,
         columns_map_json=mapping,
         row_count=count,
     )

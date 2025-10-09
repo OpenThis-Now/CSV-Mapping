@@ -49,6 +49,7 @@ class ImportFile(SQLModel, table=True):
     project_id: int = Field(foreign_key="project.id", index=True)
     filename: str
     original_name: str
+    file_hash: str = Field(index=True)  # SHA-512 hash of the file
     columns_map_json: dict[str, Any] = Field(sa_column=Column(JSON))
     row_count: int = 0
     created_at: datetime = Field(default_factory=datetime.utcnow)

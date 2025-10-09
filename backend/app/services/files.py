@@ -28,7 +28,7 @@ def compute_hash_and_save(dst_dir: Path, file: UploadFile) -> Tuple[str, Path]:
     filename = safe_filename(file.filename or "uploaded.csv")
     outpath = dst_dir / filename
 
-    sha = hashlib.sha256()
+    sha = hashlib.sha512()
     total = 0
     with outpath.open("wb") as f:
         while True:

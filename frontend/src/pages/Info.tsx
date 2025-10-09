@@ -35,11 +35,12 @@ BAR-RUST 235 BLACK PART A;AkzoNobel;HB9903;Sweden;Swedish;LOC003;PROD003;Rust pr
     "Revision_date - Revision date (optional)",
     "Expire_date - Expiration date (optional)",
     "Description - Description (optional)",
+    "File_hash - SHA-512 hash of original file (optional)",
   ];
-  const dbTemplate = `Product_name;Supplier_name;Article_number;Market;Language;Unique_ID;MSDSkey;Revision_date;Expire_date;Description
-THINNER 215;Carboline;05570910001D;Canada;English;12345;26139007;2024-01-15;2025-12-31;Industrial paint thinner
-MAPEFLOOR FILLER NA;MAPEI INC.;245633;Canada;English;12347;26146274;2024-02-01;2026-01-31;Floor filler compound
-BAR-RUST 235 BLACK PART A;AkzoNobel;HB9903;Sweden;Swedish;12348;26146498;2024-01-20;2025-06-30;Rust protection paint`;
+  const dbTemplate = `Product_name;Supplier_name;Article_number;Market;Language;Unique_ID;MSDSkey;Revision_date;Expire_date;Description;File_hash
+THINNER 215;Carboline;05570910001D;Canada;English;12345;26139007;2024-01-15;2025-12-31;Industrial paint thinner;a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+MAPEFLOOR FILLER NA;MAPEI INC.;245633;Canada;English;12347;26146274;2024-02-01;2026-01-31;Floor filler compound;b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890
+BAR-RUST 235 BLACK PART A;AkzoNobel;HB9903;Sweden;Swedish;12348;26146498;2024-01-20;2025-06-30;Rust protection paint;c3d4e5f6789012345678901234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef`;
 
   const tips = [
     "Use semicolon (;) as separator, not comma (,)",
@@ -52,6 +53,7 @@ BAR-RUST 235 BLACK PART A;AkzoNobel;HB9903;Sweden;Swedish;12348;26146498;2024-01
     "Language values: Use 'English', 'Swedish', 'Norwegian', 'Danish', etc.",
     "Column names are case-sensitive - use exact names shown above",
     "AI Enhancement: Works best with well-formatted SDS documents",
+    "File_hash: SHA-512 hash of original file (128 hex characters) - optional for tracking",
   ];
 
   const onDownload = (csv: string, filename: string) => {
