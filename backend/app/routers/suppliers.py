@@ -341,6 +341,8 @@ def get_supplier_mapping(project_id: int, session: Session = Depends(get_session
 @router.post("/projects/{project_id}/suppliers/ai-match")
 def ai_match_suppliers(project_id: int, session: Session = Depends(get_session)) -> Dict[str, Any]:
     """Use AI to match suppliers from rejected products with supplier CSV data"""
+    from ..openai_client import suggest_with_openai
+    
     p = session.get(Project, project_id)
     if not p:
         raise HTTPException(status_code=404, detail="Projekt saknas.")
@@ -361,11 +363,19 @@ def ai_match_suppliers(project_id: int, session: Session = Depends(get_session))
     new_country_needed = []
     new_supplier_needed = []
     
+    # Prepare supplier data for AI
+    supplier_list = []
+    for supplier in suppliers:
+        supplier_list.append(f"- {supplier.supplier_name} ({supplier.country}) - CompanyID: {supplier.company_id}")
+    
+    supplier_data_text = "\n".join(supplier_list)
+    
     for supplier_group in supplier_summary:
         supplier_name = supplier_group["supplier_name"]
         country = supplier_group["country"]
+        products_affected = len(supplier_group["products"])
         
-        # print(f"DEBUG: Processing supplier: '{supplier_name}' in country: '{country}'")
+        print(f"DEBUG: AI matching supplier: '{supplier_name}' in country: '{country}'")
         
         # First try exact match: Country + Supplier name
         exact_matches = [
@@ -381,76 +391,86 @@ def ai_match_suppliers(project_id: int, session: Session = Depends(get_session))
                 "country": country,
                 "matched_supplier": best_match,
                 "match_type": "exact_match",
-                "products_affected": len(supplier_group["products"])
+                "products_affected": products_affected
             })
-            # print(f"DEBUG: Exact match found: {best_match.supplier_name}")
+            print(f"DEBUG: Exact match found: {best_match.supplier_name}")
         else:
-            # Try fuzzy matching with same country only (country matching is mandatory)
-            fuzzy_match_same_country = find_best_supplier_match(
-                supplier_name, suppliers, country=country, min_similarity=0.85, require_country_match=True
-            )
+            # Use AI to find the best match
+            ai_prompt = f"""
+You are a supplier matching expert. I need you to find the best match for this supplier in our database.
+
+Target supplier to match: "{supplier_name}" in country: "{country}"
+
+Available suppliers in database:
+{supplier_data_text}
+
+Please analyze and respond with ONE of these options:
+
+1. EXACT_MATCH: If you find an exact match (same name, same country)
+2. SIMILAR_DIFFERENT_COUNTRY: If you find a very similar company name but in a different country
+3. NO_MATCH: If no similar company is found
+
+For EXACT_MATCH or SIMILAR_DIFFERENT_COUNTRY, also provide the CompanyID of the matched supplier.
+
+Response format:
+MATCH_TYPE: [EXACT_MATCH/SIMILAR_DIFFERENT_COUNTRY/NO_MATCH]
+COMPANY_ID: [CompanyID if match found]
+REASONING: [Brief explanation of your decision]
+"""
             
-            if fuzzy_match_same_country:
-                # Check if it's really a good match (high similarity required)
-                similarity = calculate_supplier_similarity(supplier_name, fuzzy_match_same_country.supplier_name)
-                if similarity >= 0.85:  # Good matches in same country
-                    matched_results.append({
-                        "supplier_name": supplier_name,
-                        "country": country,
-                        "matched_supplier": fuzzy_match_same_country,
-                        "match_type": "fuzzy_match_same_country",
-                        "products_affected": len(supplier_group["products"])
-                    })
-                    # print(f"DEBUG: Fuzzy match (same country) found: {fuzzy_match_same_country.supplier_name} (similarity: {similarity:.2f})")
-                else:
-                    # Similar name but not confident enough - check other countries
-                    # Try fuzzy matching with different countries (but with penalty)
-                    fuzzy_match_any_country = find_best_supplier_match(
-                        supplier_name, suppliers, country=country, min_similarity=0.75, require_country_match=False
-                    )
-                    
-                    if fuzzy_match_any_country:
-                        similarity = calculate_supplier_similarity(supplier_name, fuzzy_match_any_country.supplier_name)
-                        new_country_needed.append({
-                            "supplier_name": supplier_name,
-                            "country": country,
-                            "matched_supplier": fuzzy_match_any_country,
-                            "similarity": similarity,
-                            "products_affected": len(supplier_group["products"])
-                        })
-                        # print(f"DEBUG: Similar supplier found in different country: {fuzzy_match_any_country.supplier_name} (similarity: {similarity:.2f})")
-                    else:
-                        # No similar suppliers found anywhere
-                        new_supplier_needed.append({
-                            "supplier_name": supplier_name,
-                            "country": country,
-                            "products_affected": len(supplier_group["products"])
-                        })
-                        # print(f"DEBUG: No similar suppliers found: {supplier_name}")
-            else:
-                # Try fuzzy matching with different countries (but with penalty)
-                fuzzy_match_any_country = find_best_supplier_match(
-                    supplier_name, suppliers, country=country, min_similarity=0.75, require_country_match=False
-                )
+            try:
+                ai_response = suggest_with_openai(ai_prompt, api_key_index=0)
+                print(f"DEBUG: AI response for {supplier_name}: {ai_response}")
                 
-                if fuzzy_match_any_country:
-                    similarity = calculate_supplier_similarity(supplier_name, fuzzy_match_any_country.supplier_name)
-                    new_country_needed.append({
-                        "supplier_name": supplier_name,
-                        "country": country,
-                        "matched_supplier": fuzzy_match_any_country,
-                        "similarity": similarity,
-                        "products_affected": len(supplier_group["products"])
-                    })
-                    print(f"DEBUG: Fuzzy match (different country) found: {fuzzy_match_any_country.supplier_name} (similarity: {similarity:.2f})")
-                else:
-                    # No match found at all
-                    new_supplier_needed.append({
-                        "supplier_name": supplier_name,
-                        "country": country,
-                        "products_affected": len(supplier_group["products"])
-                    })
-                    print(f"DEBUG: No match found for: {supplier_name}")
+                if "EXACT_MATCH" in ai_response:
+                    # Extract CompanyID and find the supplier
+                    company_id_match = re.search(r'COMPANY_ID:\s*(\d+)', ai_response)
+                    if company_id_match:
+                        company_id = int(company_id_match.group(1))
+                        matched_supplier = next((s for s in suppliers if s.company_id == company_id), None)
+                        if matched_supplier:
+                            matched_results.append({
+                                "supplier_name": supplier_name,
+                                "country": country,
+                                "matched_supplier": matched_supplier,
+                                "match_type": "ai_exact_match",
+                                "products_affected": products_affected
+                            })
+                            print(f"DEBUG: AI exact match found: {matched_supplier.supplier_name}")
+                            continue
+                
+                elif "SIMILAR_DIFFERENT_COUNTRY" in ai_response:
+                    # Extract CompanyID and find the supplier
+                    company_id_match = re.search(r'COMPANY_ID:\s*(\d+)', ai_response)
+                    if company_id_match:
+                        company_id = int(company_id_match.group(1))
+                        matched_supplier = next((s for s in suppliers if s.company_id == company_id), None)
+                        if matched_supplier:
+                            new_country_needed.append({
+                                "supplier_name": supplier_name,
+                                "country": country,
+                                "matched_supplier": matched_supplier,
+                                "products_affected": products_affected
+                            })
+                            print(f"DEBUG: AI similar match (different country): {matched_supplier.supplier_name}")
+                            continue
+                
+                # If AI says NO_MATCH or couldn't find a match, add to new_supplier_needed
+                new_supplier_needed.append({
+                    "supplier_name": supplier_name,
+                    "country": country,
+                    "products_affected": products_affected
+                })
+                print(f"DEBUG: AI found no match for: {supplier_name}")
+                
+            except Exception as e:
+                print(f"DEBUG: AI matching failed for {supplier_name}: {e}")
+                # Fallback to new_supplier_needed
+                new_supplier_needed.append({
+                    "supplier_name": supplier_name,
+                    "country": country,
+                    "products_affected": products_affected
+                })
     
     return {
         "matched_suppliers": matched_results,
