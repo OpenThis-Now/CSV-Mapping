@@ -331,10 +331,139 @@ def get_supplier_mapping(project_id: int, session: Session = Depends(get_session
                 }]
             })
     
+    # Perform AI matching on the supplier summary
+    supplier_list = list(supplier_summary.values())
+    
+    # Get all suppliers from CSV for matching
+    csv_suppliers = session.exec(
+        select(SupplierData).where(SupplierData.project_id == project_id)
+    ).all()
+    
+    matched_results = []
+    new_country_needed = []
+    new_supplier_needed = []
+    
+    if csv_suppliers:
+        # Prepare supplier data for AI
+        supplier_data_text = "\n".join([
+            f"- {supplier.supplier_name} ({supplier.country}) - CompanyID: {supplier.company_id}"
+            for supplier in csv_suppliers
+        ])
+        
+        for supplier_group in supplier_list:
+            supplier_name = supplier_group["supplier_name"]
+            country = supplier_group["country"]
+            products_affected = supplier_group["product_count"]
+            
+            print(f"DEBUG: AI matching supplier: '{supplier_name}' in country: '{country}'")
+            
+            # First try exact match
+            exact_matches = [
+                s for s in csv_suppliers 
+                if s.country.lower() == country.lower() and s.supplier_name.lower() == supplier_name.lower()
+            ]
+            
+            if exact_matches:
+                best_match = max(exact_matches, key=lambda x: x.total)
+                matched_results.append({
+                    "supplier_name": supplier_name,
+                    "country": country,
+                    "matched_supplier": best_match,
+                    "match_type": "exact_match",
+                    "products_affected": products_affected
+                })
+                print(f"DEBUG: Exact match found: {best_match.supplier_name}")
+            else:
+                # Use AI to find the best match
+                ai_prompt = f"""
+You are a supplier matching expert. I need you to find the best match for this supplier in our database.
+
+Target supplier to match: "{supplier_name}" in country: "{country}"
+
+Available suppliers in database:
+{supplier_data_text}
+
+Please analyze and respond with ONE of these options:
+
+1. EXACT_MATCH: If you find an exact match (same name, same country)
+2. SIMILAR_DIFFERENT_COUNTRY: If you find a very similar company name but in a different country
+3. NO_MATCH: If no similar company is found
+
+For EXACT_MATCH or SIMILAR_DIFFERENT_COUNTRY, also provide the CompanyID of the matched supplier.
+
+Response format:
+MATCH_TYPE: [EXACT_MATCH/SIMILAR_DIFFERENT_COUNTRY/NO_MATCH]
+COMPANY_ID: [CompanyID if match found]
+REASONING: [Brief explanation of your decision]
+"""
+                
+                try:
+                    from ..openai_client import suggest_with_openai
+                    ai_response = suggest_with_openai(ai_prompt, api_key_index=0)
+                    print(f"DEBUG: AI response for {supplier_name}: {ai_response}")
+                    
+                    if "EXACT_MATCH" in ai_response:
+                        company_id_match = re.search(r'COMPANY_ID:\s*(\d+)', ai_response)
+                        if company_id_match:
+                            company_id = int(company_id_match.group(1))
+                            matched_supplier = next((s for s in csv_suppliers if s.company_id == company_id), None)
+                            if matched_supplier:
+                                matched_results.append({
+                                    "supplier_name": supplier_name,
+                                    "country": country,
+                                    "matched_supplier": matched_supplier,
+                                    "match_type": "ai_exact_match",
+                                    "products_affected": products_affected
+                                })
+                                print(f"DEBUG: AI exact match found: {matched_supplier.supplier_name}")
+                                continue
+                    
+                    elif "SIMILAR_DIFFERENT_COUNTRY" in ai_response:
+                        company_id_match = re.search(r'COMPANY_ID:\s*(\d+)', ai_response)
+                        if company_id_match:
+                            company_id = int(company_id_match.group(1))
+                            matched_supplier = next((s for s in csv_suppliers if s.company_id == company_id), None)
+                            if matched_supplier:
+                                new_country_needed.append({
+                                    "supplier_name": supplier_name,
+                                    "country": country,
+                                    "matched_supplier": matched_supplier,
+                                    "products_affected": products_affected
+                                })
+                                print(f"DEBUG: AI similar match (different country): {matched_supplier.supplier_name}")
+                                continue
+                    
+                    # If AI says NO_MATCH or couldn't find a match
+                    new_supplier_needed.append({
+                        "supplier_name": supplier_name,
+                        "country": country,
+                        "products_affected": products_affected
+                    })
+                    print(f"DEBUG: AI found no match for: {supplier_name}")
+                    
+                except Exception as e:
+                    print(f"DEBUG: AI matching failed for {supplier_name}: {e}")
+                    new_supplier_needed.append({
+                        "supplier_name": supplier_name,
+                        "country": country,
+                        "products_affected": products_affected
+                    })
+    else:
+        # No CSV suppliers uploaded, all are new supplier needed
+        for supplier_group in supplier_list:
+            new_supplier_needed.append({
+                "supplier_name": supplier_group["supplier_name"],
+                "country": supplier_group["country"],
+                "products_affected": supplier_group["product_count"]
+            })
+    
     return {
-        "supplier_summary": list(supplier_summary.values()),
+        "supplier_summary": supplier_list,
         "unmatched_suppliers": unmatched_suppliers,
-        "total_unmatched_products": len(rejected_results)
+        "total_unmatched_products": len(rejected_results),
+        "matched_suppliers": matched_results,
+        "new_country_needed": new_country_needed,
+        "new_supplier_needed": new_supplier_needed
     }
 
 
