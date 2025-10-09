@@ -387,13 +387,13 @@ def ai_match_suppliers(project_id: int, session: Session = Depends(get_session))
         else:
             # Try fuzzy matching with same country only (country matching is mandatory)
             fuzzy_match_same_country = find_best_supplier_match(
-                supplier_name, suppliers, country=country, min_similarity=0.95, require_country_match=True
+                supplier_name, suppliers, country=country, min_similarity=0.85, require_country_match=True
             )
             
             if fuzzy_match_same_country:
-                # Check if it's really a good match (very high similarity required)
+                # Check if it's really a good match (high similarity required)
                 similarity = calculate_supplier_similarity(supplier_name, fuzzy_match_same_country.supplier_name)
-                if similarity >= 0.95:  # Only very close matches in same country
+                if similarity >= 0.85:  # Good matches in same country
                     matched_results.append({
                         "supplier_name": supplier_name,
                         "country": country,
@@ -403,28 +403,46 @@ def ai_match_suppliers(project_id: int, session: Session = Depends(get_session))
                     })
                     # print(f"DEBUG: Fuzzy match (same country) found: {fuzzy_match_same_country.supplier_name} (similarity: {similarity:.2f})")
                 else:
-                    # Similar name but not confident enough - treat as new supplier needed
-                    new_supplier_needed.append({
-                        "supplier_name": supplier_name,
-                        "country": country,
-                        "products_affected": len(supplier_group["products"])
-                    })
-                    # print(f"DEBUG: Fuzzy match (low confidence) found: {fuzzy_match_same_country.supplier_name} (similarity: {similarity:.2f})")
+                    # Similar name but not confident enough - check other countries
+                    # Try fuzzy matching with different countries (but with penalty)
+                    fuzzy_match_any_country = find_best_supplier_match(
+                        supplier_name, suppliers, country=country, min_similarity=0.75, require_country_match=False
+                    )
+                    
+                    if fuzzy_match_any_country:
+                        similarity = calculate_supplier_similarity(supplier_name, fuzzy_match_any_country.supplier_name)
+                        new_country_needed.append({
+                            "supplier_name": supplier_name,
+                            "country": country,
+                            "matched_supplier": fuzzy_match_any_country,
+                            "similarity": similarity,
+                            "products_affected": len(supplier_group["products"])
+                        })
+                        # print(f"DEBUG: Similar supplier found in different country: {fuzzy_match_any_country.supplier_name} (similarity: {similarity:.2f})")
+                    else:
+                        # No similar suppliers found anywhere
+                        new_supplier_needed.append({
+                            "supplier_name": supplier_name,
+                            "country": country,
+                            "products_affected": len(supplier_group["products"])
+                        })
+                        # print(f"DEBUG: No similar suppliers found: {supplier_name}")
             else:
-                # Try fuzzy matching with different countries (but with high penalty)
+                # Try fuzzy matching with different countries (but with penalty)
                 fuzzy_match_any_country = find_best_supplier_match(
-                    supplier_name, suppliers, country=country, min_similarity=0.90, require_country_match=False
+                    supplier_name, suppliers, country=country, min_similarity=0.75, require_country_match=False
                 )
                 
                 if fuzzy_match_any_country:
                     similarity = calculate_supplier_similarity(supplier_name, fuzzy_match_any_country.supplier_name)
                     new_country_needed.append({
                         "supplier_name": supplier_name,
-                        "current_country": country,
+                        "country": country,
                         "matched_supplier": fuzzy_match_any_country,
+                        "similarity": similarity,
                         "products_affected": len(supplier_group["products"])
                     })
-                    # print(f"DEBUG: Fuzzy match (different country) found: {fuzzy_match_any_country.supplier_name} (similarity: {similarity:.2f})")
+                    print(f"DEBUG: Fuzzy match (different country) found: {fuzzy_match_any_country.supplier_name} (similarity: {similarity:.2f})")
                 else:
                     # No match found at all
                     new_supplier_needed.append({
@@ -432,7 +450,7 @@ def ai_match_suppliers(project_id: int, session: Session = Depends(get_session))
                         "country": country,
                         "products_affected": len(supplier_group["products"])
                     })
-                    # print(f"DEBUG: No match found for: {supplier_name}")
+                    print(f"DEBUG: No match found for: {supplier_name}")
     
     return {
         "matched_suppliers": matched_results,
