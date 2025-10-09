@@ -116,6 +116,20 @@ def score_pair(customer_row: dict[str, Any], db_row: dict[str, Any], customer_ma
     cv, cp, cs = (customer_row.get(customer_mapping["vendor"], ""), customer_row.get(customer_mapping["product"], ""), customer_row.get(customer_mapping["sku"], ""))
     dv, dp, ds = db_row.get(db_mapping["vendor"], ""), db_row.get(db_mapping["product"], ""), db_row.get(db_mapping["sku"], "")
 
+    # Check for file hash match first - if hashes match, auto-approve immediately
+    customer_file_hash = customer_row.get("file_hash", "").strip()
+    db_file_hash = db_row.get("file_hash", "").strip()
+    
+    if customer_file_hash and db_file_hash and customer_file_hash == db_file_hash:
+        return {
+            "vendor_score": 100,
+            "product_score": 100,
+            "overall": 100,
+            "exact": True,
+            "reason": "Filehash-match",
+            "decision": "auto_approved",
+        }
+
     # Check if customer data is missing - if so, reject immediately
     if not cv.strip() and not cp.strip() and not cs.strip():
         return {

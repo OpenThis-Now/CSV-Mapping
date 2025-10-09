@@ -95,15 +95,43 @@ def run_match(customer_csv: Path, db_csv: Path, customer_mapping: dict[str, str]
         best_db = None
         best_score = -1
         
-        # Get current customer's market/language
+        # Get current customer's market/language and file hash
         current_customer_market = crow.get(customer_mapping.get("market", "Market"), "").strip()
         current_customer_language = crow.get(customer_mapping.get("language", "Language"), "").strip()
+        current_customer_file_hash = crow.get("file_hash", "").strip()
         
-        # Sort database records to prioritize matching market/language for THIS customer row
-        db_records_sorted = sorted(db_records, key=lambda r: (
-            r.get(db_mapping.get("market", "Market"), "").strip() != current_customer_market,
-            r.get(db_mapping.get("language", "Language"), "").strip() != current_customer_language
-        ))
+        # Sort database records with priority:
+        # 1. File hash matches (highest priority)
+        # 2. Revision date (newest first for same hash)
+        # 3. Market/language matches
+        def sort_key(r):
+            db_file_hash = r.get("file_hash", "").strip()
+            db_revision_date = r.get(db_mapping.get("revision_date", "Revision_date"), "").strip()
+            db_market = r.get(db_mapping.get("market", "Market"), "").strip()
+            db_language = r.get(db_mapping.get("language", "Language"), "").strip()
+            
+            # Priority 1: File hash match (0 = match, 1 = no match)
+            hash_match = 0 if (current_customer_file_hash and db_file_hash and current_customer_file_hash == db_file_hash) else 1
+            
+            # Priority 2: Revision date (newest first) - convert to sortable format
+            try:
+                if db_revision_date:
+                    # Parse date and use negative for descending order (newest first)
+                    from datetime import datetime
+                    parsed_date = datetime.strptime(db_revision_date, "%Y-%m-%d")
+                    revision_priority = -parsed_date.timestamp()  # Negative for newest first
+                else:
+                    revision_priority = 0  # No date = lowest priority
+            except:
+                revision_priority = 0  # Invalid date = lowest priority
+            
+            # Priority 3: Market/language match
+            market_match = db_market != current_customer_market
+            language_match = db_language != current_customer_language
+            
+            return (hash_match, revision_priority, market_match, language_match)
+        
+        db_records_sorted = sorted(db_records, key=sort_key)
         
         for db_idx, db_row in enumerate(db_records_sorted):
             try:
