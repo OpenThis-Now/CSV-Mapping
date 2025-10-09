@@ -150,18 +150,41 @@ def _process_urls_in_background_optimized(project_id: int, import_id: int, enhan
         enhanced_path = Path(settings.IMPORTS_DIR) / enhanced_filename
         
         log.info(f"Creating enhanced CSV file: {enhanced_path}")
+        log.info(f"Enhanced rows count: {len(enhanced_rows)}")
+        log.info(f"Headers: {headers}")
+        
+        # Write CSV file with consistent encoding and settings
         with open(enhanced_path, 'w', newline='', encoding='utf-8') as f:
             writer = csv.DictWriter(f, fieldnames=headers)
             writer.writeheader()
             writer.writerows(enhanced_rows)
         
+        # Verify file was created and get file size
+        if enhanced_path.exists():
+            file_size = enhanced_path.stat().st_size
+            log.info(f"Enhanced CSV file created successfully: {file_size} bytes")
+        else:
+            log.error(f"Enhanced CSV file was not created!")
+            raise Exception("Failed to create enhanced CSV file")
+        
         # Compute SHA-512 hash of the enhanced file
         import hashlib
-        with open(enhanced_path, 'rb') as f:
-            file_content = f.read()
-            enhanced_file_hash = hashlib.sha512(file_content).hexdigest()
+        enhanced_file_hash = ""
+        try:
+            with open(enhanced_path, 'rb') as f:
+                file_content = f.read()
+                enhanced_file_hash = hashlib.sha512(file_content).hexdigest()
+            log.info(f"SHA-512 hash computed successfully: {enhanced_file_hash[:16]}...")
+            log.info(f"Full hash: {enhanced_file_hash}")
+        except Exception as hash_error:
+            log.error(f"Failed to compute SHA-512 hash: {hash_error}")
+            raise Exception(f"Failed to compute file hash: {hash_error}")
         
-        log.info(f"Enhanced CSV file created successfully with hash: {enhanced_file_hash[:16]}...")
+        # Debug: Also compute hash of original file for comparison
+        original_hash = imp.file_hash if imp.file_hash else "No original hash"
+        log.info(f"Original file hash: {original_hash[:16] if original_hash != 'No original hash' else 'None'}...")
+        log.info(f"Enhanced file hash: {enhanced_file_hash[:16]}...")
+        log.info(f"Hash comparison - Same: {original_hash == enhanced_file_hash}")
         
         # Create new ImportFile entry
         log.info(f"Creating new ImportFile entry")
