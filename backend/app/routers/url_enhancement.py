@@ -79,37 +79,19 @@ def _process_urls_in_background_optimized(project_id: int, import_id: int, enhan
         session.add(enhancement_run)
         session.commit()
         
-        # Process URLs in batches to update progress
-        # Use batch size that matches parallel processing capacity
-        from ..services.parallel_url_processor import get_available_api_keys
-        available_keys = get_available_api_keys()
-        max_workers = min(available_keys * 3, 30)  # Same logic as parallel processor
-        batch_size = min(max_workers, len(urls_to_process))  # Process up to max_workers URLs at a time
-        pdf_data_results = []
+        # Process all URLs at once to maintain order
+        log.info(f"Processing all {len(urls_to_process)} URLs in parallel")
+        pdf_data_results = process_urls_optimized(urls_to_process)
         
-        for i in range(0, len(urls_to_process), batch_size):
-            # Check if process was cancelled
-            session.refresh(enhancement_run)
-            if enhancement_run.status != "running":
-                log.info(f"URL enhancement cancelled, stopping at batch {i//batch_size + 1}")
-                break
-                
-            batch_urls = urls_to_process[i:i + batch_size]
-            log.info(f"Processing batch {i//batch_size + 1}: {len(batch_urls)} URLs")
-            
-            # Process this batch with parallel processing
-            batch_results = process_urls_optimized(batch_urls)
-            pdf_data_results.extend(batch_results)
-            
-            # Update progress
-            enhancement_run.processed_urls = len(pdf_data_results)
-            enhancement_run.successful_urls = sum(1 for result in pdf_data_results if result is not None)
-            enhancement_run.failed_urls = len(pdf_data_results) - enhancement_run.successful_urls
-            
-            session.add(enhancement_run)
-            session.commit()
-            
-            log.info(f"Progress: {enhancement_run.processed_urls}/{len(urls_to_process)} URLs processed")
+        # Update progress
+        enhancement_run.processed_urls = len(pdf_data_results)
+        enhancement_run.successful_urls = sum(1 for result in pdf_data_results if result is not None)
+        enhancement_run.failed_urls = len(pdf_data_results) - enhancement_run.successful_urls
+        
+        session.add(enhancement_run)
+        session.commit()
+        
+        log.info(f"Progress: {enhancement_run.processed_urls}/{len(urls_to_process)} URLs processed")
         
         end_time = datetime.now()
         log.info(f"Parallel URL processing completed in {(end_time - start_time).total_seconds():.2f} seconds")

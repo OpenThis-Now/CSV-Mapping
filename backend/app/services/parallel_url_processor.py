@@ -19,7 +19,10 @@ def process_single_url_with_ai(url: str, api_key_index: int = 0) -> Optional[Dic
         pdf_data = extract_pdf_data_with_ai(url, api_key_index)
         
         if pdf_data and len(pdf_data) > 0:
-            return pdf_data[0]
+            result = pdf_data[0]
+            # Add URL to result for proper sorting
+            result["url"] = url
+            return result
         else:
             log.warning(f"No data extracted from URL: {url}")
             return None
@@ -42,6 +45,7 @@ def process_single_url_with_ai(url: str, api_key_index: int = 0) -> Optional[Dic
         # If all AI attempts failed, return a fallback entry with clear status
         log.warning(f"All AI extraction attempts failed for URL {url}")
         return {
+            "url": url,  # Add URL for proper sorting
             "filename": url.split("/")[-1] if "/" in url else url,
             "product_name": {"value": None, "confidence": 0.0, "evidence": {"snippet": "AI extraction failed"}},
             "article_number": {"value": None, "confidence": 0.0, "evidence": {"snippet": "AI extraction failed"}},
@@ -103,7 +107,7 @@ def process_urls_parallel(urls: List[str], max_workers: int = 10) -> List[Option
                 results.append(None)
     
     # Sort results by original order
-    results.sort(key=lambda x: urls.index(x["url"]) if x and "url" in x else 999)
+    results.sort(key=lambda x: urls.index(x["url"]) if x and "url" in x else 999999)
     
     successful = sum(1 for r in results if r is not None)
     failed = len(results) - successful
