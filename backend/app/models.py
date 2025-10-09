@@ -60,6 +60,7 @@ class ImportedPdf(SQLModel, table=True):
     project_id: int = Field(foreign_key="project.id", index=True)
     filename: str = Field(index=True)  # Original PDF filename
     stored_filename: str = Field(index=True)  # Filename in storage
+    file_hash: str = Field(index=True)  # SHA-512 hash of original PDF file
     product_name: Optional[str] = Field(default=None, index=True)  # Extracted product name
     supplier_name: Optional[str] = Field(default=None, index=True)  # Extracted supplier name
     article_number: Optional[str] = Field(default=None, index=True)  # Extracted article number

@@ -121,9 +121,22 @@ def upload_pdf_files(project_id: int, files: List[UploadFile] = File(...), sessi
     try:
         # Spara PDF:er temporärt och bearbeta dem
         pdf_paths = []
+        pdf_hashes = []
         for file in files:
             _, pdf_path = compute_hash_and_save(Path(settings.TMP_DIR), file)
             pdf_paths.append(pdf_path)
+            
+            # Calculate SHA-512 hash of original PDF file
+            import hashlib
+            file.file.seek(0)  # Reset file pointer to beginning
+            pdf_hash = hashlib.sha512()
+            while True:
+                chunk = file.file.read(1024 * 1024)  # Read 1MB chunks
+                if not chunk:
+                    break
+                pdf_hash.update(chunk)
+            pdf_hashes.append(pdf_hash.hexdigest())
+            file.file.seek(0)  # Reset file pointer again for processing
         
         # Bearbeta PDF:er med AI (parallellt för snabbare bearbetning)
         # print(f"Processing {len(pdf_paths)} PDF files in parallel...")
@@ -167,6 +180,7 @@ def upload_pdf_files(project_id: int, files: List[UploadFile] = File(...), sessi
                 project_id=project_id,
                 filename=original_filename,
                 stored_filename=stored_filename,
+                file_hash=pdf_hashes[i],  # Individual PDF hash
                 product_name=extract_value(pdf_info.get("product_name")) if pdf_info else None,
                 supplier_name=extract_value(pdf_info.get("supplier")) if pdf_info else None,
                 article_number=extract_value(pdf_info.get("article_number")) if pdf_info else None,
@@ -182,11 +196,15 @@ def upload_pdf_files(project_id: int, files: List[UploadFile] = File(...), sessi
         # Skapa CSV-fil
         create_csv_from_pdf_data(pdf_data, csv_path)
         
-        # Compute SHA-512 hash of the created CSV file
-        import hashlib
-        with open(csv_path, 'rb') as f:
-            file_content = f.read()
-            csv_file_hash = hashlib.sha512(file_content).hexdigest()
+        # For ImportFile, use the first PDF's hash (or create a combined hash)
+        # Option 1: Use first PDF hash
+        csv_file_hash = pdf_hashes[0] if pdf_hashes else ""
+        
+        # Option 2: Create combined hash from all PDFs (uncomment if preferred)
+        # combined_hash = hashlib.sha512()
+        # for pdf_hash in pdf_hashes:
+        #     combined_hash.update(pdf_hash.encode('utf-8'))
+        # csv_file_hash = combined_hash.hexdigest()
         
         # Läsa CSV för att få metadata (headers, row count)
         from ..services.files import detect_csv_separator
@@ -378,11 +396,22 @@ def combine_import_files(project_id: int, req: CombineImportsRequest, session: S
                 # print(f"ERROR: Failed to save combined file: {e}")
                 raise HTTPException(status_code=500, detail=f"Failed to save combined file: {e}")
             
-            # Compute SHA-512 hash of the combined CSV file
+            # Calculate combined hash from all source PDFs
             import hashlib
-            with open(combined_path, 'rb') as f:
-                file_content = f.read()
-                combined_file_hash = hashlib.sha512(file_content).hexdigest()
+            combined_pdf_hash = hashlib.sha512()
+            
+            # Get all ImportedPdf records for the imports
+            for import_id in import_ids:
+                pdf_records = session.exec(
+                    select(ImportedPdf).where(ImportedPdf.project_id == project_id)
+                    .where(ImportedPdf.customer_row_index.is_(None))  # Not yet processed
+                ).all()
+                
+                for pdf_record in pdf_records:
+                    # Add each PDF's hash to combined hash
+                    combined_pdf_hash.update(pdf_record.file_hash.encode('utf-8'))
+            
+            combined_file_hash = combined_pdf_hash.hexdigest()
             
             # Skapa enhetlig kolumnmappning för den kombinerade filen
             unified_mapping = {
