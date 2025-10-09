@@ -134,6 +134,7 @@ def run_matching(project_id: int, req: MatchRequest, session: Session = Depends(
         
         # Read database CSV and add file_hash
         db_separator = detect_csv_separator(db_csv)
+        log.info(f"Detected separators - Customer: '{customer_separator}', Database: '{db_separator}'")
         db_df = pd.read_csv(db_csv, dtype=str, keep_default_na=False, sep=db_separator, encoding='utf-8')
         db_df['file_hash'] = db.file_hash
         
@@ -156,8 +157,24 @@ def run_matching(project_id: int, req: MatchRequest, session: Session = Depends(
         temp_db_df = pd.read_csv(temp_db_csv, dtype=str, keep_default_na=False, sep=db_separator, encoding='utf-8')
         log.info(f"Temp customer CSV columns: {list(temp_cust_df.columns)}")
         log.info(f"Temp database CSV columns: {list(temp_db_df.columns)}")
-        log.info(f"Temp customer file_hash sample: {temp_cust_df['file_hash'].iloc[0][:16] if len(temp_cust_df) > 0 else 'Empty'}")
-        log.info(f"Temp database file_hash sample: {temp_db_df['file_hash'].iloc[0][:16] if len(temp_db_df) > 0 else 'Empty'}")
+        log.info(f"Temp customer file_hash sample: {temp_cust_df['file_hash'].iloc[0][:16] if len(temp_cust_df) > 0 and 'file_hash' in temp_cust_df.columns else 'Empty'}")
+        log.info(f"Temp database file_hash sample: {temp_db_df['file_hash'].iloc[0][:16] if len(temp_db_df) > 0 and 'file_hash' in temp_db_df.columns else 'Empty'}")
+        
+        # Check if file_hash column exists in temp files
+        if 'file_hash' not in temp_cust_df.columns:
+            log.error(f"file_hash column missing from temp customer CSV! Columns: {list(temp_cust_df.columns)}")
+        if 'file_hash' not in temp_db_df.columns:
+            log.error(f"file_hash column missing from temp database CSV! Columns: {list(temp_db_df.columns)}")
+            # Try to fix by re-reading with different separator
+            log.info("Attempting to fix database CSV separator issue...")
+            try:
+                # Try with semicolon separator
+                temp_db_df = pd.read_csv(temp_db_csv, dtype=str, keep_default_na=False, sep=';', encoding='utf-8')
+                log.info(f"Fixed database CSV columns with semicolon: {list(temp_db_df.columns)}")
+                # Save the fixed version
+                temp_db_df.to_csv(temp_db_csv, index=False, encoding='utf-8')
+            except Exception as e:
+                log.error(f"Failed to fix database CSV: {e}")
         
         try:
             for row_index, crow, dbrow, meta in run_match(temp_cust_csv, temp_db_csv, imp.columns_map_json, db.columns_map_json, thr):
