@@ -123,37 +123,65 @@ def run_matching(project_id: int, req: MatchRequest, session: Session = Depends(
             
             log.info(f"Found {len(existing_products)} existing product combinations, will skip these")
         
-        for row_index, crow, dbrow, meta in run_match(cust_csv, db_csv, imp.columns_map_json, db.columns_map_json, thr):
-            # Skip existing products if match_new_only is True
-            if req and req.match_new_only:
-                # Create product key from current row data
-                product_key = f"{crow.get('product', '')}_{crow.get('vendor', '')}_{crow.get('sku', '')}"
-                if product_key in existing_products:
-                    log.debug(f"Skipping existing product: {product_key}")
-                    continue
-            # Add file_hash from ImportFile to customer_fields_json
-            customer_fields_with_hash = crow.copy()
-            customer_fields_with_hash["file_hash"] = imp.file_hash
-            
-            # Add file_hash from DatabaseCatalog to db_fields_json
-            db_fields_with_hash = dbrow.copy() if dbrow else {}
-            db_fields_with_hash["file_hash"] = db.file_hash
-            
-            mr = MatchResult(
-                match_run_id=run.id,
-                customer_row_index=row_index,
-                decision=meta["decision"],
-                overall_score=meta["overall"],
-                reason=meta["reason"],
-                exact_match=meta["exact"],
-                customer_fields_json=customer_fields_with_hash,
-                db_fields_json=db_fields_with_hash,
-            )
-            session.add(mr)
-            created += 1
-            if created % 1000 == 0:
-                session.commit()
-                log.info(f"Processed {created} rows")
+        # Add file_hash to customer data before running match
+        import pandas as pd
+        from ..services.files import detect_csv_separator
+        
+        # Read customer CSV and add file_hash
+        customer_separator = detect_csv_separator(cust_csv)
+        customer_df = pd.read_csv(cust_csv, dtype=str, keep_default_na=False, sep=customer_separator, encoding='utf-8')
+        customer_df['file_hash'] = imp.file_hash
+        
+        # Read database CSV and add file_hash
+        db_separator = detect_csv_separator(db_csv)
+        db_df = pd.read_csv(db_csv, dtype=str, keep_default_na=False, sep=db_separator, encoding='utf-8')
+        db_df['file_hash'] = db.file_hash
+        
+        # Save modified CSVs temporarily
+        temp_cust_csv = cust_csv.parent / f"temp_{cust_csv.name}"
+        temp_db_csv = db_csv.parent / f"temp_{db_csv.name}"
+        customer_df.to_csv(temp_cust_csv, index=False, encoding='utf-8')
+        db_df.to_csv(temp_db_csv, index=False, encoding='utf-8')
+        
+        try:
+            for row_index, crow, dbrow, meta in run_match(temp_cust_csv, temp_db_csv, imp.columns_map_json, db.columns_map_json, thr):
+                # Skip existing products if match_new_only is True
+                if req and req.match_new_only:
+                    # Create product key from current row data
+                    product_key = f"{crow.get('product', '')}_{crow.get('vendor', '')}_{crow.get('sku', '')}"
+                    if product_key in existing_products:
+                        log.debug(f"Skipping existing product: {product_key}")
+                        continue
+                
+                # file_hash is already in crow and dbrow from the temporary CSVs
+                customer_fields_with_hash = crow.copy()
+                db_fields_with_hash = dbrow.copy() if dbrow else {}
+                
+                mr = MatchResult(
+                    match_run_id=run.id,
+                    customer_row_index=row_index,
+                    decision=meta["decision"],
+                    overall_score=meta["overall"],
+                    reason=meta["reason"],
+                    exact_match=meta["exact"],
+                    customer_fields_json=customer_fields_with_hash,
+                    db_fields_json=db_fields_with_hash,
+                )
+                session.add(mr)
+                created += 1
+                if created % 1000 == 0:
+                    session.commit()
+                    log.info(f"Processed {created} rows")
+        finally:
+            # Clean up temporary files
+            try:
+                temp_cust_csv.unlink()
+            except:
+                pass
+            try:
+                temp_db_csv.unlink()
+            except:
+                pass
         
         log.info(f"Match run completed, created {created} results")
         
@@ -163,6 +191,12 @@ def run_matching(project_id: int, req: MatchRequest, session: Session = Depends(
         ).all()
         for result in sample_results:
             log.info(f"Result {result.customer_row_index}: score={result.overall_score}, decision={result.decision}, reason={result.reason}")
+            # Debug: Show file hash information
+            customer_hash = result.customer_fields_json.get("file_hash", "")
+            db_hash = result.db_fields_json.get("file_hash", "") if result.db_fields_json else ""
+            log.info(f"  Customer hash: {customer_hash[:16] if customer_hash else 'None'}...")
+            log.info(f"  Database hash: {db_hash[:16] if db_hash else 'None'}...")
+            log.info(f"  Hash match: {customer_hash == db_hash and customer_hash != ''}")
         run.status = "finished"
         run.finished_at = datetime.utcnow()
         session.add(run)
