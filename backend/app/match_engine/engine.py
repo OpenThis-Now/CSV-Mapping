@@ -133,6 +133,17 @@ def run_match(customer_csv: Path, db_csv: Path, customer_mapping: dict[str, str]
         
         db_records_sorted = sorted(db_records, key=sort_key)
         
+        # Debug: Log sorting information
+        import logging
+        log = logging.getLogger("app.match_engine.engine")
+        log.info(f"Customer row {idx}: file_hash={current_customer_file_hash[:16] if current_customer_file_hash else 'None'}...")
+        log.info(f"Database records sorted by priority:")
+        for i, record in enumerate(db_records_sorted[:3]):  # Show first 3
+            db_hash = record.get("file_hash", "").strip()
+            db_product = record.get(db_mapping.get("product", "Product_name"), "")
+            hash_match = current_customer_file_hash == db_hash and current_customer_file_hash != ""
+            log.info(f"  {i+1}. Product: {db_product}, Hash: {db_hash[:16] if db_hash else 'None'}..., Hash match: {hash_match}")
+        
         for db_idx, db_row in enumerate(db_records_sorted):
             try:
                 meta = score_pair(crow, db_row, customer_mapping, db_mapping, thresholds)
