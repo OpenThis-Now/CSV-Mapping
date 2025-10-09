@@ -137,11 +137,27 @@ def run_matching(project_id: int, req: MatchRequest, session: Session = Depends(
         db_df = pd.read_csv(db_csv, dtype=str, keep_default_na=False, sep=db_separator, encoding='utf-8')
         db_df['file_hash'] = db.file_hash
         
+        # Debug: Log file hash information
+        log.info(f"Customer file hash: {imp.file_hash[:16] if imp.file_hash else 'None'}...")
+        log.info(f"Database file hash: {db.file_hash[:16] if db.file_hash else 'None'}...")
+        log.info(f"Customer CSV columns: {list(customer_df.columns)}")
+        log.info(f"Database CSV columns: {list(db_df.columns)}")
+        log.info(f"Customer CSV shape: {customer_df.shape}")
+        log.info(f"Database CSV shape: {db_df.shape}")
+        
         # Save modified CSVs temporarily
         temp_cust_csv = cust_csv.parent / f"temp_{cust_csv.name}"
         temp_db_csv = db_csv.parent / f"temp_{db_csv.name}"
         customer_df.to_csv(temp_cust_csv, index=False, encoding='utf-8')
         db_df.to_csv(temp_db_csv, index=False, encoding='utf-8')
+        
+        # Debug: Verify temp files have file_hash column
+        temp_cust_df = pd.read_csv(temp_cust_csv, dtype=str, keep_default_na=False, sep=customer_separator, encoding='utf-8')
+        temp_db_df = pd.read_csv(temp_db_csv, dtype=str, keep_default_na=False, sep=db_separator, encoding='utf-8')
+        log.info(f"Temp customer CSV columns: {list(temp_cust_df.columns)}")
+        log.info(f"Temp database CSV columns: {list(temp_db_df.columns)}")
+        log.info(f"Temp customer file_hash sample: {temp_cust_df['file_hash'].iloc[0][:16] if len(temp_cust_df) > 0 else 'Empty'}")
+        log.info(f"Temp database file_hash sample: {temp_db_df['file_hash'].iloc[0][:16] if len(temp_db_df) > 0 else 'Empty'}")
         
         try:
             for row_index, crow, dbrow, meta in run_match(temp_cust_csv, temp_db_csv, imp.columns_map_json, db.columns_map_json, thr):

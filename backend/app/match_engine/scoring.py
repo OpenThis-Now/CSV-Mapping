@@ -120,7 +120,15 @@ def score_pair(customer_row: dict[str, Any], db_row: dict[str, Any], customer_ma
     customer_file_hash = customer_row.get("file_hash", "").strip()
     db_file_hash = db_row.get("file_hash", "").strip()
     
+    # Debug: Log file hash comparison
+    import logging
+    log = logging.getLogger("app.match_engine.scoring")
+    log.info(f"File hash comparison - Customer: {customer_file_hash[:16] if customer_file_hash else 'None'}...")
+    log.info(f"File hash comparison - Database: {db_file_hash[:16] if db_file_hash else 'None'}...")
+    log.info(f"File hash match: {customer_file_hash == db_file_hash and customer_file_hash != ''}")
+    
     if customer_file_hash and db_file_hash and customer_file_hash == db_file_hash:
+        log.info(f"FILE HASH MATCH FOUND! Auto-approving with 100% score")
         return {
             "vendor_score": 100,
             "product_score": 100,
