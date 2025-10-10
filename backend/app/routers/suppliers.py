@@ -401,30 +401,7 @@ def get_supplier_mapping(project_id: int, session: Session = Depends(get_session
                 print(f"DEBUG: Exact match found: {best_match.supplier_name}")
             else:
                 # Use AI to find the best match
-                # Create a more targeted prompt for Castrol specifically
-                if 'castrol' in supplier_name.lower():
-                    castrol_suppliers = [s for s in csv_suppliers if 'castrol' in s.supplier_name.lower()]
-                    castrol_text = "\n".join([
-                        f"- {supplier.supplier_name} ({supplier.country}) - CompanyID: {supplier.company_id}"
-                        for supplier in castrol_suppliers
-                    ])
-                    ai_prompt = f"""
-You are matching this CASTROL supplier to the best match in our database.
-
-Target: "{supplier_name}" in {country}
-
-Available Castrol suppliers in database:
-{castrol_text}
-
-**CRITICAL:** "Castrol AB Tel 08-4411100" should match with "Castrol AB" or similar Castrol variant.
-
-Response format:
-MATCH_TYPE: [EXACT_MATCH/SIMILAR_SAME_COUNTRY/SIMILAR_DIFFERENT_COUNTRY/NO_MATCH]
-COMPANY_ID: [CompanyID if match found]
-REASONING: [Brief explanation]
-"""
-                else:
-                    ai_prompt = f"""
+                ai_prompt = f"""
 You are a supplier matching expert. Find the best match for this supplier.
 
 Target: "{supplier_name}" in {country}
@@ -434,9 +411,17 @@ Available suppliers (showing first 100):
 
 **Matching rules:**
 1. EXACT_MATCH: Same name, same country
-2. SIMILAR_SAME_COUNTRY: Similar name, same country (ignore phone numbers/addresses)
+2. SIMILAR_SAME_COUNTRY: Similar name, same country (ignore extra text, phone numbers, addresses, typos)
 3. SIMILAR_DIFFERENT_COUNTRY: Similar name, different country
 4. NO_MATCH: No similar company found
+
+**Important examples:**
+- "Castrol AB Tel 08-4411100" → "Castrol AB" (ignore phone number)
+- "Henkel yurwyuwyurw" → "Henkel Norden" (ignore typos/extra text)
+- "3M Company Inc" → "3M Inc" (ignore company suffixes)
+- "Sigma-Aldrich Sweden" → "Merck Sigma Aldrich" (parent company)
+
+**Key:** Focus on the core company name, ignore extra text, typos, phone numbers, addresses.
 
 Response format:
 MATCH_TYPE: [EXACT_MATCH/SIMILAR_SAME_COUNTRY/SIMILAR_DIFFERENT_COUNTRY/NO_MATCH]
@@ -448,11 +433,6 @@ REASONING: [Brief explanation]
                     from ..openai_client import suggest_with_openai
                     print(f"DEBUG: Sending to AI - Target: '{supplier_name}' ({country})")
                     print(f"DEBUG: Available suppliers count: {len(csv_suppliers)}")
-                    # Show first few suppliers for debugging
-                    castrol_suppliers = [s for s in csv_suppliers if 'castrol' in s.supplier_name.lower()]
-                    print(f"DEBUG: Castrol suppliers found: {len(castrol_suppliers)}")
-                    for cs in castrol_suppliers[:5]:  # Show first 5
-                        print(f"DEBUG:   - {cs.supplier_name} ({cs.country}) - ID: {cs.company_id}")
                     
                     ai_response = suggest_with_openai(ai_prompt, api_key_index=0)
                     print(f"DEBUG: AI response for {supplier_name}: {ai_response}")
