@@ -383,16 +383,18 @@ Target supplier to match: "{supplier_name}" in country: "{country}"
 Available suppliers in database:
 {supplier_data_text}
 
-Please analyze and respond with ONE of these options:
+**Matching rules:**
+1. EXACT_MATCH: Same name, same country (100% confidence)
+2. SIMILAR_SAME_COUNTRY: Similar name, same country (80-95% confidence)
+   - Includes: subsidiaries, acquisitions, brand variations, parent companies
+   - Examples: "Sigma Aldrich" → "Merck Sigma Aldrich", "3M Company" → "3M Inc"
+3. SIMILAR_DIFFERENT_COUNTRY: Similar name, different country (60-80% confidence)
+4. NO_MATCH: No similar company found (0% confidence)
 
-1. EXACT_MATCH: If you find an exact match (same name, same country)
-2. SIMILAR_DIFFERENT_COUNTRY: If you find a very similar company name but in a different country
-3. NO_MATCH: If no similar company is found
-
-For EXACT_MATCH or SIMILAR_DIFFERENT_COUNTRY, also provide the CompanyID of the matched supplier.
+**Important:** Consider company acquisitions, mergers, subsidiaries, and brand variations.
 
 Response format:
-MATCH_TYPE: [EXACT_MATCH/SIMILAR_DIFFERENT_COUNTRY/NO_MATCH]
+MATCH_TYPE: [EXACT_MATCH/SIMILAR_SAME_COUNTRY/SIMILAR_DIFFERENT_COUNTRY/NO_MATCH]
 COMPANY_ID: [CompanyID if match found]
 REASONING: [Brief explanation of your decision]
 """
@@ -416,6 +418,22 @@ REASONING: [Brief explanation of your decision]
                                     "products_affected": products_affected
                                 })
                                 print(f"DEBUG: AI exact match found: {matched_supplier.supplier_name}")
+                                continue
+                    
+                    elif "SIMILAR_SAME_COUNTRY" in ai_response:
+                        company_id_match = re.search(r'COMPANY_ID:\s*(\d+)', ai_response)
+                        if company_id_match:
+                            company_id = int(company_id_match.group(1))
+                            matched_supplier = next((s for s in csv_suppliers if s.company_id == company_id), None)
+                            if matched_supplier:
+                                matched_results.append({
+                                    "supplier_name": supplier_name,
+                                    "country": country,
+                                    "matched_supplier": matched_supplier,
+                                    "match_type": "ai_similar_same_country",
+                                    "products_affected": products_affected
+                                })
+                                print(f"DEBUG: AI similar match (same country): {matched_supplier.supplier_name}")
                                 continue
                     
                     elif "SIMILAR_DIFFERENT_COUNTRY" in ai_response:
