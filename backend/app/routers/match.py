@@ -189,7 +189,23 @@ def run_matching(project_id: int, req: MatchRequest, session: Session = Depends(
         # Read database CSV and add file_hash
         db_separator = detect_csv_separator(db_csv)
         log.info(f"Detected separators - Customer: '{customer_separator}', Database: '{db_separator}'")
-        db_df = pd.read_csv(db_csv, dtype=str, keep_default_na=False, sep=db_separator, encoding='utf-8')
+        
+        # Try to read database CSV with detected separator first
+        try:
+            db_df = pd.read_csv(db_csv, dtype=str, keep_default_na=False, sep=db_separator, encoding='utf-8')
+            log.info(f"Database CSV read successfully with separator '{db_separator}': {db_df.shape}")
+        except Exception as e:
+            log.warning(f"Failed to read database CSV with separator '{db_separator}': {e}")
+            # Try with open_text_stream approach like in imports.py
+            from ..services.files import open_text_stream
+            import csv
+            with open_text_stream(db_csv) as f:
+                reader = csv.DictReader(f, delimiter=db_separator)
+                headers = reader.fieldnames or []
+                rows = list(reader)
+                db_df = pd.DataFrame(rows)
+                log.info(f"Database CSV read with open_text_stream: {db_df.shape}")
+        
         log.info(f"Original database CSV columns after reading: {list(db_df.columns)}")
         log.info(f"Original database CSV shape: {db_df.shape}")
         
