@@ -427,7 +427,7 @@ def get_ai_suggestions(project_id: int, session: Session = Depends(get_session))
         .where(MatchResult.match_run_id == latest_run.id)
         .where(
             # Either has AI status set (manual decisions)
-            MatchResult.ai_status.in_(["approved", "rejected", "auto_approved"]) |
+            MatchResult.ai_status.in_(["approved", "rejected", "auto_approved", "completed"]) |
             # Or is AI auto-approved
             (MatchResult.decision == "ai_auto_approved") |
             # Or is manually rejected
