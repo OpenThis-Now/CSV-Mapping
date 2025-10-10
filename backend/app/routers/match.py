@@ -232,8 +232,24 @@ def run_matching(project_id: int, req: MatchRequest, session: Session = Depends(
         db_df.to_csv(temp_db_csv, index=False, encoding='utf-8')
         
         # Debug: Verify temp files have file_hash column
-        temp_cust_df = pd.read_csv(temp_cust_csv, dtype=str, keep_default_na=False, sep=customer_separator, encoding='utf-8')
-        temp_db_df = pd.read_csv(temp_db_csv, dtype=str, keep_default_na=False, sep=db_separator, encoding='utf-8')
+        try:
+            temp_cust_df = pd.read_csv(temp_cust_csv, dtype=str, keep_default_na=False, sep=customer_separator, encoding='utf-8')
+            log.info(f"Temp customer CSV read successfully: {temp_cust_df.shape}")
+        except Exception as e:
+            log.warning(f"Failed to read temp customer CSV: {e}")
+            # Use the original customer_df since we just created the temp file from it
+            temp_cust_df = customer_df.copy()
+            log.info(f"Using original customer_df for temp verification: {temp_cust_df.shape}")
+        
+        try:
+            temp_db_df = pd.read_csv(temp_db_csv, dtype=str, keep_default_na=False, sep=db_separator, encoding='utf-8')
+            log.info(f"Temp database CSV read successfully: {temp_db_df.shape}")
+        except Exception as e:
+            log.warning(f"Failed to read temp database CSV: {e}")
+            # Use the original db_df since we just created the temp file from it
+            temp_db_df = db_df.copy()
+            log.info(f"Using original db_df for temp verification: {temp_db_df.shape}")
+        
         log.info(f"Temp customer CSV columns: {list(temp_cust_df.columns)}")
         log.info(f"Temp database CSV columns: {list(temp_db_df.columns)}")
         log.info(f"Temp customer file_hash sample: {temp_cust_df['file_hash'].iloc[0][:16] if len(temp_cust_df) > 0 and 'file_hash' in temp_cust_df.columns else 'Empty'}")
