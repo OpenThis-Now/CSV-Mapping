@@ -344,11 +344,38 @@ def get_supplier_mapping(project_id: int, session: Session = Depends(get_session
     new_supplier_needed = []
     
     if csv_suppliers:
-        # Prepare supplier data for AI - LIMIT to avoid rate limits
-        # Only send max 20 suppliers to avoid token limits (reduced from 50)
+        # Prepare supplier data for AI - SMART FILTERING to find relevant suppliers
+        # First, try to find suppliers with similar names (fuzzy matching)
+        target_supplier = supplier_name.lower().replace(" ltd", "").replace(" ab", "").replace(" pty", "").replace(" inc", "")
+        
+        # Get suppliers that might match (similar name or same country)
+        relevant_suppliers = []
+        for supplier in csv_suppliers:
+            supplier_name_clean = supplier.supplier_name.lower().replace(" ltd", "").replace(" ab", "").replace(" pty", "").replace(" inc", "")
+            
+            # Include if:
+            # 1. Similar name (contains target name or vice versa)
+            # 2. Same country
+            # 3. First 10 suppliers (fallback)
+            if (target_supplier in supplier_name_clean or 
+                supplier_name_clean in target_supplier or
+                supplier.country.lower() == country.lower() or
+                len(relevant_suppliers) < 10):
+                relevant_suppliers.append(supplier)
+                if len(relevant_suppliers) >= 30:  # Max 30 suppliers
+                    break
+        
+        # If we don't have enough relevant suppliers, add more from the list
+        if len(relevant_suppliers) < 20:
+            for supplier in csv_suppliers:
+                if supplier not in relevant_suppliers:
+                    relevant_suppliers.append(supplier)
+                    if len(relevant_suppliers) >= 30:
+                        break
+        
         supplier_data_text = "\n".join([
             f"{supplier.company_id}:{supplier.supplier_name}:{supplier.country}"
-            for supplier in csv_suppliers[:20]  # LIMIT to first 20 to reduce tokens
+            for supplier in relevant_suppliers[:30]  # Max 30 suppliers, but smartly selected
         ])
         
         # Filter out suppliers that have already been matched in previous runs
@@ -403,12 +430,19 @@ def get_supplier_mapping(project_id: int, session: Session = Depends(get_session
                     "products_affected": products_affected
                 }
             
-            # Use AI to find the best match - ULTRA CONCISE PROMPT to reduce tokens
+            # Use AI to find the best match - SMART PROMPT for cross-country matching
             ai_prompt = f"""Match "{supplier_name}" in {country}
 
 Suppliers: {supplier_data_text}
 
-Rules: EXACT_MATCH/SIMILAR_SAME_COUNTRY/SIMILAR_DIFFERENT_COUNTRY/NO_MATCH
+Rules: 
+- EXACT_MATCH: Same name, same country
+- SIMILAR_SAME_COUNTRY: Similar name, same country  
+- SIMILAR_DIFFERENT_COUNTRY: Similar name, different country (PREFERRED if no same-country match)
+- NO_MATCH: No similar company found
+
+IMPORTANT: Look for similar company names in ALL countries, not just {country}.
+Examples: "Castrol AB" → "Castrol Australia", "Henkel Norden" → "Henkel GmbH"
 Ignore phones/addresses/typos. Focus on core company name.
 
 Response: [{{"MATCH_TYPE":"TYPE","COMPANY_ID":123,"REASONING":"brief"}}]"""
