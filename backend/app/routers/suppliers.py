@@ -344,13 +344,39 @@ def get_supplier_mapping(project_id: int, session: Session = Depends(get_session
     new_supplier_needed = []
     
     if csv_suppliers:
-        # Prepare supplier data for AI
+        # Prepare supplier data for AI - LIMIT to avoid rate limits
+        # Only send max 100 suppliers to avoid token limits
         supplier_data_text = "\n".join([
             f"- {supplier.supplier_name} ({supplier.country}) - CompanyID: {supplier.company_id}"
-            for supplier in csv_suppliers
+            for supplier in csv_suppliers[:100]  # LIMIT to first 100
         ])
         
+        # Filter out suppliers that have already been matched in previous runs
+        # by checking if any of their products have been approved
+        already_matched_suppliers = set()
         for supplier_group in supplier_list:
+            supplier_name = supplier_group["supplier_name"]
+            country = supplier_group["country"]
+            
+            # Check if any products from this supplier have been approved
+            has_approved_products = any(
+                product.get("decision") in ["approved", "auto_approved", "ai_auto_approved"]
+                for product in supplier_group["products"]
+            )
+            
+            if has_approved_products:
+                already_matched_suppliers.add(f"{supplier_name}|{country}")
+                print(f"DEBUG: Skipping already matched supplier: '{supplier_name}' ({country})")
+        
+        # Filter supplier list to only include unmatched suppliers
+        unmatched_supplier_list = [
+            supplier for supplier in supplier_list
+            if f"{supplier['supplier_name']}|{supplier['country']}" not in already_matched_suppliers
+        ]
+        
+        print(f"DEBUG: Total suppliers: {len(supplier_list)}, Already matched: {len(already_matched_suppliers)}, Unmatched: {len(unmatched_supplier_list)}")
+        
+        for supplier_group in unmatched_supplier_list:
             supplier_name = supplier_group["supplier_name"]
             country = supplier_group["country"]
             products_affected = supplier_group["product_count"]
@@ -375,33 +401,47 @@ def get_supplier_mapping(project_id: int, session: Session = Depends(get_session
                 print(f"DEBUG: Exact match found: {best_match.supplier_name}")
             else:
                 # Use AI to find the best match
-                ai_prompt = f"""
-You are a supplier matching expert. I need you to find the best match for this supplier in our database.
+                # Create a more targeted prompt for Castrol specifically
+                if 'castrol' in supplier_name.lower():
+                    castrol_suppliers = [s for s in csv_suppliers if 'castrol' in s.supplier_name.lower()]
+                    castrol_text = "\n".join([
+                        f"- {supplier.supplier_name} ({supplier.country}) - CompanyID: {supplier.company_id}"
+                        for supplier in castrol_suppliers
+                    ])
+                    ai_prompt = f"""
+You are matching this CASTROL supplier to the best match in our database.
 
-Target supplier to match: "{supplier_name}" in country: "{country}"
+Target: "{supplier_name}" in {country}
 
-Available suppliers in database ({len(csv_suppliers)} total):
-{supplier_data_text}
+Available Castrol suppliers in database:
+{castrol_text}
 
-**Matching rules:**
-1. EXACT_MATCH: Same name, same country (100% confidence)
-2. SIMILAR_SAME_COUNTRY: Similar name, same country (80-95% confidence)
-   - Includes: subsidiaries, acquisitions, brand variations, parent companies
-   - Examples: "Sigma Aldrich" → "Merck Sigma Aldrich", "3M Company" → "3M Inc"
-   - Examples: "Castrol AB Tel 08-4411100" → "Castrol AB", "Castrol Limited"
-3. SIMILAR_DIFFERENT_COUNTRY: Similar name, different country (60-80% confidence)
-4. NO_MATCH: No similar company found (0% confidence)
-
-**Important:** 
-- Consider company acquisitions, mergers, subsidiaries, and brand variations
-- Ignore phone numbers, addresses, and extra text in supplier names
-- Focus on the core company name (e.g., "Castrol AB Tel 08-4411100" → "Castrol AB")
-- Look for partial matches and variations
+**CRITICAL:** "Castrol AB Tel 08-4411100" should match with "Castrol AB" or similar Castrol variant.
 
 Response format:
 MATCH_TYPE: [EXACT_MATCH/SIMILAR_SAME_COUNTRY/SIMILAR_DIFFERENT_COUNTRY/NO_MATCH]
 COMPANY_ID: [CompanyID if match found]
-REASONING: [Brief explanation of your decision]
+REASONING: [Brief explanation]
+"""
+                else:
+                    ai_prompt = f"""
+You are a supplier matching expert. Find the best match for this supplier.
+
+Target: "{supplier_name}" in {country}
+
+Available suppliers (showing first 100):
+{supplier_data_text}
+
+**Matching rules:**
+1. EXACT_MATCH: Same name, same country
+2. SIMILAR_SAME_COUNTRY: Similar name, same country (ignore phone numbers/addresses)
+3. SIMILAR_DIFFERENT_COUNTRY: Similar name, different country
+4. NO_MATCH: No similar company found
+
+Response format:
+MATCH_TYPE: [EXACT_MATCH/SIMILAR_SAME_COUNTRY/SIMILAR_DIFFERENT_COUNTRY/NO_MATCH]
+COMPANY_ID: [CompanyID if match found]
+REASONING: [Brief explanation]
 """
                 
                 try:
