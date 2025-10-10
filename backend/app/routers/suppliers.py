@@ -345,10 +345,10 @@ def get_supplier_mapping(project_id: int, session: Session = Depends(get_session
     
     if csv_suppliers:
         # Prepare supplier data for AI - LIMIT to avoid rate limits
-        # Only send max 50 suppliers to avoid token limits (reduced from 100)
+        # Only send max 20 suppliers to avoid token limits (reduced from 50)
         supplier_data_text = "\n".join([
-            f"- {supplier.supplier_name} ({supplier.country}) - CompanyID: {supplier.company_id}"
-            for supplier in csv_suppliers[:50]  # LIMIT to first 50 to reduce tokens
+            f"{supplier.company_id}:{supplier.supplier_name}:{supplier.country}"
+            for supplier in csv_suppliers[:20]  # LIMIT to first 20 to reduce tokens
         ])
         
         # Filter out suppliers that have already been matched in previous runs
@@ -403,19 +403,15 @@ def get_supplier_mapping(project_id: int, session: Session = Depends(get_session
                     "products_affected": products_affected
                 }
             
-            # Use AI to find the best match - CONCISE PROMPT to reduce tokens
-            ai_prompt = f"""Match supplier: "{supplier_name}" in {country}
+            # Use AI to find the best match - ULTRA CONCISE PROMPT to reduce tokens
+            ai_prompt = f"""Match "{supplier_name}" in {country}
 
-Available suppliers:
-{supplier_data_text}
+Suppliers: {supplier_data_text}
 
-Rules: EXACT_MATCH (same name+country), SIMILAR_SAME_COUNTRY (similar name+country), SIMILAR_DIFFERENT_COUNTRY (similar name+different country), NO_MATCH.
+Rules: EXACT_MATCH/SIMILAR_SAME_COUNTRY/SIMILAR_DIFFERENT_COUNTRY/NO_MATCH
+Ignore phones/addresses/typos. Focus on core company name.
 
-Examples: "Castrol AB Tel 08-4411100" → "Castrol AB", "Henkel xyz" → "Henkel Norden", "Sigma-Aldrich" → "Merck Sigma Aldrich".
-
-Focus on core company name, ignore phones/addresses/typos.
-
-Response: [{{"MATCH_TYPE": "TYPE", "COMPANY_ID": 123, "REASONING": "brief reason"}}]"""
+Response: [{{"MATCH_TYPE":"TYPE","COMPANY_ID":123,"REASONING":"brief"}}]"""
             
             try:
                 # Use different API key for each supplier to distribute load
@@ -478,9 +474,9 @@ Response: [{{"MATCH_TYPE": "TYPE", "COMPANY_ID": 123, "REASONING": "brief reason
                     "products_affected": products_affected
                 }
         
-        # Determine number of workers based on available API keys
+        # Determine number of workers based on available API keys - REDUCED to avoid rate limiting
         available_keys = sum(1 for i in range(10) if getattr(settings, f'OPENAI_API_KEY{i+1}', None))
-        max_workers = min(available_keys * 3, len(unmatched_supplier_list), 30)  # Up to 3 workers per API key, max 30 total
+        max_workers = min(available_keys * 2, len(unmatched_supplier_list), 15)  # Up to 2 workers per API key, max 15 total
         
         print(f"DEBUG: Processing {len(unmatched_supplier_list)} suppliers with {max_workers} parallel workers using {available_keys} API keys")
         
