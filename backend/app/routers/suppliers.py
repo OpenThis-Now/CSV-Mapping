@@ -376,7 +376,11 @@ def get_supplier_mapping(project_id: int, session: Session = Depends(get_session
         
         print(f"DEBUG: Total suppliers: {len(supplier_list)}, Already matched: {len(already_matched_suppliers)}, Unmatched: {len(unmatched_supplier_list)}")
         
-        for supplier_group in unmatched_supplier_list:
+        # Process suppliers in parallel using ThreadPoolExecutor
+        import concurrent.futures
+        from ..openai_client import suggest_with_openai
+        
+        def process_single_supplier(supplier_group):
             supplier_name = supplier_group["supplier_name"]
             country = supplier_group["country"]
             products_affected = supplier_group["product_count"]
@@ -391,17 +395,16 @@ def get_supplier_mapping(project_id: int, session: Session = Depends(get_session
             
             if exact_matches:
                 best_match = max(exact_matches, key=lambda x: x.total)
-                matched_results.append({
+                return {
+                    "type": "exact_match",
                     "supplier_name": supplier_name,
                     "country": country,
                     "matched_supplier": best_match,
-                    "match_type": "exact_match",
                     "products_affected": products_affected
-                })
-                print(f"DEBUG: Exact match found: {best_match.supplier_name}")
-            else:
-                # Use AI to find the best match
-                ai_prompt = f"""
+                }
+            
+            # Use AI to find the best match
+            ai_prompt = f"""
 You are a supplier matching expert. Find the best match for this supplier.
 
 Target: "{supplier_name}" in {country}
@@ -428,76 +431,136 @@ MATCH_TYPE: [EXACT_MATCH/SIMILAR_SAME_COUNTRY/SIMILAR_DIFFERENT_COUNTRY/NO_MATCH
 COMPANY_ID: [CompanyID if match found]
 REASONING: [Brief explanation]
 """
+            
+            try:
+                # Use different API key for each supplier to distribute load
+                api_key_index = hash(supplier_name) % 10  # Distribute across 10 API keys
+                print(f"DEBUG: Sending to AI - Target: '{supplier_name}' ({country}) with key {api_key_index}")
                 
+                ai_response = suggest_with_openai(ai_prompt, api_key_index=api_key_index)
+                print(f"DEBUG: AI response for {supplier_name}: {ai_response}")
+                
+                if "EXACT_MATCH" in ai_response:
+                    company_id_match = re.search(r'COMPANY_ID:\s*(\d+)', ai_response)
+                    if company_id_match:
+                        company_id = int(company_id_match.group(1))
+                        matched_supplier = next((s for s in csv_suppliers if s.company_id == company_id), None)
+                        if matched_supplier:
+                            return {
+                                "type": "ai_exact_match",
+                                "supplier_name": supplier_name,
+                                "country": country,
+                                "matched_supplier": matched_supplier,
+                                "products_affected": products_affected
+                            }
+                elif "SIMILAR_SAME_COUNTRY" in ai_response:
+                    company_id_match = re.search(r'COMPANY_ID:\s*(\d+)', ai_response)
+                    if company_id_match:
+                        company_id = int(company_id_match.group(1))
+                        matched_supplier = next((s for s in csv_suppliers if s.company_id == company_id), None)
+                        if matched_supplier:
+                            return {
+                                "type": "ai_similar_same_country",
+                                "supplier_name": supplier_name,
+                                "country": country,
+                                "matched_supplier": matched_supplier,
+                                "products_affected": products_affected
+                            }
+                elif "SIMILAR_DIFFERENT_COUNTRY" in ai_response:
+                    company_id_match = re.search(r'COMPANY_ID:\s*(\d+)', ai_response)
+                    if company_id_match:
+                        company_id = int(company_id_match.group(1))
+                        matched_supplier = next((s for s in csv_suppliers if s.company_id == company_id), None)
+                        if matched_supplier:
+                            return {
+                                "type": "ai_similar_different_country",
+                                "supplier_name": supplier_name,
+                                "country": country,
+                                "matched_supplier": matched_supplier,
+                                "products_affected": products_affected
+                            }
+                
+                return {
+                    "type": "no_match",
+                    "supplier_name": supplier_name,
+                    "country": country,
+                    "products_affected": products_affected
+                }
+                        
+            except Exception as e:
+                print(f"DEBUG: AI matching failed for {supplier_name}: {e}")
+                return {
+                    "type": "no_match",
+                    "supplier_name": supplier_name,
+                    "country": country,
+                    "products_affected": products_affected
+                }
+        
+        # Determine number of workers based on available API keys
+        available_keys = sum(1 for i in range(10) if getattr(settings, f'OPENAI_API_KEY{i+1}', None))
+        max_workers = min(available_keys * 3, len(unmatched_supplier_list), 30)  # Up to 3 workers per API key, max 30 total
+        
+        print(f"DEBUG: Processing {len(unmatched_supplier_list)} suppliers with {max_workers} parallel workers using {available_keys} API keys")
+        
+        # Process suppliers in parallel
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_supplier = {
+                executor.submit(process_single_supplier, supplier_group): supplier_group 
+                for supplier_group in unmatched_supplier_list
+            }
+            
+            for future in concurrent.futures.as_completed(future_to_supplier):
+                supplier_group = future_to_supplier[future]
                 try:
-                    from ..openai_client import suggest_with_openai
-                    print(f"DEBUG: Sending to AI - Target: '{supplier_name}' ({country})")
-                    print(f"DEBUG: Available suppliers count: {len(csv_suppliers)}")
-                    
-                    ai_response = suggest_with_openai(ai_prompt, api_key_index=0)
-                    print(f"DEBUG: AI response for {supplier_name}: {ai_response}")
-                    
-                    if "EXACT_MATCH" in ai_response:
-                        company_id_match = re.search(r'COMPANY_ID:\s*(\d+)', ai_response)
-                        if company_id_match:
-                            company_id = int(company_id_match.group(1))
-                            matched_supplier = next((s for s in csv_suppliers if s.company_id == company_id), None)
-                            if matched_supplier:
-                                matched_results.append({
-                                    "supplier_name": supplier_name,
-                                    "country": country,
-                                    "matched_supplier": matched_supplier,
-                                    "match_type": "ai_exact_match",
-                                    "products_affected": products_affected
-                                })
-                                print(f"DEBUG: AI exact match found: {matched_supplier.supplier_name}")
-                                continue
-                    
-                    elif "SIMILAR_SAME_COUNTRY" in ai_response:
-                        company_id_match = re.search(r'COMPANY_ID:\s*(\d+)', ai_response)
-                        if company_id_match:
-                            company_id = int(company_id_match.group(1))
-                            matched_supplier = next((s for s in csv_suppliers if s.company_id == company_id), None)
-                            if matched_supplier:
-                                matched_results.append({
-                                    "supplier_name": supplier_name,
-                                    "country": country,
-                                    "matched_supplier": matched_supplier,
-                                    "match_type": "ai_similar_same_country",
-                                    "products_affected": products_affected
-                                })
-                                print(f"DEBUG: AI similar match (same country): {matched_supplier.supplier_name}")
-                                continue
-                    
-                    elif "SIMILAR_DIFFERENT_COUNTRY" in ai_response:
-                        company_id_match = re.search(r'COMPANY_ID:\s*(\d+)', ai_response)
-                        if company_id_match:
-                            company_id = int(company_id_match.group(1))
-                            matched_supplier = next((s for s in csv_suppliers if s.company_id == company_id), None)
-                            if matched_supplier:
-                                new_country_needed.append({
-                                    "supplier_name": supplier_name,
-                                    "country": country,
-                                    "matched_supplier": matched_supplier,
-                                    "products_affected": products_affected
-                                })
-                                print(f"DEBUG: AI similar match (different country): {matched_supplier.supplier_name}")
-                                continue
-                    
-                    # If AI says NO_MATCH or couldn't find a match
-                    new_supplier_needed.append({
-                        "supplier_name": supplier_name,
-                        "country": country,
-                        "products_affected": products_affected
-                    })
-                    print(f"DEBUG: AI found no match for: {supplier_name}")
-                    
+                    result = future.result()
+                    if result["type"] == "exact_match":
+                        matched_results.append({
+                            "supplier_name": result["supplier_name"],
+                            "country": result["country"],
+                            "matched_supplier": result["matched_supplier"],
+                            "match_type": "exact_match",
+                            "products_affected": result["products_affected"]
+                        })
+                        print(f"DEBUG: Parallel exact match found: {result['matched_supplier'].supplier_name}")
+                    elif result["type"] == "ai_exact_match":
+                        matched_results.append({
+                            "supplier_name": result["supplier_name"],
+                            "country": result["country"],
+                            "matched_supplier": result["matched_supplier"],
+                            "match_type": "ai_exact_match",
+                            "products_affected": result["products_affected"]
+                        })
+                        print(f"DEBUG: Parallel AI exact match found: {result['matched_supplier'].supplier_name}")
+                    elif result["type"] == "ai_similar_same_country":
+                        matched_results.append({
+                            "supplier_name": result["supplier_name"],
+                            "country": result["country"],
+                            "matched_supplier": result["matched_supplier"],
+                            "match_type": "ai_similar_same_country",
+                            "products_affected": result["products_affected"]
+                        })
+                        print(f"DEBUG: Parallel AI similar match (same country): {result['matched_supplier'].supplier_name}")
+                    elif result["type"] == "ai_similar_different_country":
+                        new_country_needed.append({
+                            "supplier_name": result["supplier_name"],
+                            "country": result["country"],
+                            "matched_supplier": result["matched_supplier"],
+                            "products_affected": result["products_affected"]
+                        })
+                        print(f"DEBUG: Parallel AI similar match (different country): {result['matched_supplier'].supplier_name}")
+                    else:
+                        new_supplier_needed.append({
+                            "supplier_name": result["supplier_name"],
+                            "country": result["country"],
+                            "products_affected": result["products_affected"]
+                        })
+                        print(f"DEBUG: Parallel AI found no match for: {result['supplier_name']}")
                 except Exception as e:
-                    print(f"DEBUG: AI matching failed for {supplier_name}: {e}")
+                    print(f"DEBUG: Error processing supplier {supplier_group['supplier_name']}: {e}")
                     new_supplier_needed.append({
-                        "supplier_name": supplier_name,
-                        "country": country,
-                        "products_affected": products_affected
+                        "supplier_name": supplier_group["supplier_name"],
+                        "country": supplier_group["country"],
+                        "products_affected": supplier_group["product_count"]
                     })
     else:
         # No CSV suppliers uploaded, all are new supplier needed
