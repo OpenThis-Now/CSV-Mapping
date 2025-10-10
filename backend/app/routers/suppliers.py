@@ -440,11 +440,14 @@ REASONING: [Brief explanation]
                 ai_response = suggest_with_openai(ai_prompt, api_key_index=api_key_index)
                 print(f"DEBUG: AI response for {supplier_name}: {ai_response}")
                 
-                if "EXACT_MATCH" in ai_response:
-                    company_id_match = re.search(r'COMPANY_ID:\s*(\d+)', ai_response)
-                    if company_id_match:
-                        company_id = int(company_id_match.group(1))
-                        matched_supplier = next((s for s in csv_suppliers if s.company_id == company_id), None)
+                # AI response is a list of dictionaries, get the first one
+                if ai_response and len(ai_response) > 0:
+                    ai_result = ai_response[0]  # Get first result
+                    match_type = ai_result.get("MATCH_TYPE", "NO_MATCH")
+                    company_id = ai_result.get("COMPANY_ID")
+                    
+                    if match_type == "EXACT_MATCH" and company_id:
+                        matched_supplier = next((s for s in csv_suppliers if s.company_id == int(company_id)), None)
                         if matched_supplier:
                             return {
                                 "type": "ai_exact_match",
@@ -453,11 +456,8 @@ REASONING: [Brief explanation]
                                 "matched_supplier": matched_supplier,
                                 "products_affected": products_affected
                             }
-                elif "SIMILAR_SAME_COUNTRY" in ai_response:
-                    company_id_match = re.search(r'COMPANY_ID:\s*(\d+)', ai_response)
-                    if company_id_match:
-                        company_id = int(company_id_match.group(1))
-                        matched_supplier = next((s for s in csv_suppliers if s.company_id == company_id), None)
+                    elif match_type == "SIMILAR_SAME_COUNTRY" and company_id:
+                        matched_supplier = next((s for s in csv_suppliers if s.company_id == int(company_id)), None)
                         if matched_supplier:
                             return {
                                 "type": "ai_similar_same_country",
@@ -466,11 +466,8 @@ REASONING: [Brief explanation]
                                 "matched_supplier": matched_supplier,
                                 "products_affected": products_affected
                             }
-                elif "SIMILAR_DIFFERENT_COUNTRY" in ai_response:
-                    company_id_match = re.search(r'COMPANY_ID:\s*(\d+)', ai_response)
-                    if company_id_match:
-                        company_id = int(company_id_match.group(1))
-                        matched_supplier = next((s for s in csv_suppliers if s.company_id == company_id), None)
+                    elif match_type == "SIMILAR_DIFFERENT_COUNTRY" and company_id:
+                        matched_supplier = next((s for s in csv_suppliers if s.company_id == int(company_id)), None)
                         if matched_supplier:
                             return {
                                 "type": "ai_similar_different_country",
