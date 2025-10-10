@@ -449,7 +449,7 @@ def get_ai_suggestions(project_id: int, session: Session = Depends(get_session))
         select(MatchResult)
         .where(MatchResult.match_run_id == latest_run.id)
         .where(MatchResult.decision == "sent_to_ai")
-        .where(MatchResult.ai_status == None)  # No AI status set yet
+        .where(MatchResult.ai_status.is_(None))  # No AI status set yet
         .where(~MatchResult.customer_row_index.in_(completed_row_indices))
         .order_by(MatchResult.customer_row_index)
     ).all()

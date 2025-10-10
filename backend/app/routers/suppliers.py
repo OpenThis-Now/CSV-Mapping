@@ -345,10 +345,10 @@ def get_supplier_mapping(project_id: int, session: Session = Depends(get_session
     
     if csv_suppliers:
         # Prepare supplier data for AI - LIMIT to avoid rate limits
-        # Only send max 100 suppliers to avoid token limits
+        # Only send max 50 suppliers to avoid token limits (reduced from 100)
         supplier_data_text = "\n".join([
             f"- {supplier.supplier_name} ({supplier.country}) - CompanyID: {supplier.company_id}"
-            for supplier in csv_suppliers[:100]  # LIMIT to first 100
+            for supplier in csv_suppliers[:50]  # LIMIT to first 50 to reduce tokens
         ])
         
         # Filter out suppliers that have already been matched in previous runs
@@ -403,34 +403,19 @@ def get_supplier_mapping(project_id: int, session: Session = Depends(get_session
                     "products_affected": products_affected
                 }
             
-            # Use AI to find the best match
-            ai_prompt = f"""
-You are a supplier matching expert. Find the best match for this supplier.
+            # Use AI to find the best match - CONCISE PROMPT to reduce tokens
+            ai_prompt = f"""Match supplier: "{supplier_name}" in {country}
 
-Target: "{supplier_name}" in {country}
-
-Available suppliers (showing first 100):
+Available suppliers:
 {supplier_data_text}
 
-**Matching rules:**
-1. EXACT_MATCH: Same name, same country
-2. SIMILAR_SAME_COUNTRY: Similar name, same country (ignore extra text, phone numbers, addresses, typos)
-3. SIMILAR_DIFFERENT_COUNTRY: Similar name, different country
-4. NO_MATCH: No similar company found
+Rules: EXACT_MATCH (same name+country), SIMILAR_SAME_COUNTRY (similar name+country), SIMILAR_DIFFERENT_COUNTRY (similar name+different country), NO_MATCH.
 
-**Important examples:**
-- "Castrol AB Tel 08-4411100" → "Castrol AB" (ignore phone number)
-- "Henkel yurwyuwyurw" → "Henkel Norden" (ignore typos/extra text)
-- "3M Company Inc" → "3M Inc" (ignore company suffixes)
-- "Sigma-Aldrich Sweden" → "Merck Sigma Aldrich" (parent company)
+Examples: "Castrol AB Tel 08-4411100" → "Castrol AB", "Henkel xyz" → "Henkel Norden", "Sigma-Aldrich" → "Merck Sigma Aldrich".
 
-**Key:** Focus on the core company name, ignore extra text, typos, phone numbers, addresses.
+Focus on core company name, ignore phones/addresses/typos.
 
-Response format:
-MATCH_TYPE: [EXACT_MATCH/SIMILAR_SAME_COUNTRY/SIMILAR_DIFFERENT_COUNTRY/NO_MATCH]
-COMPANY_ID: [CompanyID if match found]
-REASONING: [Brief explanation]
-"""
+Response: [{{"MATCH_TYPE": "TYPE", "COMPANY_ID": 123, "REASONING": "brief reason"}}]"""
             
             try:
                 # Use different API key for each supplier to distribute load
