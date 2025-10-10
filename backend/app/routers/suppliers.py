@@ -380,7 +380,7 @@ You are a supplier matching expert. I need you to find the best match for this s
 
 Target supplier to match: "{supplier_name}" in country: "{country}"
 
-Available suppliers in database:
+Available suppliers in database ({len(csv_suppliers)} total):
 {supplier_data_text}
 
 **Matching rules:**
@@ -388,10 +388,15 @@ Available suppliers in database:
 2. SIMILAR_SAME_COUNTRY: Similar name, same country (80-95% confidence)
    - Includes: subsidiaries, acquisitions, brand variations, parent companies
    - Examples: "Sigma Aldrich" → "Merck Sigma Aldrich", "3M Company" → "3M Inc"
+   - Examples: "Castrol AB Tel 08-4411100" → "Castrol AB", "Castrol Limited"
 3. SIMILAR_DIFFERENT_COUNTRY: Similar name, different country (60-80% confidence)
 4. NO_MATCH: No similar company found (0% confidence)
 
-**Important:** Consider company acquisitions, mergers, subsidiaries, and brand variations.
+**Important:** 
+- Consider company acquisitions, mergers, subsidiaries, and brand variations
+- Ignore phone numbers, addresses, and extra text in supplier names
+- Focus on the core company name (e.g., "Castrol AB Tel 08-4411100" → "Castrol AB")
+- Look for partial matches and variations
 
 Response format:
 MATCH_TYPE: [EXACT_MATCH/SIMILAR_SAME_COUNTRY/SIMILAR_DIFFERENT_COUNTRY/NO_MATCH]
@@ -401,6 +406,14 @@ REASONING: [Brief explanation of your decision]
                 
                 try:
                     from ..openai_client import suggest_with_openai
+                    print(f"DEBUG: Sending to AI - Target: '{supplier_name}' ({country})")
+                    print(f"DEBUG: Available suppliers count: {len(csv_suppliers)}")
+                    # Show first few suppliers for debugging
+                    castrol_suppliers = [s for s in csv_suppliers if 'castrol' in s.supplier_name.lower()]
+                    print(f"DEBUG: Castrol suppliers found: {len(castrol_suppliers)}")
+                    for cs in castrol_suppliers[:5]:  # Show first 5
+                        print(f"DEBUG:   - {cs.supplier_name} ({cs.country}) - ID: {cs.company_id}")
+                    
                     ai_response = suggest_with_openai(ai_prompt, api_key_index=0)
                     print(f"DEBUG: AI response for {supplier_name}: {ai_response}")
                     
