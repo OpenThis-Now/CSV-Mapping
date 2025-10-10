@@ -129,7 +129,23 @@ def run_matching(project_id: int, req: MatchRequest, session: Session = Depends(
         
         # Read customer CSV and add file_hash
         customer_separator = detect_csv_separator(cust_csv)
-        customer_df = pd.read_csv(cust_csv, dtype=str, keep_default_na=False, sep=customer_separator, encoding='utf-8')
+        log.info(f"Customer CSV separator detected: '{customer_separator}'")
+        
+        # Try to read with detected separator first
+        try:
+            customer_df = pd.read_csv(cust_csv, dtype=str, keep_default_na=False, sep=customer_separator, encoding='utf-8')
+            log.info(f"Customer CSV read successfully with separator '{customer_separator}': {customer_df.shape}")
+        except Exception as e:
+            log.warning(f"Failed to read customer CSV with separator '{customer_separator}': {e}")
+            # Try with open_text_stream approach like in imports.py
+            from ..services.files import open_text_stream
+            import csv
+            with open_text_stream(cust_csv) as f:
+                reader = csv.DictReader(f, delimiter=customer_separator)
+                headers = reader.fieldnames or []
+                rows = list(reader)
+                customer_df = pd.DataFrame(rows)
+                log.info(f"Customer CSV read with open_text_stream: {customer_df.shape}")
         
         # For URL enhanced files, try to get PDF hashes from ImportedPdf records
         if "enhanced" in imp.filename.lower():
