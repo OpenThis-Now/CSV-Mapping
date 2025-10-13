@@ -277,7 +277,7 @@ def get_supplier_mapping(project_id: int, session: Session = Depends(get_session
         .where(MatchResult.match_run_id.in_(
             select(MatchResult.match_run_id).where(MatchResult.decision.in_(["rejected", "auto_rejected", "ai_auto_rejected"]))
         ))
-        .where(MatchResult.decision.in_(["rejected", "auto_rejected", "ai_auto_rejected"]))
+        .where(MatchResult.decision.in_(["rejected", "auto_rejected", "ai_auto_rejected", "ready_for_db_import"]))
     ).all()
     
     # Group by supplier name and country
@@ -811,7 +811,7 @@ def apply_supplier_matches(project_id: int, session: Session = Depends(get_sessi
             .where(MatchResult.match_run_id.in_(
                 select(MatchResult.match_run_id).where(MatchResult.decision.in_(["rejected", "auto_rejected", "ai_auto_rejected"]))
             ))
-            .where(MatchResult.decision.in_(["rejected", "auto_rejected", "ai_auto_rejected"]))
+            .where(MatchResult.decision.in_(["rejected", "auto_rejected", "ai_auto_rejected", "ready_for_db_import"]))
         ).all()
         
         for result in rejected_results:

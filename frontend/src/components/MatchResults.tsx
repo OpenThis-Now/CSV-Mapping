@@ -84,6 +84,7 @@ function TableView({ results, selectedIds, onSelectionChange }: { results: Match
       switch (decision) {
         case "approved": return 5; // Lowest priority
         case "ai_auto_approved": return 4; // Fourth priority
+        case "ready_for_db_import": return 3.5; // Between auto_approved and ai_auto_approved
         case "rejected": return 2; // Second priority
         case "auto_rejected": return 2; // Second priority (same as rejected)
         case "auto_approved": return 3; // Third priority
@@ -168,6 +169,7 @@ function TableView({ results, selectedIds, onSelectionChange }: { results: Match
                 {r.decision === "auto_approved" && <Badge tone="green">Auto approved</Badge>}
                 {r.decision === "approved" && <Badge tone="green">Approved</Badge>}
                 {r.decision === "ai_auto_approved" && <Badge tone="green">AI auto approved</Badge>}
+                {r.decision === "ready_for_db_import" && <Badge tone="blue">Ready for DB import</Badge>}
                 {r.decision === "rejected" && <Badge tone="red">Rejected</Badge>}
                 {r.decision === "auto_rejected" && <Badge tone="red">Auto-rejected</Badge>}
                 {r.decision === "sent_to_ai" && <Badge tone="blue">Sent to AI</Badge>}
@@ -210,6 +212,7 @@ function CardView({ results, selectedIds, onSelectionChange, onApprove, onReject
       switch (decision) {
         case "approved": return 5; // Lowest priority
         case "ai_auto_approved": return 4; // Fourth priority
+        case "ready_for_db_import": return 3.5; // Between auto_approved and ai_auto_approved
         case "rejected": return 2; // Second priority
         case "auto_rejected": return 2; // Second priority (same as rejected)
         case "auto_approved": return 3; // Third priority
@@ -310,6 +313,7 @@ function CardView({ results, selectedIds, onSelectionChange, onApprove, onReject
                   {r.decision === "auto_approved" && <Badge tone="green">Auto approved</Badge>}
                   {r.decision === "approved" && <Badge tone="green">Approved</Badge>}
                   {r.decision === "ai_auto_approved" && <Badge tone="green">AI auto approved</Badge>}
+                  {r.decision === "ready_for_db_import" && <Badge tone="blue">Ready for DB import</Badge>}
                   {r.decision === "rejected" && <Badge tone="red">Rejected</Badge>}
                   {r.decision === "auto_rejected" && <Badge tone="red">Auto-rejected</Badge>}
                   {r.decision === "sent_to_ai" && <Badge tone="blue">Sent to AI</Badge>}
