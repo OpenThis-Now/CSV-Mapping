@@ -24,7 +24,7 @@ interface RejectedProduct {
   company_id?: string;
   pdf_filename?: string;
   pdf_source?: string;
-  status: "needs_data" | "complete" | "sent" | "request_worklist";
+  status: "needs_data" | "complete" | "sent" | "ready_for_db_import" | "pdf_companyid_missing" | "pdf_missing" | "companyid_missing";
   created_at: string;
   completed_at?: string;
   notes?: string;
@@ -51,16 +51,15 @@ const filterByQuery = (items: RejectedProduct[] = [], q = "") => {
 function getStatusText(status: string) {
     const texts = {
       ready_for_db_import: "Ready for DB import",
-    pdf_companyid_missing: "PDF & CompanyID Missing",
-    pdf_missing: "PDF Missing",
-    companyid_missing: "CompanyID Missing",
-      request_worklist: "Ready for DB import" // Legacy support
+      pdf_companyid_missing: "PDF & CompanyID Missing",
+      pdf_missing: "PDF Missing",
+      companyid_missing: "CompanyID Missing"
     };
     return texts[status as keyof typeof texts] || status;
 }
 
 /******** UI atoms ********/
-function Pill({ tone = "gray", children }) {
+function Pill({ tone = "gray", children }: { tone?: string; children: React.ReactNode }) {
   const map = {
     gray: "bg-gray-100 text-gray-700",
     amber: "bg-amber-100 text-amber-800",
@@ -68,13 +67,13 @@ function Pill({ tone = "gray", children }) {
     blue: "bg-blue-100 text-blue-800",
   };
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${map[tone] || map.gray}`}>
+    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${map[tone as keyof typeof map] || map.gray}`}>
       {children}
     </span>
   );
 }
 
-function Dropzone({ onFile, accept = ".pdf", label = "Drag & drop file here or click to select" }) {
+function Dropzone({ onFile, accept = ".pdf", label = "Drag & drop file here or click to select" }: { onFile: (file: File) => void; accept?: string; label?: string }) {
   const [isOver, setIsOver] = useState(false);
     return (
     <label
@@ -106,7 +105,7 @@ function Dropzone({ onFile, accept = ".pdf", label = "Drag & drop file here or c
 }
 
 /******** Top Actions (shared) ********/
-function TopActions({ onExportCsv, onExportZip }) {
+function TopActions({ onExportCsv, onExportZip }: { onExportCsv: () => void; onExportZip: () => void }) {
     return (
     <div className="sticky top-0 z-10 -mx-4 mb-6 border-b bg-white/80 p-4 backdrop-blur supports-[backdrop-filter]:bg-white/60">
       <div className="flex flex-wrap items-center gap-2">
@@ -788,7 +787,7 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
       
       // Show more detailed message
       if (res.data.suppliers_count === 0) {
-        showToast("CSV uploaded but no suppliers were added. Please check that your CSV has the correct column names: 'Supplier name', 'CompanyID', 'Country', 'Total'", 'warning');
+        showToast("CSV uploaded but no suppliers were added. Please check that your CSV has the correct column names: 'Supplier name', 'CompanyID', 'Country', 'Total'", 'info');
       } else {
         showToast(res.data.message, 'success');
       }

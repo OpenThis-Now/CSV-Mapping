@@ -57,7 +57,7 @@ export default function DetailedProgressBar({ total, approved, worklist, rejecte
               width: `${worklistPct}%`,
               left: `${approvedPct}%`
             }}
-            title={`${worklist} worklist (${Math.round(worklistPct)}%)`}
+            title={`${worklist} ready for DB import (${Math.round(worklistPct)}%)`}
           ></div>
         )}
         
@@ -95,7 +95,7 @@ export default function DetailedProgressBar({ total, approved, worklist, rejecte
         )}
         {worklist > 0 && (
           <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-1 font-medium text-blue-700">
-            📋 {worklist} worklist
+            📋 {worklist} ready for DB import
           </span>
         )}
         {rejected > 0 && (
