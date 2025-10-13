@@ -391,25 +391,36 @@ def update_rejected_product(
     session: Session = Depends(get_session)
 ) -> Dict[str, str]:
     """Update rejected product data"""
-    print(f"DEBUG: Updating product {product_id} with data: {data}")
+    print(f"DEBUG: ===== UPDATE REQUEST RECEIVED =====")
+    print(f"DEBUG: project_id: {project_id}")
+    print(f"DEBUG: product_id: {product_id}")
+    print(f"DEBUG: data: {data}")
+    print(f"DEBUG: data type: {type(data)}")
+    print(f"DEBUG: ====================================")
     
     p = session.get(Project, project_id)
     if not p:
+        print(f"DEBUG: Project {project_id} not found")
         raise HTTPException(status_code=404, detail="Projekt saknas.")
     
     product = session.get(RejectedProductData, product_id)
     if not product or product.project_id != project_id:
+        print(f"DEBUG: Product {product_id} not found or wrong project")
         raise HTTPException(status_code=404, detail="Rejected product saknas.")
     
     try:
         # Update fields
         if data.company_id is not None:
+            print(f"DEBUG: Updating company_id to: {data.company_id}")
             product.company_id = data.company_id
         if data.pdf_filename is not None:
+            print(f"DEBUG: Updating pdf_filename to: {data.pdf_filename}")
             product.pdf_filename = data.pdf_filename
         if data.pdf_source is not None:
+            print(f"DEBUG: Updating pdf_source to: {data.pdf_source}")
             product.pdf_source = data.pdf_source
         if data.notes is not None:
+            print(f"DEBUG: Updating notes to: {data.notes}")
             product.notes = data.notes
         
         # Auto-update status based on data availability (unless manually overridden)
@@ -423,6 +434,7 @@ def update_rejected_product(
             # Validate status
             valid_statuses = ["ready_for_db_import", "pdf_companyid_missing", "pdf_missing", "companyid_missing", "request_worklist"]
             if new_status not in valid_statuses:
+                print(f"DEBUG: Invalid status: {new_status}")
                 raise HTTPException(status_code=422, detail=f"Invalid status: {new_status}. Valid statuses: {valid_statuses}")
             product.status = new_status
         
@@ -438,6 +450,9 @@ def update_rejected_product(
         
     except Exception as e:
         print(f"DEBUG: Error updating product {product_id}: {str(e)}")
+        print(f"DEBUG: Error type: {type(e)}")
+        import traceback
+        print(f"DEBUG: Traceback: {traceback.format_exc()}")
         session.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to update product: {str(e)}")
 
