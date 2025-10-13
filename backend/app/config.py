@@ -35,7 +35,7 @@ class Settings(BaseSettings):
         "http://localhost:5174", 
         "http://127.0.0.1:5174",
         "https://csv-mapping-frontend-production.up.railway.app",
-        "https://csv-mapping-frontend-stagning-experimental.up.railway.app"
+        "https://csv-mapping-frontend-staging-experimental.up.railway.app"
     ])
 
     # AI
@@ -72,7 +72,7 @@ class Settings(BaseSettings):
         if isinstance(v, str):
             try:
                 return json.loads(v)
-            except Exception:
+            except json.JSONDecodeError:
                 pass
         return v
 

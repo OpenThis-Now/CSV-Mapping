@@ -330,7 +330,7 @@ def combine_import_files(project_id: int, req: CombineImportsRequest, session: S
             file_mapping = imp.columns_map_json
             
             # Processa varje rad i denna fil
-            for row_idx in range(len(df)):
+            for row_idx in df.index:
                 unified_row = {}
                 
                 # Mappa product
