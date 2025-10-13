@@ -29,8 +29,8 @@ export default function DetailedProgressBar({ total, approved, worklist, rejecte
   const rejectedPct = (rejected / total) * 100;
   const pendingPct = (pending / total) * 100;
   
-  const completedPct = approvedPct + worklistPct + rejectedPct;
-  const totalCompleted = approved + worklist + rejected;
+  const completedPct = approvedPct + worklistPct; // Exclude rejected from completed percentage
+  const totalCompleted = approved + worklist; // Exclude rejected from completed count
 
   return (
     <div className="space-y-2">

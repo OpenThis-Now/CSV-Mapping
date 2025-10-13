@@ -102,7 +102,7 @@ export default function MatchPage({ projectId }: { projectId: number }) {
 
   const approveSelected = async () => {
     if (selectedIds.length === 0) {
-      showToast("Välj produkter att godkänna.", 'warning');
+      showToast("Välj produkter att godkänna.", 'info');
       return;
     }
     await api.post(`/projects/${projectId}/approve`, { ids: selectedIds });
@@ -113,7 +113,7 @@ export default function MatchPage({ projectId }: { projectId: number }) {
 
   const rejectSelected = async () => {
     if (selectedIds.length === 0) {
-      showToast("Välj produkter att avvisa.", 'warning');
+      showToast("Välj produkter att avvisa.", 'info');
       return;
     }
     await api.post(`/projects/${projectId}/reject`, { ids: selectedIds });
@@ -124,7 +124,7 @@ export default function MatchPage({ projectId }: { projectId: number }) {
 
   const sendToAI = async () => {
     if (selectedIds.length === 0) {
-      showToast("Välj produkter att skicka till AI.", 'warning');
+      showToast("Välj produkter att skicka till AI.", 'info');
       return;
     }
     
@@ -172,7 +172,7 @@ export default function MatchPage({ projectId }: { projectId: number }) {
     })
   .sort((a, b) => {
     // Sort by decision first (pending first), then by customer_row_index, then by id
-    const decisionOrder = { pending: 0, sent_to_ai: 1, ai_auto_rejected: 2, auto_rejected: 3, auto_approved: 4, approved: 5, rejected: 6 };
+    const decisionOrder = { pending: 0, sent_to_ai: 1, ai_auto_rejected: 2, auto_rejected: 3, auto_approved: 4, approved: 5, ready_for_db_import: 6, rejected: 7 };
     const aOrder = decisionOrder[a.decision as keyof typeof decisionOrder] ?? 999;
     const bOrder = decisionOrder[b.decision as keyof typeof decisionOrder] ?? 999;
     
@@ -243,6 +243,7 @@ export default function MatchPage({ projectId }: { projectId: number }) {
             <option value="all">All</option>
             <option value="review_required">Review required</option>
             <option value="approved">Approved</option>
+            <option value="ready_for_db_import">Ready for DB import</option>
             <option value="rejected">Rejected</option>
           </select>
         </div>
