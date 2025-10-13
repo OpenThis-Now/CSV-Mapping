@@ -104,3 +104,11 @@ class AiSuggestionItem(BaseModel):
 
 class CombineImportsRequest(BaseModel):
     import_ids: list[int] = Field(default_factory=list)
+
+
+class RejectedProductUpdateRequest(BaseModel):
+    company_id: Optional[str] = None
+    pdf_filename: Optional[str] = None
+    pdf_source: Optional[str] = None
+    notes: Optional[str] = None
+    status: Optional[str] = None

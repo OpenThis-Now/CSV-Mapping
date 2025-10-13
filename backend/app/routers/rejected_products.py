@@ -12,6 +12,7 @@ from sqlmodel import Session, select
 from ..config import settings
 from ..db import get_session
 from ..models import MatchResult, MatchRun, Project, RejectedProductData, RejectedExport, DatabaseCatalog, ImportedPdf
+from ..schemas import RejectedProductUpdateRequest
 from ..services.files import detect_csv_separator, open_text_stream
 from ..services.mapping import auto_map_headers
 from rapidfuzz import fuzz
@@ -386,7 +387,7 @@ def auto_match_company_id(
 def update_rejected_product(
     project_id: int, 
     product_id: int, 
-    data: Dict[str, Any], 
+    data: RejectedProductUpdateRequest, 
     session: Session = Depends(get_session)
 ) -> Dict[str, str]:
     """Update rejected product data"""
@@ -402,22 +403,22 @@ def update_rejected_product(
     
     try:
         # Update fields
-        if "company_id" in data:
-            product.company_id = data["company_id"]
-        if "pdf_filename" in data:
-            product.pdf_filename = data["pdf_filename"]
-        if "pdf_source" in data:
-            product.pdf_source = data["pdf_source"]
-        if "notes" in data:
-            product.notes = data["notes"]
+        if data.company_id is not None:
+            product.company_id = data.company_id
+        if data.pdf_filename is not None:
+            product.pdf_filename = data.pdf_filename
+        if data.pdf_source is not None:
+            product.pdf_source = data.pdf_source
+        if data.notes is not None:
+            product.notes = data.notes
         
         # Auto-update status based on data availability (unless manually overridden)
-        if "status" not in data:
+        if data.status is None:
             new_status = update_product_status_based_on_data(product)
             print(f"DEBUG: Auto-updating status to: {new_status}")
             product.status = new_status
         else:
-            new_status = data["status"]
+            new_status = data.status
             print(f"DEBUG: Manual status update to: {new_status}")
             # Validate status
             valid_statuses = ["ready_for_db_import", "pdf_companyid_missing", "pdf_missing", "companyid_missing", "request_worklist"]
