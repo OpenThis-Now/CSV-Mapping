@@ -75,10 +75,12 @@ def _process_single_product_ai(project_id: int, customer_row_index: int, session
     customer_mapping = imp.columns_map_json or auto_map_headers(cust_df.columns)
     db_mapping = db.columns_map_json or auto_map_headers(db_df.columns)
     
-    # Find similar products in database
-    db_df["__sim"] = db_df[db_mapping["product"]].apply(lambda x: score_fields(crow.get(customer_mapping["product"], ""), x))
+    # Find similar products in database - optimized for performance
+    customer_product = crow.get(customer_mapping["product"], "")
+    similarities = [score_fields(customer_product, db_product) for db_product in db_df[db_mapping["product"]]]
+    db_df["__sim"] = similarities
     short = db_df.sort_values("__sim", ascending=False).head(20).drop(columns=["__sim"])
-    db_sample = [dict(r) for _, r in short.iterrows()]
+    db_sample = short.to_dict('records')
     
     # Generate AI suggestions
     try:
@@ -333,9 +335,12 @@ def ai_suggest(project_id: int, req: AiSuggestRequest, session: Session = Depend
             continue
         crow = dict(cust_df.iloc[idx])
 
-        db_df["__sim"] = db_df[db_mapping["product"]].apply(lambda x: score_fields(crow.get(customer_mapping["product"], ""), x))
+        # Optimized similarity calculation for better performance
+        customer_product = crow.get(customer_mapping["product"], "")
+        similarities = [score_fields(customer_product, db_product) for db_product in db_df[db_mapping["product"]]]
+        db_df["__sim"] = similarities
         short = db_df.sort_values("__sim", ascending=False).head(max(20, 5 * req.max_suggestions)).drop(columns=["__sim"])
-        db_sample = [dict(r) for _, r in short.iterrows()]
+        db_sample = short.to_dict('records')
 
         used = "ai"
         try:

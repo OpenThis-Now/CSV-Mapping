@@ -31,7 +31,8 @@ def load_data():
         try:
             with open(DATA_FILE, 'rb') as f:
                 return pickle.load(f)
-        except:
+        except (pickle.UnpicklingError, EOFError, OSError) as e:
+            print(f"Warning: Could not load data file {DATA_FILE}: {e}")
             pass
     
     # Default data
@@ -275,7 +276,7 @@ def delete_database(database_id: int):
             os.remove(file_path)
             print(f"Deleted database file: {file_path}")
     except Exception as e:
-        print(f"Error deleting database file: {e}")
+        logging.error(f"Error deleting database file: {e}")
     
     save_data()
     return {"message": f"Database {database_id} deleted successfully"}
@@ -336,7 +337,7 @@ def delete_import(import_id: int):
             os.remove(file_path)
             print(f"Deleted import file: {file_path}")
     except Exception as e:
-        print(f"Error deleting import file: {e}")
+        logging.error(f"Error deleting import file: {e}")
     
     save_data()
     return {"message": f"Import {import_id} deleted successfully"}
@@ -509,7 +510,7 @@ def run_match(project_id: int, request: dict):
         return {"match_run_id": 1, "status": "finished", "results": match_results}
         
     except Exception as e:
-        print(f"Error during matching: {str(e)}")
+        logging.error(f"Error during matching: {str(e)}")
         return JSONResponse(status_code=500, content={"detail": f"Error during matching: {str(e)}"})
 
 @app.get("/api/projects/{project_id}/results")
@@ -646,7 +647,7 @@ def get_results(project_id: int):
         return results
         
     except Exception as e:
-        print(f"Error getting results: {str(e)}")
+        logging.error(f"Error getting results: {str(e)}")
         return []
 
 @app.get("/api/projects/{project_id}/export.csv")

@@ -99,7 +99,7 @@ def suggest_with_openai(prompt: str, max_items: int = 3, api_key_index: int = 0)
                     data = json.loads(m.group(1))
                     # print(f"OpenAI regex fallback success: {data}")
                     break
-                except:
+                except json.JSONDecodeError:
                     continue
         else:
             data = []

@@ -72,7 +72,7 @@ class Settings(BaseSettings):
         if isinstance(v, str):
             try:
                 return json.loads(v)
-            except Exception:
+            except json.JSONDecodeError:
                 pass
         return v
 

@@ -201,14 +201,18 @@ class AIQueueProcessor:
         db_mapping = auto_map_headers(database_data.columns)
         
         # Score products
-        database_data["__sim"] = database_data[db_mapping["product"]].apply(
-            lambda x: score_fields(customer_row.get("Product_name", ""), x)
-        )
+        # Vectorized similarity calculation for better performance
+        customer_product = customer_row.get("Product_name", "")
+        similarities = [
+            score_fields(customer_product, db_product) 
+            for db_product in database_data[db_mapping["product"]]
+        ]
+        database_data["__sim"] = similarities
         
         # Get top matches
         top_matches = database_data.sort_values("__sim", ascending=False).head(20).drop(columns=["__sim"])
         
-        return [dict(row) for _, row in top_matches.iterrows()]
+        return top_matches.to_dict('records')
     
     async def _generate_ai_suggestions(self, customer_row: dict, database_matches: List[dict], 
                                      customer_row_index: int, project_id: int):
