@@ -1,4 +1,5 @@
 import React from 'react';
+import { Layers } from 'lucide-react';
 
 interface DetailedProgressBarProps {
   total: number;
@@ -49,10 +50,10 @@ export default function DetailedProgressBar({ total, approved, worklist, rejecte
           ></div>
         )}
         
-        {/* Worklist (light blue) */}
+        {/* Worklist (purple) */}
         {worklistPct > 0 && (
           <div 
-            className="bg-blue-400 h-2 absolute transition-all duration-300" 
+            className="bg-purple-400 h-2 absolute transition-all duration-300" 
             style={{ 
               width: `${worklistPct}%`,
               left: `${approvedPct}%`
@@ -95,7 +96,8 @@ export default function DetailedProgressBar({ total, approved, worklist, rejecte
         )}
         {worklist > 0 && (
           <span className="inline-flex items-center gap-1 rounded-full bg-purple-50 px-2 py-1 font-medium text-purple-700">
-            🕐 {worklist} ready for DB import
+            <Layers className="h-3 w-3" />
+            {worklist} ready for DB import
           </span>
         )}
         {rejected > 0 && (
