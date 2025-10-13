@@ -94,8 +94,8 @@ export default function DetailedProgressBar({ total, approved, worklist, rejecte
           </span>
         )}
         {worklist > 0 && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-1 font-medium text-blue-700">
-            📋 {worklist} ready for DB import
+          <span className="inline-flex items-center gap-1 rounded-full bg-purple-50 px-2 py-1 font-medium text-purple-700">
+            🕐 {worklist} ready for DB import
           </span>
         )}
         {rejected > 0 && (
