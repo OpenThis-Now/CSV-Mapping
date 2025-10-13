@@ -36,6 +36,30 @@ def update_product_status_based_on_data(product: RejectedProductData) -> str:
         return "pdf_companyid_missing"  # Default fallback
 
 
+def sync_match_result_status(product: RejectedProductData, session: Session) -> None:
+    """Sync MatchResult decision with RejectedProductData status"""
+    if not product.match_result_id:
+        return
+    
+    # Get the match result
+    from ..models import MatchResult
+    match_result = session.get(MatchResult, product.match_result_id)
+    if not match_result:
+        return
+    
+    # Update MatchResult decision based on RejectedProductData status
+    if product.status == "ready_for_db_import":
+        # Change from rejected to ready_for_db_import
+        if match_result.decision in ["rejected", "auto_rejected", "ai_auto_rejected"]:
+            match_result.decision = "ready_for_db_import"
+            session.add(match_result)
+    elif product.status in ["pdf_companyid_missing", "pdf_missing", "companyid_missing"]:
+        # Keep as rejected if not ready for import
+        if match_result.decision not in ["rejected", "auto_rejected", "ai_auto_rejected"]:
+            match_result.decision = "rejected"
+            session.add(match_result)
+
+
 def auto_link_pdf_from_import(product: RejectedProductData, session: Session) -> bool:
     """Try to automatically link a PDF from customer import based on product name"""
     # print(f"DEBUG: auto_link_pdf_from_import called for product {product.id}")
@@ -170,6 +194,9 @@ def get_rejected_products(project_id: int, session: Session = Depends(get_sessio
             # print(f"DEBUG: Updating product {existing_data.id} status from '{existing_data.status}' to '{new_status}'")
             existing_data.status = new_status
             session.add(existing_data)
+            
+            # Sync with MatchResult status
+            sync_match_result_status(existing_data, session)
         
         # Try to auto-match company ID from database
         company_id = existing_data.company_id
@@ -388,6 +415,10 @@ def update_rejected_product(
         product.status = data["status"]
     
     session.add(product)
+    
+    # Sync with MatchResult status
+    sync_match_result_status(product, session)
+    
     session.commit()
     
     return {"message": "Rejected product updated successfully."}
@@ -427,6 +458,10 @@ def upload_pdf_for_product(
     product.status = update_product_status_based_on_data(product)
     
     session.add(product)
+    
+    # Sync with MatchResult status
+    sync_match_result_status(product, session)
+    
     session.commit()
     
     return {"message": "PDF uploaded successfully.", "filename": pdf_filename}
@@ -484,6 +519,10 @@ def upload_zip_with_pdfs(
                         product.status = update_product_status_based_on_data(product)
                         
                         session.add(product)
+                        
+                        # Sync with MatchResult status
+                        sync_match_result_status(product, session)
+                        
                         assigned_count += 1
     
     session.commit()
@@ -753,6 +792,10 @@ def link_pdfs_from_customer_import(project_id: int, session: Session = Depends(g
             # Auto-update status based on available data after linking PDF
             product.status = update_product_status_based_on_data(product)
             session.add(product)
+            
+            # Sync with MatchResult status
+            sync_match_result_status(product, session)
+            
             linked_count += 1
         else:
             # print(f"DEBUG: No PDF found to link for product {product.id}")

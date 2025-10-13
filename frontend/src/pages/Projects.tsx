@@ -188,7 +188,7 @@ export default function Projects({ onOpen, selectedProjectId }: { onOpen: (id: n
       <div className="grid gap-2">
         {list.map(p => {
           const counts = formatStatusCounts(projectStats[p.id]);
-          const pctCompleted = counts.total > 0 ? ((counts.matched + (projectStats[p.id]?.status_breakdown.not_approved || 0) + (projectStats[p.id]?.status_breakdown.worklist || 0)) / counts.total) * 100 : 0;
+          const pctCompleted = counts.total > 0 ? ((counts.matched + (projectStats[p.id]?.status_breakdown.worklist || 0)) / counts.total) * 100 : 0;
           
           // Debug logging
           const progressBarData = {
