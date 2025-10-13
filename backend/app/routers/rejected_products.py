@@ -390,6 +390,8 @@ def update_rejected_product(
     session: Session = Depends(get_session)
 ) -> Dict[str, str]:
     """Update rejected product data"""
+    print(f"DEBUG: Updating product {product_id} with data: {data}")
+    
     p = session.get(Project, project_id)
     if not p:
         raise HTTPException(status_code=404, detail="Projekt saknas.")
@@ -398,30 +400,45 @@ def update_rejected_product(
     if not product or product.project_id != project_id:
         raise HTTPException(status_code=404, detail="Rejected product saknas.")
     
-    # Update fields
-    if "company_id" in data:
-        product.company_id = data["company_id"]
-    if "pdf_filename" in data:
-        product.pdf_filename = data["pdf_filename"]
-    if "pdf_source" in data:
-        product.pdf_source = data["pdf_source"]
-    if "notes" in data:
-        product.notes = data["notes"]
-    
-    # Auto-update status based on data availability (unless manually overridden)
-    if "status" not in data:
-        product.status = update_product_status_based_on_data(product)
-    else:
-        product.status = data["status"]
-    
-    session.add(product)
-    
-    # Sync with MatchResult status
-    sync_match_result_status(product, session)
-    
-    session.commit()
-    
-    return {"message": "Rejected product updated successfully."}
+    try:
+        # Update fields
+        if "company_id" in data:
+            product.company_id = data["company_id"]
+        if "pdf_filename" in data:
+            product.pdf_filename = data["pdf_filename"]
+        if "pdf_source" in data:
+            product.pdf_source = data["pdf_source"]
+        if "notes" in data:
+            product.notes = data["notes"]
+        
+        # Auto-update status based on data availability (unless manually overridden)
+        if "status" not in data:
+            new_status = update_product_status_based_on_data(product)
+            print(f"DEBUG: Auto-updating status to: {new_status}")
+            product.status = new_status
+        else:
+            new_status = data["status"]
+            print(f"DEBUG: Manual status update to: {new_status}")
+            # Validate status
+            valid_statuses = ["ready_for_db_import", "pdf_companyid_missing", "pdf_missing", "companyid_missing", "request_worklist"]
+            if new_status not in valid_statuses:
+                raise HTTPException(status_code=422, detail=f"Invalid status: {new_status}. Valid statuses: {valid_statuses}")
+            product.status = new_status
+        
+        session.add(product)
+        
+        # Sync with MatchResult status
+        sync_match_result_status(product, session)
+        
+        session.commit()
+        print(f"DEBUG: Successfully updated product {product_id}")
+        
+        return {"message": "Rejected product updated successfully."}
+        
+    except Exception as e:
+        print(f"DEBUG: Error updating product {product_id}: {str(e)}")
+        session.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to update product: {str(e)}")
 
 
 @router.post("/projects/{project_id}/rejected-products/{product_id}/upload-pdf")

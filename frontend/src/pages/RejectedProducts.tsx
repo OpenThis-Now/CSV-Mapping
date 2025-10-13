@@ -655,12 +655,14 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
 
   const updateProduct = async (productId: number, data: Partial<RejectedProduct>) => {
     try {
+      console.log("Updating product with data:", data);
       await api.put(`/projects/${projectId}/rejected-products/${productId}`, data);
       showToast("Product updated successfully", 'success');
       await loadProducts();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to update product:", error);
-      showToast("Failed to update product", 'error');
+      const errorMessage = error.response?.data?.detail || error.message || "Failed to update product";
+      showToast(`Failed to update product: ${errorMessage}`, 'error');
     }
   };
 
