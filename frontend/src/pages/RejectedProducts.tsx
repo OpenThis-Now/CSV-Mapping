@@ -620,8 +620,8 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
         // console.log("Auto-linking PDFs failed (non-critical):", linkError);
       }
     } catch (error) {
-      console.error("Failed to load rejected products:", error);
-      showToast("Failed to load rejected products", 'error');
+      console.error("Failed to load rejected matches:", error);
+      showToast("Failed to load rejected matches", 'error');
     } finally {
       setLoading(false);
     }
@@ -853,9 +853,9 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
   if (products.length === 0) {
     return (
       <div className="text-center py-8">
-        <div className="text-gray-500 mb-4">No rejected products found</div>
+        <div className="text-gray-500 mb-4">No rejected matches found</div>
         <div className="text-sm text-gray-400">
-          Rejected products will appear here after running matching
+          Rejected matches will appear here after running matching
         </div>
       </div>
     );
@@ -864,7 +864,7 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
   return (
     <div className="mx-auto max-w-6xl px-4 pb-20">
       <div className="mb-5 mt-2 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Rejected Products</h1>
+        <h1 className="text-2xl font-semibold">Rejected Matches</h1>
         <div className="rounded-xl bg-gray-100 px-3 py-1 text-xs text-gray-600">Project: {projectId}</div>
       </div>
 

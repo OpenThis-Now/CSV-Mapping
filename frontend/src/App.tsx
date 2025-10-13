@@ -127,7 +127,7 @@ function AppContent() {
               onClick={() => setView("rejected")} 
               disabled={!projectId || !hasDatabase || !hasImports || !hasSelectedImport}
             >
-              Rejected Products
+              Rejected Matches
             </button>
             <button 
               className={`chip ${view === "info" ? "bg-blue-100 border-blue-300 text-blue-800" : ""}`}
