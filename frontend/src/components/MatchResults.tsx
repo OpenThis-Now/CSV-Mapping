@@ -156,9 +156,9 @@ function TableView({ results, selectedIds, onSelectionChange }: { results: Match
                     Not on market & language
                   </div>
                 ) : r.decision === "rejected" ? (
-                  // Show "Supplier mapped" for manually rejected products
-                  <div className="text-sm text-blue-600 font-medium">
-                    Supplier mapped
+                  // Show "No match found" for manually rejected products
+                  <div className="text-sm text-gray-500 italic">
+                    No match found
                   </div>
                 ) : r.decision === "ready_for_db_import" ? (
                   // Show "New product" and "Supplier mapped" for ready_for_db_import
@@ -281,9 +281,9 @@ function CardView({ results, selectedIds, onSelectionChange, onApprove, onReject
                     Not on market & language
                   </div>
                 ) : r.decision === "rejected" ? (
-                  // Show "Supplier mapped" for manually rejected products
-                  <div className="text-sm text-blue-600 font-medium">
-                    Supplier mapped
+                  // Show "No match found" for manually rejected products
+                  <div className="text-sm text-gray-500 italic">
+                    No match found
                   </div>
                 ) : r.decision === "ready_for_db_import" ? (
                   // Show "New product" and "Supplier mapped" for ready_for_db_import
