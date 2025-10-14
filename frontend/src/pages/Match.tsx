@@ -172,7 +172,7 @@ export default function MatchPage({ projectId }: { projectId: number }) {
     })
   .sort((a, b) => {
     // Sort by decision first (pending first), then by customer_row_index, then by id
-    const decisionOrder = { pending: 0, sent_to_ai: 1, ai_auto_rejected: 2, auto_rejected: 3, auto_approved: 4, approved: 5, ready_for_db_import: 6, rejected: 7 };
+    const decisionOrder = { pending: 0, sent_to_ai: 1, ready_for_db_import: 2, ai_auto_rejected: 3, auto_rejected: 4, rejected: 5, auto_approved: 6, approved: 7 };
     const aOrder = decisionOrder[a.decision as keyof typeof decisionOrder] ?? 999;
     const bOrder = decisionOrder[b.decision as keyof typeof decisionOrder] ?? 999;
     
