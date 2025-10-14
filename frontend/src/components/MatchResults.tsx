@@ -161,13 +161,13 @@ function TableView({ results, selectedIds, onSelectionChange }: { results: Match
                     Supplier mapped
                   </div>
                 ) : r.decision === "ready_for_db_import" ? (
-                  // Show supplier name and "New product" for ready_for_db_import
+                  // Show "New product" and "Supplier mapped" for ready_for_db_import
                   <TripleCell 
                     title="New product"
-                    vendor={r.db_preview?.["Supplier"] || r.db_preview?.["Leverantör"] || "-"} 
-                    sku={r.db_preview?.["Art.no"] || r.db_preview?.["Artikelnummer"] || "-"} 
-                    market={r.db_preview?.["Market"] || r.db_preview?.["Marknad"] || ""}
-                    language={r.db_preview?.["Language"] || r.db_preview?.["Språk"] || ""}
+                    vendor="Supplier mapped"
+                    sku="-"
+                    market=""
+                    language=""
                   />
                 ) : (
                   <TripleCell 
@@ -286,14 +286,14 @@ function CardView({ results, selectedIds, onSelectionChange, onApprove, onReject
                     Supplier mapped
                   </div>
                 ) : r.decision === "ready_for_db_import" ? (
-                  // Show supplier name and "New product" for ready_for_db_import
+                  // Show "New product" and "Supplier mapped" for ready_for_db_import
                   <TripleCell 
                     title="New product"
-                    vendor={r.db_preview?.["Supplier"] || r.db_preview?.["Leverantör"] || "-"} 
-                    sku={r.db_preview?.["Art.no"] || r.db_preview?.["Artikelnummer"] || "-"} 
-                    market={r.db_preview?.["Market"] || r.db_preview?.["Marknad"] || ""}
-                    legislation={r.db_preview?.["Legislation"] || r.db_preview?.["Legislation"] || ""}
-                    language={r.db_preview?.["Language"] || r.db_preview?.["Språk"] || ""}
+                    vendor="Supplier mapped"
+                    sku="-"
+                    market=""
+                    legislation=""
+                    language=""
                   />
                 ) : (
                   <TripleCell 
