@@ -646,9 +646,32 @@ def export_rejected_products_csv(project_id: int, session: Session = Depends(get
                 # Add all customer fields
                 for field in sorted(all_customer_fields):
                     row.append(match_result.customer_fields_json.get(field, ""))
+                
+                # Add database fields - use supplier mapping data if available
+                db_data = match_result.db_fields_json or {}
+                if product.company_id:
+                    # Get supplier mapping data
+                    from ..models import SupplierData
+                    supplier_data = session.exec(
+                        select(SupplierData).where(
+                            SupplierData.project_id == project_id,
+                            SupplierData.company_id == product.company_id
+                        )
+                    ).first()
+                    
+                    if supplier_data:
+                        # Replace with supplier mapping data
+                        db_data = {
+                            "Product_name": "New product",
+                            "Supplier_name": supplier_data.supplier_name,
+                            "Company_ID": supplier_data.company_id,
+                            "Country": supplier_data.country
+                        }
+                
                 # Add all database fields
                 for field in sorted(all_db_fields):
-                    row.append(match_result.db_fields_json.get(field, "") if match_result.db_fields_json else "")
+                    row.append(db_data.get(field, ""))
+                
                 # Add workflow fields
                 row.extend([
                     product.company_id or "",

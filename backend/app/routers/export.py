@@ -78,7 +78,34 @@ def export_csv(project_id: int, type: str = "approved", session: Session = Depen
                 "AI_Summary": r.ai_summary or "",
                 "Customer_Row_Index": r.customer_row_index
             }
-            rows.append(merge_rows(r.customer_fields_json, r.db_fields_json or {}, metadata))
+            
+            # For rejected products, try to get supplier mapping data
+            db_data = r.db_fields_json or {}
+            if type == "rejected" and r.decision in ["rejected", "auto_rejected", "ai_auto_rejected"]:
+                from ..models import RejectedProductData, SupplierData
+                rejected_data = session.exec(
+                    select(RejectedProductData).where(RejectedProductData.match_result_id == r.id)
+                ).first()
+                
+                if rejected_data and rejected_data.company_id:
+                    # Get supplier mapping data
+                    supplier_data = session.exec(
+                        select(SupplierData).where(
+                            SupplierData.project_id == project_id,
+                            SupplierData.company_id == rejected_data.company_id
+                        )
+                    ).first()
+                    
+                    if supplier_data:
+                        # Replace db data with supplier mapping data
+                        db_data = {
+                            "Product_name": "New product",
+                            "Supplier_name": supplier_data.supplier_name,
+                            "Company_ID": supplier_data.company_id,
+                            "Country": supplier_data.country
+                        }
+            
+            rows.append(merge_rows(r.customer_fields_json, db_data, metadata))
         
         headers = sorted({k for row in rows for k in row.keys()})
         buf = io.StringIO()
