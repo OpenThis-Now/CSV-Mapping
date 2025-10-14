@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings, ensure_storage_dirs
 from .db import create_db_and_tables
-from .utils.logging import install_logging, RequestIDMiddleware
+from .utils.logging import install_logging
 from .routers import databases, projects, imports, match, approve, ai, export, projects_list, project_databases, pdf_imports, url_enhancement, rejected_products, suppliers
 from .version import __version__
 
@@ -36,7 +36,7 @@ app = FastAPI(
     openapi_url="/api/openapi.json",
 )
 
-# Middlewares - CORS must be added first to handle error responses properly
+# Middlewares - CORS must be first to handle error responses properly
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Allow all origins for now
@@ -44,7 +44,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.add_middleware(RequestIDMiddleware)
+# Note: RequestIDMiddleware removed due to ExceptionGroup errors in ASGI task groups
+# The BaseHTTPMiddleware pattern was causing 500 errors on some endpoints
 
 # Routers
 app.include_router(databases.router, prefix="/api", tags=["databases"])
