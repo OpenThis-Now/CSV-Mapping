@@ -56,10 +56,10 @@ def export_csv(project_id: int, type: str = "approved", session: Session = Depen
         results = session.exec(select(MatchResult).where(MatchResult.match_run_id == run.id, MatchResult.decision.in_(["rejected", "auto_rejected", "ai_auto_rejected"]))).all()
         if not results:
             raise HTTPException(status_code=400, detail="Inga avvisade rader.")
-    elif type == "ai_pending":
-        results = session.exec(select(MatchResult).where(MatchResult.match_run_id == run.id, MatchResult.decision == "sent_to_ai")).all()
+    elif type == "ready_for_db_import":
+        results = session.exec(select(MatchResult).where(MatchResult.match_run_id == run.id, MatchResult.decision == "ready_for_db_import")).all()
         if not results:
-            raise HTTPException(status_code=400, detail="Inga AI-väntande rader.")
+            raise HTTPException(status_code=400, detail="Inga produkter redo för DB-import.")
     else:
         raise HTTPException(status_code=400, detail="Ogiltig exporttyp.")
 
@@ -79,9 +79,10 @@ def export_csv(project_id: int, type: str = "approved", session: Session = Depen
                 "Customer_Row_Index": r.customer_row_index
             }
             
-            # For rejected products, try to get supplier mapping data
+            # For rejected products and ready_for_db_import, try to get supplier mapping data
             db_data = r.db_fields_json or {}
-            if type == "rejected" and r.decision in ["rejected", "auto_rejected", "ai_auto_rejected"]:
+            if (type == "rejected" and r.decision in ["rejected", "auto_rejected", "ai_auto_rejected"]) or \
+               (type == "ready_for_db_import" and r.decision == "ready_for_db_import"):
                 rejected_data = session.exec(
                     select(RejectedProductData).where(RejectedProductData.match_result_id == r.id)
                 ).first()
