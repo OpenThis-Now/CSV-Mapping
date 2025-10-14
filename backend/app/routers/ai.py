@@ -101,8 +101,8 @@ def _process_single_product_ai(project_id: int, customer_row_index: int, session
             )
             session.add(s)
             
-            # Auto-approve if confidence is 100%
-            if s.confidence >= 1.0:
+            # Auto-approve if BEST suggestion (rank 1) has confidence 100%
+            if s.confidence >= 1.0 and s.rank == 1:
                 # Update the match result
                 match_result = session.exec(
                     select(MatchResult).where(
@@ -118,8 +118,8 @@ def _process_single_product_ai(project_id: int, customer_row_index: int, session
                     match_result.ai_summary = f"AI auto-approved with {s.confidence:.0%} confidence: {s.rationale}"
                     session.add(match_result)
             
-            # Auto-reject if confidence is below 30%
-            elif s.confidence < 0.3:
+            # Auto-reject if BEST suggestion (rank 1) has confidence below 30%
+            elif s.confidence < 0.3 and s.rank == 1:
                 # Update the match result
                 match_result = session.exec(
                     select(MatchResult).where(
