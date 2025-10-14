@@ -130,7 +130,7 @@ def get_import_data(project_id: int, import_id: int, session: Session = Depends(
 
 
 @router.put("/projects/{project_id}/import/{import_id}/data")
-def update_import_data(project_id: int, import_id: int, data: List[Dict[str, Any]], session: Session = Depends(get_session)) -> Dict[str, str]:
+def update_import_data(project_id: int, import_id: int, data: List[Dict[str, Any]], session: Session = Depends(get_session)) -> Dict[str, Any]:
     """Update CSV data"""
     import logging
     logger = logging.getLogger("app")
