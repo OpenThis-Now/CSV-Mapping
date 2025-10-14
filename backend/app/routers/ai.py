@@ -427,12 +427,13 @@ def get_ai_suggestions(project_id: int, session: Session = Depends(get_session))
     
     # Get customer row indices that have already been decided
     # This includes all AI-related decisions: manual approval/rejection, auto-approval, and regular rejected
+    # NOTE: "completed" means AI has analyzed but NOT that user has made a decision!
     completed_row_indices = session.exec(
         select(MatchResult.customer_row_index)
         .where(MatchResult.match_run_id == latest_run.id)
         .where(
-            # Either has AI status set (manual decisions)
-            MatchResult.ai_status.in_(["approved", "rejected", "auto_approved", "completed"]) |
+            # Either has AI status set (manual decisions only - NOT "completed" which means AI analyzed but user hasn't decided)
+            MatchResult.ai_status.in_(["approved", "rejected", "auto_approved"]) |
             # Or is AI auto-approved
             (MatchResult.decision == "ai_auto_approved") |
             # Or is manually rejected
