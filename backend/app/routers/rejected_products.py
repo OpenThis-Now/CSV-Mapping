@@ -153,7 +153,7 @@ def get_rejected_products(project_id: int, session: Session = Depends(get_sessio
         .where(MatchResult.match_run_id.in_(
             select(MatchRun.id).where(MatchRun.project_id == project_id)
         ))
-        .where(MatchResult.decision.in_(["rejected", "auto_rejected", "ready_for_db_import"]))
+        .where(MatchResult.decision.in_(["rejected", "auto_rejected", "ai_auto_rejected", "ready_for_db_import"]))
     ).all()
     
     # Get or create RejectedProductData entries
