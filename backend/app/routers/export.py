@@ -18,10 +18,15 @@ def sanitize_header(h: str) -> str:
     return "".join(c if c.isalnum() or c in ("_", "-", " ") else "_" for c in h)
 
 
-def merge_rows(customer: dict[str, Any], db: dict[str, Any]) -> dict[str, Any]:
+def merge_rows(customer: dict[str, Any], db: dict[str, Any], metadata: dict[str, Any]) -> dict[str, Any]:
     out = {}
+    # Add metadata first (Status, Score, etc.)
+    for k, v in metadata.items():
+        out[f"match__{sanitize_header(k)}"] = v
+    # Then customer fields
     for k, v in customer.items():
         out[f"customer__{sanitize_header(k)}"] = v
+    # Then database fields
     for k, v in (db or {}).items():
         out[f"database__{sanitize_header(k)}"] = v
     return out
@@ -60,7 +65,19 @@ def export_csv(project_id: int, type: str = "approved", session: Session = Depen
 
     def row_iter() -> Iterable[bytes]:
         yield "\ufeff".encode("utf-8")
-        rows = [merge_rows(r.customer_fields_json, r.db_fields_json or {}) for r in results]
+        rows = []
+        for r in results:
+            metadata = {
+                "Status": r.decision,
+                "Overall_Score": r.overall_score,
+                "Exact_Match": "Yes" if r.exact_match else "No",
+                "Match_Reason": r.reason,
+                "AI_Status": r.ai_status or "",
+                "AI_Summary": r.ai_summary or "",
+                "Customer_Row_Index": r.customer_row_index
+            }
+            rows.append(merge_rows(r.customer_fields_json, r.db_fields_json or {}, metadata))
+        
         headers = sorted({k for row in rows for k in row.keys()})
         buf = io.StringIO()
         writer = csv.DictWriter(buf, fieldnames=headers, delimiter=delimiter, lineterminator="\n")
