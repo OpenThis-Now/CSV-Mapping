@@ -54,6 +54,9 @@ export type MatchResultItem = {
   customer_preview: Record<string, string>;
   db_preview?: Record<string, string> | null;
   ai_confidence?: number | null;
+  // Supplier mapping data for rejected products
+  mapped_supplier_name?: string | null;
+  mapped_company_id?: string | null;
 };
 export type AiSuggestionItem = {
   id?: number;

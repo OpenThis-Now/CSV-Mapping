@@ -76,6 +76,9 @@ class MatchResultItem(BaseModel):
     customer_preview: dict[str, Any]
     db_preview: Optional[dict[str, Any]]
     ai_confidence: Optional[float] = None
+    # Supplier mapping data for rejected products
+    mapped_supplier_name: Optional[str] = None
+    mapped_company_id: Optional[str] = None
 
 
 class ApproveRequest(BaseModel):

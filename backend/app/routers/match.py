@@ -469,6 +469,28 @@ def list_results(project_id: int, session: Session = Depends(get_session)) -> li
                 "Language": (r.db_fields_json.get(db_mapping.get("language", "Language")) or 
                             r.db_fields_json.get("Language") or ""),
             }
+        # Get supplier mapping data for rejected products
+        mapped_supplier_name = None
+        mapped_company_id = None
+        if r.decision in ["rejected", "auto_rejected", "ai_auto_rejected"]:
+            # Look for RejectedProductData with supplier mapping
+            from ..models import RejectedProductData, SupplierData
+            rejected_data = session.exec(
+                select(RejectedProductData).where(RejectedProductData.match_result_id == r.id)
+            ).first()
+            
+            if rejected_data and rejected_data.company_id:
+                mapped_company_id = rejected_data.company_id
+                # Get supplier name from SupplierData
+                supplier_data = session.exec(
+                    select(SupplierData).where(
+                        SupplierData.project_id == project_id,
+                        SupplierData.company_id == rejected_data.company_id
+                    )
+                ).first()
+                if supplier_data:
+                    mapped_supplier_name = supplier_data.supplier_name
+
         items.append(MatchResultItem(
             id=r.id,
             customer_row_index=r.customer_row_index,
@@ -479,5 +501,7 @@ def list_results(project_id: int, session: Session = Depends(get_session)) -> li
             customer_preview=cust_preview,
             db_preview=db_preview,
             ai_confidence=ai_suggestion.confidence if ai_suggestion else None,
+            mapped_supplier_name=mapped_supplier_name,
+            mapped_company_id=mapped_company_id,
         ))
     return items

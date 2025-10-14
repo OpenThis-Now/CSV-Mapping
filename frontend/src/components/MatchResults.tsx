@@ -156,10 +156,20 @@ function TableView({ results, selectedIds, onSelectionChange }: { results: Match
                     Not on market & language
                   </div>
                 ) : r.decision === "rejected" ? (
-                  // Show "No match found" for manually rejected products
-                  <div className="text-sm text-gray-500 italic">
-                    No match found
-                  </div>
+                  // Show supplier mapping data if available, otherwise "No match found"
+                  r.mapped_supplier_name ? (
+                    <TripleCell 
+                      title={r.mapped_supplier_name}
+                      vendor={r.mapped_company_id || "-"} 
+                      sku="-"
+                      market=""
+                      language=""
+                    />
+                  ) : (
+                    <div className="text-sm text-gray-500 italic">
+                      No match found
+                    </div>
+                  )
                 ) : r.decision === "ready_for_db_import" ? (
                   // Show supplier name and "New product" for ready_for_db_import
                   <TripleCell 
@@ -281,10 +291,21 @@ function CardView({ results, selectedIds, onSelectionChange, onApprove, onReject
                     Not on market & language
                   </div>
                 ) : r.decision === "rejected" ? (
-                  // Show "No match found" for manually rejected products
-                  <div className="text-sm text-gray-500 italic">
-                    No match found
-                  </div>
+                  // Show supplier mapping data if available, otherwise "No match found"
+                  r.mapped_supplier_name ? (
+                    <TripleCell 
+                      title={r.mapped_supplier_name}
+                      vendor={r.mapped_company_id || "-"} 
+                      sku="-"
+                      market=""
+                      legislation=""
+                      language=""
+                    />
+                  ) : (
+                    <div className="text-sm text-gray-500 italic">
+                      No match found
+                    </div>
+                  )
                 ) : r.decision === "ready_for_db_import" ? (
                   // Show supplier name and "New product" for ready_for_db_import
                   <TripleCell 
