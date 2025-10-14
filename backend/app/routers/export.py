@@ -23,12 +23,14 @@ def merge_rows(customer: dict[str, Any], db: dict[str, Any], metadata: dict[str,
     # Add metadata first (Status, Score, etc.)
     for k, v in metadata.items():
         out[f"match__{sanitize_header(k)}"] = v
-    # Then customer fields
+    # Then customer fields (exclude technical fields)
     for k, v in customer.items():
-        out[f"customer__{sanitize_header(k)}"] = v
-    # Then database fields
+        if k not in ["file_hash", "original_pdf_hash"]:  # Skip technical hash fields
+            out[f"customer__{sanitize_header(k)}"] = v
+    # Then database fields (exclude technical fields)
     for k, v in (db or {}).items():
-        out[f"database__{sanitize_header(k)}"] = v
+        if k not in ["file_hash", "original_pdf_hash"]:  # Skip technical hash fields
+            out[f"database__{sanitize_header(k)}"] = v
     return out
 
 
