@@ -11,7 +11,7 @@ from sqlmodel import Session, select
 
 from ..config import settings
 from ..db import get_session
-from ..models import MatchResult, MatchRun, Project, RejectedProductData, RejectedExport, DatabaseCatalog, ImportedPdf
+from ..models import MatchResult, MatchRun, Project, RejectedProductData, RejectedExport, DatabaseCatalog, ImportedPdf, SupplierData
 from ..schemas import RejectedProductUpdateRequest
 from ..services.files import detect_csv_separator, open_text_stream
 from ..services.mapping import auto_map_headers
@@ -651,7 +651,6 @@ def export_rejected_products_csv(project_id: int, session: Session = Depends(get
                 db_data = match_result.db_fields_json or {}
                 if product.company_id:
                     # Get supplier mapping data
-                    from ..models import SupplierData
                     supplier_data = session.exec(
                         select(SupplierData).where(
                             SupplierData.project_id == project_id,

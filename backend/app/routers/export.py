@@ -9,7 +9,7 @@ from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select
 
 from ..db import get_session
-from ..models import MatchResult, MatchRun, Project
+from ..models import MatchResult, MatchRun, Project, RejectedProductData, SupplierData
 
 router = APIRouter()
 
@@ -82,7 +82,6 @@ def export_csv(project_id: int, type: str = "approved", session: Session = Depen
             # For rejected products, try to get supplier mapping data
             db_data = r.db_fields_json or {}
             if type == "rejected" and r.decision in ["rejected", "auto_rejected", "ai_auto_rejected"]:
-                from ..models import RejectedProductData, SupplierData
                 rejected_data = session.exec(
                     select(RejectedProductData).where(RejectedProductData.match_result_id == r.id)
                 ).first()
