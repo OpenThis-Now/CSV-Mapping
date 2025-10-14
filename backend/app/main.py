@@ -36,8 +36,7 @@ app = FastAPI(
     openapi_url="/api/openapi.json",
 )
 
-# Middlewares
-app.add_middleware(RequestIDMiddleware)
+# Middlewares - CORS must be added first to handle error responses properly
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Allow all origins for now
@@ -45,6 +44,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(RequestIDMiddleware)
 
 # Routers
 app.include_router(databases.router, prefix="/api", tags=["databases"])
