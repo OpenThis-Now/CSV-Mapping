@@ -134,14 +134,12 @@ function TopActions({ onExportCsv, onExportZip }: { onExportCsv: () => void; onE
 function ProductRow({ 
   product, 
   index, 
-  onSave, 
   onUpload, 
   onUpdateProduct,
   uploadingPdf 
 }: {
   product: RejectedProduct;
   index: number;
-  onSave: (data: any) => void;
   onUpload: (productId: number, file: File) => void;
   onUpdateProduct: (productId: number, data: any) => void;
   uploadingPdf: number | null;
@@ -192,7 +190,7 @@ function ProductRow({
   };
 
   const handleSave = () => {
-    onSave({
+    onUpdateProduct(product.id, {
       company_id: companyId,
       notes: notes,
       status: status
@@ -343,10 +341,6 @@ function ProductsTab({
 }) {
   const filtered = useMemo(() => filterByQuery(products, query), [products, query]);
 
-  const onSave = (payload: any) => {
-    onUpdateProduct(payload.id, payload);
-  };
-
   return (
     <>
       <TopActions onExportCsv={onExportCompleted} onExportZip={onExportWorklist}/>
@@ -380,7 +374,6 @@ function ProductsTab({
             key={p.id} 
             product={p} 
             index={idx} 
-            onSave={onSave} 
             onUpload={onUploadPdf}
             onUpdateProduct={onUpdateProduct}
             uploadingPdf={uploadingPdf}
