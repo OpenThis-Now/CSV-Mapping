@@ -155,6 +155,20 @@ function TableView({ results, selectedIds, onSelectionChange }: { results: Match
                   <div className="text-sm text-gray-500 italic">
                     Not on market & language
                   </div>
+                ) : r.decision === "rejected" ? (
+                  // Show "No match found" for manually rejected products
+                  <div className="text-sm text-gray-500 italic">
+                    No match found
+                  </div>
+                ) : r.decision === "ready_for_db_import" ? (
+                  // Show supplier name and "New product" for ready_for_db_import
+                  <TripleCell 
+                    title="New product"
+                    vendor={r.db_preview?.["Supplier"] || r.db_preview?.["Leverantör"] || "-"} 
+                    sku={r.db_preview?.["Art.no"] || r.db_preview?.["Artikelnummer"] || "-"} 
+                    market={r.db_preview?.["Market"] || r.db_preview?.["Marknad"] || ""}
+                    language={r.db_preview?.["Language"] || r.db_preview?.["Språk"] || ""}
+                  />
                 ) : (
                   <TripleCell 
                     title={r.db_preview?.["Product"] || r.db_preview?.["Produkt"] || "-"} 
@@ -266,6 +280,21 @@ function CardView({ results, selectedIds, onSelectionChange, onApprove, onReject
                   <div className="text-sm text-gray-500 italic">
                     Not on market & language
                   </div>
+                ) : r.decision === "rejected" ? (
+                  // Show "No match found" for manually rejected products
+                  <div className="text-sm text-gray-500 italic">
+                    No match found
+                  </div>
+                ) : r.decision === "ready_for_db_import" ? (
+                  // Show supplier name and "New product" for ready_for_db_import
+                  <TripleCell 
+                    title="New product"
+                    vendor={r.db_preview?.["Supplier"] || r.db_preview?.["Leverantör"] || "-"} 
+                    sku={r.db_preview?.["Art.no"] || r.db_preview?.["Artikelnummer"] || "-"} 
+                    market={r.db_preview?.["Market"] || r.db_preview?.["Marknad"] || ""}
+                    legislation={r.db_preview?.["Legislation"] || r.db_preview?.["Legislation"] || ""}
+                    language={r.db_preview?.["Language"] || r.db_preview?.["Språk"] || ""}
+                  />
                 ) : (
                   <TripleCell 
                     title={r.db_preview?.["Product"] || r.db_preview?.["Produkt"] || "-"} 
