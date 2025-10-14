@@ -856,9 +856,8 @@ export default function RejectedProducts({ projectId }: RejectedProductsProps) {
 
   return (
     <div className="mx-auto max-w-6xl px-4 pb-20">
-      <div className="mb-5 mt-2 flex items-center justify-between">
+      <div className="mb-5 mt-2">
         <h1 className="text-2xl font-semibold">Rejected Matches</h1>
-        <div className="rounded-xl bg-gray-100 px-3 py-1 text-xs text-gray-600">Project: {projectId}</div>
       </div>
 
       <div className="mb-6 inline-flex rounded-xl border bg-white p-1 shadow-sm">
