@@ -132,59 +132,53 @@ def get_import_data(project_id: int, import_id: int, session: Session = Depends(
 @router.put("/projects/{project_id}/import/{import_id}/data")
 def update_import_data(project_id: int, import_id: int, data: List[Dict[str, Any]], session: Session = Depends(get_session)) -> Dict[str, str]:
     """Update CSV data"""
-    # print(f"DEBUG: update_import_data called with project_id={project_id}, import_id={import_id}, data_length={len(data)}")
-    
-    p = session.get(Project, project_id)
-    if not p:
-        # print(f"DEBUG: Project {project_id} not found")
-        raise HTTPException(status_code=404, detail="Projekt saknas.")
-    
-    imp = session.get(ImportFile, import_id)
-    if not imp or imp.project_id != project_id:
-        # print(f"DEBUG: ImportFile {import_id} not found or wrong project")
-        raise HTTPException(status_code=404, detail="Importfil saknas.")
-    
-    # Write updated CSV file
-    file_path = Path(settings.IMPORTS_DIR) / imp.filename
-    # print(f"DEBUG: File path: {file_path}")
-    # print(f"DEBUG: File exists: {file_path.exists()}")
-    
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="CSV-fil saknas på disk.")
+    import logging
+    logger = logging.getLogger("app")
     
     try:
-        separator = detect_csv_separator(file_path)
-        # print(f"DEBUG: Detected separator: '{separator}'")
+        p = session.get(Project, project_id)
+        if not p:
+            raise HTTPException(status_code=404, detail="Projekt saknas.")
         
-        # Get column headers from first row or existing mapping
+        imp = session.get(ImportFile, import_id)
+        if not imp or imp.project_id != project_id:
+            raise HTTPException(status_code=404, detail="Importfil saknas.")
+        
+        # Write updated CSV file
+        file_path = Path(settings.IMPORTS_DIR) / imp.filename
+        
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="CSV-fil saknas på disk.")
+        
+        # Detect separator from the original file
+        separator = detect_csv_separator(file_path)
+        
+        # Get column headers from data
         if data:
             headers = list(data[0].keys())
-            # print(f"DEBUG: Headers from data: {headers}")
         else:
             # If no data, use headers from mapping
-            headers = list(imp.columns_map_json.keys())
-            # print(f"DEBUG: Headers from mapping: {headers}")
+            headers = list(imp.columns_map_json.keys()) if imp.columns_map_json else []
         
-        # print(f"DEBUG: Writing {len(data)} rows to file")
-        
+        # Write the updated CSV file with explicit UTF-8 encoding
         with open(file_path, 'w', newline='', encoding='utf-8') as f:
             writer = csv.DictWriter(f, fieldnames=headers, delimiter=separator)
             writer.writeheader()
             writer.writerows(data)
         
-        # print(f"DEBUG: File written successfully")
-        
-        # Update row count
+        # Update row count in database
         imp.row_count = len(data)
         session.add(imp)
         session.commit()
         
-        # print(f"DEBUG: Database updated, row_count={len(data)}")
+        logger.info(f"CSV data updated for import {import_id}, {len(data)} rows")
         
         return {"message": "CSV-data uppdaterad.", "row_count": len(data)}
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
     except Exception as e:
-        # print(f"DEBUG: Exception occurred: {str(e)}")
-        # print(f"DEBUG: Exception type: {type(e)}")
-        import traceback
-        # print(f"DEBUG: Traceback: {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=f"Kunde inte skriva CSV-fil: {str(e)}")
+        # Log the full error for debugging
+        logger.error(f"Error updating CSV data for import {import_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Kunde inte uppdatera CSV-fil: {str(e)}")
