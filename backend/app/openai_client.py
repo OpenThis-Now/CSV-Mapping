@@ -67,7 +67,8 @@ def suggest_with_openai(prompt: str, max_items: int = 3, api_key_index: int = 0)
     import json, re
     
     # First, try to extract JSON from markdown code blocks
-    json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', text, flags=re.DOTALL)
+    # Try to match both JSON arrays and objects in markdown blocks
+    json_match = re.search(r'```(?:json)?\s*(\[.*?\]|\{.*?\})\s*```', text, flags=re.DOTALL)
     if json_match:
         json_text = json_match.group(1)
         # print(f"Extracted JSON from markdown: {json_text[:200]}...")

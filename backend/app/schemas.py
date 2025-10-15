@@ -102,6 +102,7 @@ class AiSuggestionItem(BaseModel):
     database_fields_json: dict[str, Any]
     confidence: float
     rationale: str
+    recommendation: str = ""
     source: str
 
 

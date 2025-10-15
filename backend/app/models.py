@@ -100,6 +100,7 @@ class AiSuggestion(SQLModel, table=True):
     database_fields_json: dict[str, Any] = Field(sa_column=Column(JSON))
     confidence: float
     rationale: str = Field(sa_column=Column(Text))
+    recommendation: str = Field(default="", sa_column=Column(Text))
     source: str = Field(default="ai")
     created_at: datetime = Field(default_factory=datetime.utcnow)
 

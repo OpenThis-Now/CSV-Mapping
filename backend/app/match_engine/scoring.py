@@ -10,6 +10,23 @@ from .thresholds import Thresholds
 
 def score_fields(customer: str, db: str) -> int:
     a, b = normalize_text(customer), normalize_text(db)
+    
+    # Handle products with multiple names separated by commas
+    # Split by comma and test each part, return the highest score
+    if ',' in db:
+        db_parts = [part.strip() for part in db.split(',')]
+        max_score = 0
+        for db_part in db_parts:
+            if db_part:  # Skip empty parts
+                part_a, part_b = normalize_text(customer), normalize_text(db_part)
+                part_score = int(fuzz.token_sort_ratio(part_a, part_b))
+                # Apply chemical penalty for this part
+                chemical_penalty = calculate_chemical_penalty(customer, db_part)
+                final_score = max(0, part_score - chemical_penalty)
+                max_score = max(max_score, final_score)
+        return max_score
+    
+    # Original logic for single product names
     base_score = int(fuzz.token_sort_ratio(a, b))
     
     # Apply chemical name penalty for significant chemical differences
@@ -247,9 +264,24 @@ def score_pair(customer_row: dict[str, Any], db_row: dict[str, Any], customer_ma
         reason.append("Different SKUs")
     if market_mismatch:
         reason.append("Other market")
+    
+    # Smart recommendation logic - only suggest reviewing fields that actually need review
+    review_fields = []
     if vendor_score < thr.vendor_min:
-        reason.append("Low vendor match")
+        review_fields.append("supplier")
     if product_score < thr.product_min:
+        review_fields.append("product name")
+    if cs.strip() and ds.strip() and not sku_exact(cs, ds):
+        review_fields.append("article number")
+    
+    if review_fields:
+        if len(review_fields) == 1:
+            reason.append(f"Review match - review {review_fields[0]}")
+        else:
+            reason.append(f"Review match - review {' and '.join(review_fields)}")
+    elif vendor_score < thr.vendor_min:
+        reason.append("Low vendor match")
+    elif product_score < thr.product_min:
         reason.append("Low product match")
 
     decision = "pending"

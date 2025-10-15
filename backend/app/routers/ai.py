@@ -97,6 +97,7 @@ def _process_single_product_ai(project_id: int, customer_row_index: int, session
                 database_fields_json=item["database_fields_json"],
                 confidence=item["confidence"],
                 rationale=item["rationale"],
+                recommendation=item.get("recommendation", ""),
                 source="ai"
             )
             session.add(s)
@@ -141,6 +142,7 @@ def _process_single_product_ai(project_id: int, customer_row_index: int, session
                 database_fields_json=s.database_fields_json,
                 confidence=s.confidence,
                 rationale=s.rationale,
+                recommendation=s.recommendation,
                 source=s.source,
             ))
         
@@ -172,6 +174,7 @@ def build_ai_prompt(customer_row, db_sample, mapping, k: int) -> str:
         3) Language & market policy (IMPORTANT):
            - Language MUST match; otherwise cap confidence at ≤0.49.
            - Market may differ; if so, explicitly flag it and apply a deduction (see scoring). Market must match for 1.0.
+           - **CRITICAL**: Market and language alone are NOT sufficient for matching. These fields are only for distinguishing similar products across different markets/languages, not for matching different products within the same market. A match requires actual product data (name, supplier, article number, etc.) beyond just market/language alignment.
 
         4) Supplier/brand variance:
            - Treat distributor/private-label/subsidiary names as potential aliases if canonical tokens overlap strongly (e.g., "Sherwinn Williams" ≈ "The Sherwin-Williams Company"). Do not penalize alias when strong identifiers align.
@@ -222,6 +225,18 @@ def build_ai_prompt(customer_row, db_sample, mapping, k: int) -> str:
            * Whether better alternatives likely exist in this candidate set
            
            IMPORTANT: Do NOT include "FIELDS_TO_REVIEW" in your rationale - this will be handled separately.
+        
+        - "recommendation": A specific recommendation for manual review that identifies the exact fields that need attention:
+           * For language mismatches: "Weak match - review language"
+           * For market mismatches: "Weak match - review market" 
+           * For supplier mismatches: "Weak match - review supplier"
+           * For product name mismatches: "Weak match - review product name"
+           * For article number mismatches: "Weak match - review article number"
+           * For multiple issues: "Weak match - review [field1] and [field2]"
+           * For strong matches: "Strong match - review [specific field] if needed"
+           * For exact matches: "Exact match - no review needed"
+           
+           **IMPORTANT**: Use "Weak match" for any significant mismatches in product name, supplier, or article number. Only use "Strong match" or "Good match" when there are only minor differences or missing optional fields.
 
         — Calibration examples (for the model; do not output) —
         Example 1 — should be 1.0:
@@ -243,6 +258,11 @@ def build_ai_prompt(customer_row, db_sample, mapping, k: int) -> str:
         Input: name "Alcohol Wipes", supplier "Nice Pak", art.no "WP001", market "Australia", language "English".
         Candidate: name "Industrial Adhesive", supplier "3M Canada", art.no "ADH123", market "Canada", language "English".
         Expected: confidence ≤ 0.10, rationale should explain why it was considered (e.g., "This candidate was selected because both products are industrial cleaning/construction materials, but the fundamental product types are incompatible.")
+        
+        Example 5 — different products, same market (should be weak match):
+        Input: name "Permabond A1046", supplier "Permabond Engineering Adhesives Ltd.", market "Sweden", language "Swedish".
+        Candidate: name "SikaBond®-530", supplier "Sika Sverige AB", market "Sweden", language "Swedish".
+        Expected: confidence ≤ 0.49, rationale should explain that matching market/language alone is insufficient - different product names and suppliers make this a poor match despite same market/language, recommendation should be "Weak match - review supplier and product name"
 
         Customer row to match:
         {json.dumps(customer_row, ensure_ascii=False)}
@@ -409,6 +429,7 @@ def ai_suggest(project_id: int, req: AiSuggestRequest, session: Session = Depend
                 database_fields_json=s.database_fields_json,
                 confidence=s.confidence,
                 rationale=s.rationale,
+                recommendation=s.recommendation,
                 source=s.source,
             ))
     return out
@@ -428,6 +449,7 @@ def get_ai_suggestions(project_id: int, session: Session = Depends(get_session))
     # Get customer row indices that have already been decided
     # This includes all AI-related decisions: manual approval/rejection, auto-approval, and all types of rejected
     # NOTE: "completed" means AI has analyzed but NOT that user has made a decision!
+    # So we exclude "completed" from completed_row_indices
     completed_row_indices = session.exec(
         select(MatchResult.customer_row_index)
         .where(MatchResult.match_run_id == latest_run.id)
@@ -446,16 +468,20 @@ def get_ai_suggestions(project_id: int, session: Session = Depends(get_session))
         select(AiSuggestion)
         .where(AiSuggestion.project_id == project_id)
         .where(~AiSuggestion.customer_row_index.in_(completed_row_indices))
-        .order_by(AiSuggestion.customer_row_index, AiSuggestion.rank)
+        .order_by(AiSuggestion.customer_row_index, AiSuggestion.confidence.desc())
     ).all()
     
     # Also get MatchResults that are "sent_to_ai" but don't have AI suggestions yet
     # These represent products that are ready for AI review but haven't been processed yet
+    # Include products with ai_status="completed" as they need manual review
     sent_to_ai_results = session.exec(
         select(MatchResult)
         .where(MatchResult.match_run_id == latest_run.id)
         .where(MatchResult.decision == "sent_to_ai")
-        .where(MatchResult.ai_status.is_(None))  # No AI status set yet
+        .where(
+            (MatchResult.ai_status.is_(None)) |  # No AI status set yet
+            (MatchResult.ai_status == "completed")  # AI has analyzed but user needs to decide
+        )
         .where(~MatchResult.customer_row_index.in_(completed_row_indices))
         .order_by(MatchResult.customer_row_index)
     ).all()
@@ -492,9 +518,10 @@ def get_ai_suggestions(project_id: int, session: Session = Depends(get_session))
             id=result.id,  # Use match result ID as temporary ID
             customer_row_index=result.customer_row_index,
             rank=1,
-            database_fields_json=result.database_fields_json or {},
+            database_fields_json=result.db_fields_json or {},
             confidence=0.0,  # No confidence yet since AI hasn't run
             rationale="Ready for AI review - click to start analysis",
+            recommendation="",
             source="pending_ai_review"
         ))
     
@@ -521,6 +548,7 @@ def get_ai_suggestions(project_id: int, session: Session = Depends(get_session))
             database_fields_json=s.database_fields_json,
             confidence=s.confidence,
             rationale=s.rationale,
+            recommendation=s.recommendation,
             source=s.source,
         )
         for s in deduplicated_suggestions

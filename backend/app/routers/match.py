@@ -408,6 +408,7 @@ def list_results(project_id: int, session: Session = Depends(get_session)) -> li
             # Fallback to rank 1 (recommended match)
             ai_suggestion = session.exec(
                 select(AiSuggestion).where(
+                    AiSuggestion.project_id == project_id,
                     AiSuggestion.customer_row_index == r.customer_row_index,
                     AiSuggestion.rank == 1
                 ).order_by(AiSuggestion.created_at.desc())
