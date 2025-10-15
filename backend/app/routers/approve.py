@@ -14,7 +14,17 @@ router = APIRouter()
 def approve_results(project_id: int, req: ApproveRequest, session: Session = Depends(get_session)):
     if not req.ids and not req.customer_row_indices:
         raise HTTPException(status_code=400, detail="Inga resultat angivna.")
-    q = select(MatchResult).where(MatchResult.decision != "approved")
+    
+    # Get the latest match run for this specific project
+    run = session.exec(select(MatchRun).where(MatchRun.project_id == project_id).order_by(MatchRun.started_at.desc())).first()
+    if not run:
+        raise HTTPException(status_code=404, detail="Ingen matchning hittades för detta projekt.")
+    
+    # Only get results from this specific project's match run
+    q = select(MatchResult).where(
+        MatchResult.match_run_id == run.id,
+        MatchResult.decision != "approved"
+    )
     results = session.exec(q).all()
     count = 0
     for r in results:
@@ -71,7 +81,17 @@ def reject_results(project_id: int, req: ApproveRequest, session: Session = Depe
     """Mark results as not approved"""
     if not req.ids and not req.customer_row_indices:
         raise HTTPException(status_code=400, detail="Inga resultat angivna.")
-    q = select(MatchResult).where(MatchResult.decision.in_(["pending", "auto_approved", "approved", "sent_to_ai", "ai_auto_approved"]))
+    
+    # Get the latest match run for this specific project
+    run = session.exec(select(MatchRun).where(MatchRun.project_id == project_id).order_by(MatchRun.started_at.desc())).first()
+    if not run:
+        raise HTTPException(status_code=404, detail="Ingen matchning hittades för detta projekt.")
+    
+    # Only get results from this specific project's match run
+    q = select(MatchResult).where(
+        MatchResult.match_run_id == run.id,
+        MatchResult.decision.in_(["pending", "auto_approved", "approved", "sent_to_ai", "ai_auto_approved"])
+    )
     results = session.exec(q).all()
     count = 0
     for r in results:
@@ -94,8 +114,14 @@ def send_to_ai(project_id: int, req: ApproveRequest, session: Session = Depends(
     if not req.ids and not req.customer_row_indices:
         raise HTTPException(status_code=400, detail="Inga resultat angivna.")
     
-    # Build query to get only the specific results we want to send to AI
+    # Get the latest match run for this specific project
+    run = session.exec(select(MatchRun).where(MatchRun.project_id == project_id).order_by(MatchRun.started_at.desc())).first()
+    if not run:
+        raise HTTPException(status_code=404, detail="Ingen matchning hittades för detta projekt.")
+    
+    # Build query to get only the specific results we want to send to AI from this project
     q = select(MatchResult).where(
+        MatchResult.match_run_id == run.id,
         MatchResult.decision.in_(["pending", "auto_approved", "approved", "rejected", "ai_auto_approved"])
     )
     
